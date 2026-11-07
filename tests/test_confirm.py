@@ -188,3 +188,33 @@ def test_code_confirmation_survives_broken_llm_reply(make_case, make_metric, reg
     c = make_case(region="Челябинская область", metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин")])
     confirm_case(c, FakeSearch(lambda **kw: [CHEL]), Broken(), registry, D, 5)
     assert c.confirmation_status == ConfirmationStatus.CONFIRMED
+
+
+def test_generic_org_words_are_not_a_place(make_case, make_metric):
+    art = Article(url="https://tadviser.ru/x", domain="tadviser.ru", title="",
+                  text="Обзор информационных систем. Производительность хозяйства растёт на 30% при внедрении ИИ.")
+    c = make_case(region="федеральный уровень", organization="Республиканский информационно-вычислительный центр (РИВЦ)",
+                  metrics=[make_metric(name="производительность хозяйства", before=None, after=None, change="+30%",
+                                       quote="производительность хозяйства вырастает на 30%")])
+    assert find_number_confirmations(c, [art]) == []
+
+
+def test_proper_name_in_org_is_a_place(make_case, make_metric):
+    art = Article(url="https://jaycopilot.com/sova", domain="jaycopilot.com", title="",
+                  text="В Совкомбанке бот «Сова» экономит сотрудникам 310 000 часов в год.")
+    c = make_case(region="федеральный уровень", organization="Совкомбанк",
+                  metrics=[make_metric(name="экономия рабочего времени", before=None, after="310 000 часов в год",
+                                       change=None, quote="экономия рабочего времени составила 310 000 часов в год")])
+    assert find_number_confirmations(c, [art]) == [(0, "https://jaycopilot.com/sova",
+                                                    "В Совкомбанке бот «Сова» экономит сотрудникам 310 000 часов в год.")]
+
+
+def test_conflict_needs_same_unit(make_case, make_metric, registry):
+    art = Article(url="https://terratech.ru/1", domain="terratech.ru", title="",
+                  text="Геоаналитику «Цифровой Земли» уже используют 74 региона России.")
+    c = make_case(metrics=[make_metric(name="автоматизация", before=None, after="70%", change="+70 п.п.",
+                                       quote="автоматизация достигла 70%")])
+    llm = FakeLLM([{"matches": [{"metric_index": 0, "url": art.url, "value": "74 региона", "agrees": False,
+                                 "quote": "уже используют 74 региона России"}]}])
+    confirm_case(c, FakeSearch(lambda **kw: [art]), llm, registry, D, 5)
+    assert c.confirmation_status == ConfirmationStatus.SINGLE

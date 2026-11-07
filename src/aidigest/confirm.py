@@ -39,11 +39,27 @@ def _all_in(wanted: list[float], have: list[float]) -> bool:
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 # Общие слова в названиях мест и ведомств — по ним «место кейса» не узнать.
 _GENERIC_PLACE = {"облас", "респу", "город", "район", "прави", "минис", "админ", "федер", "управ", "госуд",
-                  "росси", "нацио", "центр", "компа", "групп", "служб", "депар", "комит"}
+                  "росси", "нацио", "центр", "компа", "групп", "служб", "депар", "комит", "уровн"}
 
 
-def _stems(text: str | None) -> set[str]:
-    return {w[:5] for w in re.findall(r"[^\W\d_]+", normalize_text(text or "")) if len(w) >= 5}
+def _stems(text: str | None, min_len: int = 5) -> set[str]:
+    return {w[:5] for w in re.findall(r"[^\W\d_]+", normalize_text(text or "")) if len(w) >= min_len}
+
+
+def _place_stems(case: Case) -> set[str]:
+    """Место кейса: регион и город, а из названия организации — только имена собственные
+    (с заглавной буквы, латиница, аббревиатуры). Обычные слова («информационный центр») — не место."""
+    stems = _stems(case.region) | _stems(case.municipality)
+    for token in re.findall(r"[^\W\d_][\w-]*", case.organization or ""):
+        proper = token[0].isupper() or token[0].isascii()
+        if proper and (len(token) >= 4 or (token.isupper() and len(token) >= 3)):
+            stems.add(normalize_text(token)[:5])
+    return stems - _GENERIC_PLACE
+
+
+def _unit_kind(text: str) -> str:
+    s = normalize_text(text)
+    return "%" if ("%" in s or "процент" in s or "п.п" in s) else "abs"
 
 
 def _distinctive(numbers: list[float]) -> bool:
@@ -56,12 +72,12 @@ def find_number_confirmations(case: Case, articles: list[Article]) -> list[tuple
     показателя (хотя бы одно не мелкое) и словом из его названия, а сама статья упоминает место кейса.
 
     Возвращает (индекс показателя, URL, предложение)."""
-    place = (_stems(case.region) | _stems(case.municipality) | _stems(case.organization)) - _GENERIC_PLACE
+    place = _place_stems(case)
     if not place:
         return []
     out = []
     for article in articles:
-        if not (place & _stems(article.text)):
+        if not (place & _stems(article.text, min_len=3)):
             continue
         sentences = _SENTENCE_SPLIT.split(article.text)
         for i, metric in enumerate(case.metrics):
@@ -156,6 +172,9 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
             value = str(m.get("value") or "")
             if not _all_in(extract_numbers(value), extract_numbers(quote)):
                 continue
+            mine = " ".join(filter(None, (metric.before, metric.after, metric.change)))
+            if _unit_kind(value) != _unit_kind(mine):
+                continue  # «74 региона» против «70%» — разные показатели, а не противоречие
             metric.conflicting_values.append(f"{value} ({url})")
         if url not in known:
             case.sources.append(registry.to_source(article))
