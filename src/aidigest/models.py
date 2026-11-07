@@ -141,7 +141,8 @@ class Case(BaseModel):
             out.append(Flag.NO_METRICS)
         if any(s.reliability == Reliability.UNRATED for s in self.sources):
             out.append(Flag.SOURCE_UNRATED)
-        if self.metrics and self.confirmation_attempts == 0:
+        if (self.metrics and self.confirmation_attempts == 0
+                and self.confirmation_status == ConfirmationStatus.SINGLE):
             out.append(Flag.CONFIRMATION_SKIPPED)
         return out
 
