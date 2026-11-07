@@ -17,3 +17,9 @@ venv/
 
 # Временные файлы Office
 ~$*
+
+# Данные пайплайна
+data/cache/
+data/out/
+*.egg-info/
+.superpowers/
