@@ -1,0 +1,39 @@
+# Эталон: кейсы из «Вводные данные/md/рос и рег.md».
+# URL найдены вручную (DuckDuckGo через браузер). Ожидаемые цифры — только те, что есть в текстах статей.
+# Если статья не скачивается, её текст кладётся в eval/texts/<id>-<номер url>.txt.
+references:
+  - id: chelyabinsk-traffic
+    title: Челябинская область — компьютерное зрение в управлении дорожным движением
+    urls:
+      - https://www.chel.kp.ru/online/news/6831684/
+      - https://www.chel.kp.ru/online/news/6837688/
+    expected:
+      - label: время в пробках 13 → 5 мин
+        numbers: [13, 5]
+      - label: ДТП 161 → 122
+        numbers: [161, 122]
+      - label: время в пробках сократилось в 2,5 раза
+        numbers: [2.5]
+  - id: belgorod-water
+    title: Белгородская область — цифровой двойник водоснабжения
+    urls:
+      - https://chr.rbc.ru/chr/freenews/699851fb9a79474c7ec72bd1
+      - https://itrussia.media/ru/article/v-belgorodskoy-oblasti-iskusstvennyy-intellekt-nauchili-upravlyat-vodosnabzheniem-27-02-2026
+      - http://government.ru/news/57915/
+    expected:
+      - label: длительные отключения −23%
+        numbers: [23]
+      - label: экономия бюджета > 9 млн руб.
+        numbers: [9000000]
+      - label: точность прогноза > 90%
+        numbers: [90]
+      - label: охват > 230 объектов
+        numbers: [230]
+  - id: tatarstan-gosprompt
+    title: Татарстан — ИИ-помощник госслужащих «ГосПромпт»
+    urls:
+      - https://kazanfirst.ru/news/v-tatarstane-zapustili-czifrovogo-pomoshhnika-gospromt
+      - https://www.comnews.ru/content/237606/2025-02-05/2025-w06/1011/ii-pomoschnik-transformiruet-gosudarstvennoe-upravlenie-tatarstana
+    expected:
+      - label: 426 госслужащих из 25 ведомств
+        numbers: [426, 25]

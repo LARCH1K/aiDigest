@@ -61,3 +61,27 @@ def test_methodology_prompt_lists_all_criteria():
     for crits in CRITERIA.values():
         for c in crits:
             assert c in p
+
+
+def test_single_case_without_wrapper_is_accepted(registry, case_reply):
+    [c] = extract_cases(ART, FakeLLM([case_reply()["cases"][0]]), registry, D, 12000)
+    assert c.metrics[0].quote_verified
+
+
+def test_top_level_list_is_accepted(registry, case_reply):
+    assert len(extract_cases(ART, FakeLLM([case_reply()["cases"]]), registry, D, 12000)) == 1
+
+
+def test_derived_after_value_is_dropped_when_change_is_quoted(registry, case_reply):
+    art = Article(url="https://gov.ru/1", domain="gov.ru", title="",
+                  text="Число долгих ремонтов сократилось почти на четверть (23%).")
+    r = case_reply(before=None, after="77%", change="-23%", quote="сократилось почти на четверть (23%)")
+    [c] = extract_cases(art, FakeLLM([r]), registry, D, 12000)
+    m = c.metrics[0]
+    assert m.after is None and m.change == "-23%" and m.quote_verified
+
+
+def test_invented_change_is_not_rescued(registry, case_reply):
+    r = case_reply(before="13 мин", after="5 мин", change="-70%")
+    [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
+    assert not c.metrics[0].quote_verified

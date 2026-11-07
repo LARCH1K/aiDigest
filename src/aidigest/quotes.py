@@ -7,10 +7,12 @@ _SPACES = "    "
 _QUOTES = "«»“”„\"'‘’"
 _DASHES = "—–−‒"
 
-_MULTIPLIERS = {"тыс": 1e3, "млн": 1e6, "млрд": 1e9, "трлн": 1e12}
+# Префикс слова-множителя → множитель (порядок важен: «миллиард» раньше «миллион»).
+_MULTIPLIERS = [("тыс", 1e3), ("млрд", 1e9), ("миллиард", 1e9), ("млн", 1e6), ("миллион", 1e6),
+                ("трлн", 1e12), ("триллион", 1e12)]
 _NUMBER_RE = re.compile(
     r"(?<![\d.,])(\d{1,3}(?:[    ]\d{3})+|\d+)([.,]\d+)?"
-    r"(?:\s*(тыс|млн|млрд|трлн)(?![а-яё]{3,}))?",
+    r"(?:\s*(тыс[а-яё]*|млрд|млн|трлн|миллиард[а-яё]*|миллион[а-яё]*|триллион[а-яё]*)(?![а-яё]))?",
     re.IGNORECASE,
 )
 
@@ -34,7 +36,7 @@ def extract_numbers(s: str | None) -> list[float]:
     for whole, frac, mult in _NUMBER_RE.findall(s.lower()):
         value = float(re.sub(r"\D", "", whole) + (("." + frac[1:]) if frac else ""))
         if mult:
-            value *= _MULTIPLIERS[mult.lower()]
+            value *= next(k for prefix, k in _MULTIPLIERS if mult.lower().startswith(prefix))
         out.append(value)
     return out
 

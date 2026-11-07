@@ -39,7 +39,16 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
   госсектор в России → Р-1; госсектор за рубежом → М-1; бизнес → бизнес-метрики.
 
 ЗАПРЕЩЕНО придумывать, округлять или пересчитывать числа. Нет числа в тексте — нет показателя.
-Охват (число пользователей, объектов, ведомств) — тоже показатель.
+ЗАПРЕЩЕНО вычислять before/after из изменения: если в тексте сказано только «снизилось на 23%»,
+заполни только change («-23%»), а before и after оставь null.
+
+Извлекай ВСЕ числовые показатели кейса, каждый отдельным элементом metrics:
+- эффект (время, затраты, число аварий/ошибок/обращений — было/стало или изменение);
+- экономия денег;
+- точность или качество работы ИИ-модели («точность прогноза свыше 90%»);
+- охват: каждое число отдельно — число пользователей, ведомств, объектов, обработанных задач
+  («426 госслужащих из 25 ведомств» → два показателя: 426 госслужащих и 25 ведомств).
+Числа, упомянутые в summary, тоже должны быть в metrics.
 
 {methodology_prompt()}
 
@@ -76,6 +85,11 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
                   max_chars: int) -> list[Case]:
     user = f"Заголовок: {article.title}\nURL: {article.url}\n\nТекст статьи:\n{article.text[:max_chars]}"
     reply = llm.complete_json(SYSTEM_PROMPT, user)
+    # GigaChat иногда возвращает один кейс без обёртки или голый список — принимаем оба варианта.
+    if isinstance(reply, list):
+        reply = {"cases": reply}
+    elif isinstance(reply, dict) and "cases" not in reply and ("metrics" in reply or "title" in reply):
+        reply = {"cases": [reply]}
     if not isinstance(reply, dict) or not isinstance(reply.get("cases"), list):
         raise LLMFormatError("ожидался объект с ключом cases")
 
@@ -102,6 +116,13 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
                 quote=str(m["quote"]).strip(), source_url=url,
             )
             metric.quote_verified = verify_metric(metric, article.text)
+            if not metric.quote_verified and metric.change:
+                # LLM часто досчитывает «стало» из «снизилось на 23%». Если само изменение подтверждается
+                # цитатой, убираем досчитанные значения, а не помечаем весь показатель как сомнительный.
+                trimmed = metric.model_copy(update={"before": None, "after": None})
+                if verify_metric(trimmed, article.text):
+                    metric = trimmed
+                    metric.quote_verified = True
             metrics.append(metric)
         out.append(Case(
             id=uuid.uuid4().hex[:12], first_seen=today, updated=today, level=level,

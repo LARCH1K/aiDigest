@@ -42,3 +42,9 @@ def test_million_equivalence(make_metric):
 def test_signed_change_matches_unsigned_quote(make_metric):
     m = make_metric(before=None, after=None, change="-23%", quote="снижена на 23%")
     assert numbers_in_quote(m)
+
+
+def test_extract_numbers_spelled_multipliers():
+    assert extract_numbers("превысила 9 миллионов рублей") == [9_000_000]
+    assert extract_numbers("1,5 миллиарда") == [1_500_000_000]
+    assert extract_numbers("12 тысяч человек") == [12_000]

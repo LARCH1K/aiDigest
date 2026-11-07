@@ -85,6 +85,34 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_eval(args) -> int:
+    from aidigest.evaluate import fetch_all, load_references, run_eval
+
+    refs = load_references(ROOT / "eval" / "reference_cases.yaml")
+    cache = DiskCache(_data_dir() / "cache")
+    manual = ROOT / "eval" / "texts"
+    if args.fetch_only:
+        failed = fetch_all(refs, cache, manual)
+        for u in failed:
+            print(f"Не скачано: {u}")
+        print(f"Скачано {sum(len(r.urls) for r in refs) - len(failed)} из {sum(len(r.urls) for r in refs)}")
+        return 0
+    settings = load_settings(ROOT / "config" / "settings.yaml")
+    llm = _llm(settings, cache, args.offline)
+    res = run_eval(refs, llm, SourceRegistry.load(ROOT / "config" / "sources.yaml"), cache, manual, date.today())
+    for ref_id, label in res.found:
+        print(f"[найдено]     {ref_id}: {label}")
+    for ref_id, label in res.missing:
+        print(f"[НЕ НАЙДЕНО]  {ref_id}: {label}")
+    print(f"Непроверенных метрик (цитата/число не найдены в тексте): {res.unverified_metrics}")
+    for ex in res.unverified_examples:
+        print(f"  - {ex}")
+    for u in res.empty_texts:
+        print(f"Пустой текст: {u}")
+    print(f"Вызовов LLM: {llm.calls}")
+    return 0 if not res.missing else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -104,6 +132,11 @@ def main(argv: list[str] | None = None) -> int:
 
     e = sub.add_parser("export", help="Excel из базы без поиска")
     e.set_defaults(func=cmd_export)
+
+    v = sub.add_parser("eval", help="проверка извлечения на эталонных кейсах")
+    v.add_argument("--fetch-only", action="store_true", help="только скачать тексты статей (без LLM)")
+    v.add_argument("--offline", action="store_true", help="LLM только из кеша")
+    v.set_defaults(func=cmd_eval)
 
     args = p.parse_args(argv)
     return args.func(args)
