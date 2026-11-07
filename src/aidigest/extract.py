@@ -80,6 +80,8 @@ def _criterion(value: Any, name: str, methodology) -> str:
     for c in CRITERIA[methodology]:
         if c.lower() == v:
             return c
+    if v == OTHER_CRITERION:
+        return OTHER_CRITERION  # LLM сознательно выбрала «прочее» — не переписываем
     return guess_criterion(f"{v} {name}", methodology)
 
 
@@ -144,17 +146,17 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
         region = _opt(raw.get("region"))
         organization = _opt(raw.get("organization"))
         municipality = _opt(raw.get("municipality"))
-        if raw.get("is_concrete") is False:
+        if str(raw.get("is_concrete")).strip().lower() in ("false", "нет", "no", "0"):
             reason = _opt(raw.get("not_concrete_reason")) or "не конкретное внедрение"
             if rejected is not None:
                 rejected.append(f"{title}: {reason}")
             continue
-        if not (organization or region or municipality):
+        if not (organization or region or municipality or country != "неизвестно"):
             if rejected is not None:
                 rejected.append(f"{title}: не указано, кто и где внедрил")
             continue
-        level = infer_level(country, region)
-        if level == Level.RF_REGIONS and not region:
+        level = infer_level(country, region, municipality, organization)
+        if level == Level.RF_REGIONS and not region and not municipality:
             region = FEDERAL_REGION
         sector = _enum(Sector, raw.get("sector"), Sector.GOV)
         methodology = select_methodology(level, sector)

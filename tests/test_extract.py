@@ -102,7 +102,7 @@ def test_llm_marked_non_case_is_dropped_with_reason(registry, case_reply):
 
 
 def test_case_without_implementer_and_place_is_dropped(registry, case_reply):
-    r = case_reply(region=None, organization=None, title="План закупок ТЭК")
+    r = case_reply(country=None, region=None, organization=None, title="План закупок ТЭК")
     rejected = []
     assert extract_cases(ART, FakeLLM([r]), registry, D, 12000, rejected=rejected) == []
     assert "не указано, кто и где внедрил" in rejected[0]
@@ -153,3 +153,42 @@ def test_nothing_rescued_when_quote_is_absent(registry, case_reply):
     r = case_reply(before="10", after="2", change="-80%", quote="время сократилось с 10 до 2 минут")
     [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
     assert not c.metrics[0].quote_verified and c.metrics[0].change == "-80%"
+
+
+# --- ревью quality-pass ---
+
+def test_sverdlovsk_detected_from_municipality_or_org(registry, case_reply):
+    r = case_reply(region=None)
+    r["cases"][0]["municipality"] = "Екатеринбург"
+    [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
+    assert c.level == Level.SVERDLOVSK and c.region != "федеральный уровень"
+    r2 = case_reply(region=None, organization="Правительство Свердловской области")
+    [c2] = extract_cases(ART, FakeLLM([r2]), registry, D, 12000)
+    assert c2.level == Level.SVERDLOVSK
+
+
+def test_city_case_without_region_is_not_federal(registry, case_reply):
+    r = case_reply(region=None, organization=None)
+    r["cases"][0]["municipality"] = "Казань"
+    [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
+    assert c.region is None and c.municipality == "Казань"
+
+
+def test_country_only_world_case_is_kept(registry, case_reply):
+    [c] = extract_cases(ART, FakeLLM([case_reply(country="Эстония", region=None, organization=None)]), registry, D, 12000)
+    assert c.level == Level.WORLD and c.country == "Эстония"
+
+
+def test_explicit_other_criterion_is_kept(registry, case_reply):
+    [c] = extract_cases(ART, FakeLLM([case_reply(criterion="прочее")]), registry, D, 12000)
+    assert c.metrics[0].criterion == OTHER_CRITERION
+
+
+def test_guess_criterion_matches_word_starts():
+    assert guess_criterion("протяжённость трубопровода", Methodology.R1) == OTHER_CRITERION
+
+
+def test_is_concrete_string_false_is_respected(registry, case_reply):
+    r = case_reply()
+    r["cases"][0]["is_concrete"] = "false"
+    assert extract_cases(ART, FakeLLM([r]), registry, D, 12000) == []

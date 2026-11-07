@@ -87,3 +87,45 @@ def test_ellipsis_fragments_out_of_order_or_absent_are_rejected():
     assert not quote_in_text("с точностью свыше 90%... ИИ способен прогнозировать", ELLIPSIS_TEXT)
     assert not quote_in_text("ИИ способен прогнозировать аварии... с точностью свыше 99%", ELLIPSIS_TEXT)
     assert not quote_in_text("ИИ... 90%", ELLIPSIS_TEXT)
+
+
+# --- ревью quality-pass ---
+
+def test_truncated_numbers_do_not_match(make_metric):
+    text = "Время обработки заявок сократилось на 45%. Обработка стала в 15 раз быстрее."
+    m = make_metric(before=None, after=None, change="-4%", quote="заявок сократилось на 4")
+    assert not verify_metric(m, text)
+    assert not quote_in_text("стала в 5 раз быстрее", text.replace("в 15", "в 15"))
+    assert not quote_in_text("Время обработки ... сократилось на 4", text)
+
+
+def test_ellipsis_gap_is_limited_and_rejects_negation():
+    far = "Время обработки заявок сократилось. " + "Прочий текст. " * 20 + "Число сотрудников выросло на 40% за год."
+    assert not quote_in_text("Время обработки заявок сократилось ... выросло на 40% за год", far)
+    neg = "Затраты компании в этом году не снизились на 30% вопреки ожиданиям."
+    assert not quote_in_text("Затраты компании ... снизились на 30%", neg)
+
+
+def test_number_fragment_in_ellipsis_needs_three_words():
+    t = "Время обработки заявок сократилось. Итог на 40% лучше."
+    assert not quote_in_text("Время обработки заявок ... на 40%", t)
+
+
+def test_bare_numbers_are_not_a_quote():
+    t = "Бюджет проекта 12 000 000 рублей, экономия 1,5 млн руб. в год."
+    assert not quote_in_text("12 000 000", t)
+    assert not quote_in_text("1,5 млн руб.", t)
+    assert quote_in_text("экономия 1,5 млн руб. в год", t)
+
+
+def test_direction_words_match_word_starts_only(make_metric):
+    ok = make_metric(before=None, after=None, change="-30%", quote="Количество простоев — минус 30% за квартал")
+    assert direction_consistent(ok)
+    assert direction_consistent(make_metric(before=None, after=None, change="+20%",
+                                            quote="эффективность на нижегородском заводе +20%"))
+
+
+def test_em_dash_and_word_signs_are_judged(make_metric):
+    assert not direction_consistent(make_metric(before=None, after=None, change="—23%", quote="выручка выросла на 23%"))
+    assert not direction_consistent(make_metric(before=None, after=None, change="минус 23%",
+                                                quote="выручка выросла на 23%"))

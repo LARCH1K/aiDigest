@@ -1,4 +1,6 @@
 """Методики оценки эффекта ИИ (из презентации «Аналитики») и выбор методики для кейса."""
+import re
+
 from aidigest.models import Level, Methodology, Sector
 
 CRITERIA: dict[Methodology, list[str]] = {
@@ -48,8 +50,9 @@ def select_methodology(level: Level, sector: Sector) -> Methodology:
     return Methodology.M1 if level == Level.WORLD else Methodology.R1
 
 
-def infer_level(country: str, region: str | None) -> Level:
-    reg = (region or "").lower()
+def infer_level(country: str, region: str | None, *extra: str | None) -> Level:
+    """extra — муниципалитет, организация: «Екатеринбург» или «Правительство Свердловской области»."""
+    reg = " ".join(x for x in (region, *extra) if x).lower()
     if "свердлов" in reg or "екатеринбург" in reg:
         return Level.SVERDLOVSK
     if country.strip().lower() in _RUSSIA:
@@ -98,6 +101,7 @@ _KEYWORDS: dict[Methodology, list[tuple[str, tuple[str, ...]]]] = {
 def guess_criterion(text: str, methodology: Methodology) -> str:
     low = text.lower().replace("ё", "е")
     for criterion, words in _KEYWORDS[methodology]:
-        if any(w.replace("ё", "е") in low for w in words):
+        # совпадение с началом слова: «руб» не должно находиться в «трубопровод»
+        if any(re.search(r"(?<!\w)" + re.escape(w.replace("ё", "е")), low) for w in words):
             return criterion
     return OTHER_CRITERION

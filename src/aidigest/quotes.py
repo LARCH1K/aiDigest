@@ -45,36 +45,67 @@ def _strip_punct(s: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", s)).strip()
 
 
-MIN_QUOTE_WORDS = 3  # короткий обрывок («95%», «5 минут») подтверждает что угодно
+MIN_QUOTE_WORDS = 3     # короткий обрывок («95%», «5 минут») подтверждает что угодно
+MIN_QUOTE_LETTER_WORDS = 2  # и хотя бы два настоящих слова: «12 000 000» — не цитата
+MAX_ELLIPSIS_GAP = 150  # символов между частями цитаты с многоточием
+_NEGATIONS = re.compile(r"(?<!\w)(не|нет|без|ни)(?!\w)")
 
-_DOWN = ("снизил", "снижен", "сократил", "сокращен", "уменьшил", "уменьшен", "упал", "падени", "меньше", "ниже")
-_UP = ("вырос", "выросл", "рост", "увеличил", "увеличен", "повысил", "повышен", "прирост", "больше", "выше")
+# Начала слов, обозначающих направление изменения (сравниваются с началом слова, не с серединой).
+_DOWN = ("снизил", "снижен", "сократил", "сокращен", "уменьшил", "уменьшен", "упал", "упад", "падени")
+_UP = ("вырос", "выросл", "возрос", "рост", "увеличил", "увеличен", "повысил", "повышен", "прирост")
+# Сравнительные слова — только целиком («ниже», но не «нижегородский»).
+_DOWN_WORDS = ("меньше", "ниже", "минус")
+_UP_WORDS = ("больше", "выше", "плюс")
+# Сокращения единиц не считаются словами цитаты: «1,5 млн руб.» — это число, а не цитата.
+_UNIT_TOKENS = {"тыс", "млн", "млрд", "трлн", "руб", "коп", "км", "мин", "сек", "чел", "шт", "га", "кг", "тн", "ч"}
+
+
+def _has_word_start(text: str, prefixes: tuple[str, ...], whole: tuple[str, ...] = ()) -> bool:
+    return (any(re.search(r"(?<!\w)" + re.escape(p), text) for p in prefixes)
+            or any(re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", text) for w in whole))
+
+
+def _find(part: str, hay: str, start: int = 0) -> re.Match | None:
+    """Поиск части цитаты целыми словами: «на 4» не должно найтись внутри «на 45%»."""
+    return re.compile(r"(?<!\w)" + re.escape(part) + r"(?!\w)").search(hay, start)
 
 
 def quote_in_text(quote: str, text: str) -> bool:
     q, t = normalize_text(quote), normalize_text(text)
     if len(re.findall(r"\w+", q)) < MIN_QUOTE_WORDS:
         return False
+    if len([w for w in re.findall(r"[^\W\d_]{2,}", q) if w not in _UNIT_TOKENS]) < MIN_QUOTE_LETTER_WORDS:
+        return False
     if "..." in q or "…" in q:
         return _fragments_in_order(q, t)
-    if q in t:
+    if _find(q, t):
         return True
     q2 = _strip_punct(q)
-    return bool(q2) and q2 in _strip_punct(t)
+    return bool(q2) and _find(q2, _strip_punct(t)) is not None
 
 
 def _fragments_in_order(q: str, t: str) -> bool:
-    """Цитата с многоточием: каждая часть (не короче 2 слов) есть в тексте, части идут по порядку."""
+    """Цитата с многоточием: части идут по порядку, недалеко друг от друга и без отрицания в пропуске.
+
+    Каждая часть — не короче 2 слов, часть с числом — не короче 3."""
     parts = [_strip_punct(x) for x in re.split(r"\.{3,}|…", q)]
     parts = [x for x in parts if x]
-    if not parts or any(len(x.split()) < 2 for x in parts):
+    if not parts:
         return False
-    hay, pos = _strip_punct(t), 0
-    for part in parts:
-        pos = hay.find(part, pos)
-        if pos < 0:
+    for x in parts:
+        need = 3 if re.search(r"\d", x) else 2
+        if len(x.split()) < need:
             return False
-        pos += len(part)
+    hay, pos, prev_end = _strip_punct(t), 0, None
+    for part in parts:
+        m = _find(part, hay, pos)
+        if m is None:
+            return False
+        if prev_end is not None:
+            gap = hay[prev_end:m.start()]
+            if len(gap) > MAX_ELLIPSIS_GAP or _NEGATIONS.search(gap):
+                return False
+        prev_end = pos = m.end()
     return True
 
 
@@ -88,19 +119,27 @@ def numbers_in_quote(metric: Metric) -> bool:
     return all(any(_close(w, h) for h in have) for w in wanted)
 
 
+def _sign(change: str | None) -> str | None:
+    s = normalize_text(change or "")
+    if s.startswith(("-", "минус")):
+        return "-"
+    if s.startswith(("+", "плюс")):
+        return "+"
+    return None
+
+
 def direction_consistent(metric: Metric) -> bool:
     """Знак change не противоречит словам цитаты («+23%» при «снизилось на 23%» — ложь).
 
     Без явного знака или при словах обоих направлений не судим."""
-    change = (metric.change or "").strip()
-    if not change or change[0] not in "+-−–":
+    sign = _sign(metric.change)
+    if sign is None:
         return True
     q = normalize_text(metric.quote)
-    down = any(w in q for w in _DOWN)
-    up = any(w in q for w in _UP)
+    down, up = _has_word_start(q, _DOWN, _DOWN_WORDS), _has_word_start(q, _UP, _UP_WORDS)
     if down == up:
         return True
-    return (change[0] == "+") == up
+    return (sign == "+") == up
 
 
 def verify_metric(metric: Metric, text: str) -> bool:
