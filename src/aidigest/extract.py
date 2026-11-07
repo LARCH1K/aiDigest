@@ -107,6 +107,23 @@ def _cases_from_reply(reply: Any) -> list[dict]:
 FEDERAL_REGION = "федеральный уровень"
 
 
+def _verified_variant(metric: Metric, text: str) -> Metric:
+    """Показатель с флагом проверки. LLM часто досчитывает недостающее: «стало 77%» из «−23%» или
+    «+43,8%» из «16 → 23». Если без досчитанной части цитата подтверждается, убираем только её."""
+    if verify_metric(metric, text):
+        return metric.model_copy(update={"quote_verified": True})
+    variants = []
+    if metric.before or metric.after:
+        variants.append({"change": None})
+    if metric.change:
+        variants.append({"before": None, "after": None})
+    for update in variants:
+        trimmed = metric.model_copy(update=update)
+        if (trimmed.before or trimmed.after or trimmed.change) and verify_metric(trimmed, text):
+            return trimmed.model_copy(update={"quote_verified": True})
+    return metric.model_copy(update={"quote_verified": False})
+
+
 def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, today: date,
                   max_chars: int, rejected: list[str] | None = None) -> list[Case]:
     """Кейсы статьи. Отсеянные кандидаты (не конкретное внедрение) — в rejected как «название: причина»."""
@@ -150,14 +167,7 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
                 unit=_opt(m.get("unit")), kind=_enum(MetricKind, m.get("kind"), MetricKind.FACT),
                 quote=str(m["quote"]).strip(), source_url=url,
             )
-            metric.quote_verified = verify_metric(metric, article.text)
-            if not metric.quote_verified and metric.change:
-                # LLM часто досчитывает «стало» из «снизилось на 23%». Если само изменение подтверждается
-                # цитатой, убираем досчитанные значения, а не помечаем весь показатель как сомнительный.
-                trimmed = metric.model_copy(update={"before": None, "after": None})
-                if verify_metric(trimmed, article.text):
-                    metric = trimmed
-                    metric.quote_verified = True
+            metric = _verified_variant(metric, article.text)
             metrics.append(metric)
         out.append(Case(
             id=uuid.uuid4().hex[:12], first_seen=today, updated=today, level=level,

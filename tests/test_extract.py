@@ -81,10 +81,11 @@ def test_derived_after_value_is_dropped_when_change_is_quoted(registry, case_rep
     assert m.after is None and m.change == "-23%" and m.quote_verified
 
 
-def test_invented_change_is_not_rescued(registry, case_reply):
+def test_invented_change_is_removed_not_kept(registry, case_reply):
     r = case_reply(before="13 мин", after="5 мин", change="-70%")
     [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
-    assert not c.metrics[0].quote_verified
+    m = c.metrics[0]
+    assert m.quote_verified and m.change is None and (m.before, m.after) == ("13 мин", "5 мин")
 
 
 # --- пакет «к показу»: отсев не-кейсов, федеральный уровень, критерии ---
@@ -136,3 +137,19 @@ def test_unknown_criterion_is_mapped_by_metric_name(registry, case_reply):
     art = Article(url="https://x5.ru/1", domain="x5.ru", title="", text="В X5 затраты на логистику снизились на 20%.")
     [c] = extract_cases(art, FakeLLM([r]), registry, D, 12000)
     assert c.metrics[0].criterion == "операционные затраты"
+
+
+def test_derived_change_is_dropped_when_before_after_are_quoted(registry, case_reply):
+    art = Article(url="https://oblgazeta.ru/1", domain="oblgazeta.ru", title="",
+                  text="Если в 2023 году на 10 тыс. сотрудников приходилось 16 промышленных роботов, то в 2025 году — уже 23.")
+    r = case_reply(region="Свердловская область", name="плотность роботизации", before="16", after="23", change="+43.8%",
+                   quote="на 10 тыс. сотрудников приходилось 16 промышленных роботов, то в 2025 году — уже 23")
+    [c] = extract_cases(art, FakeLLM([r]), registry, D, 12000)
+    m = c.metrics[0]
+    assert m.quote_verified and m.change is None and (m.before, m.after) == ("16", "23")
+
+
+def test_nothing_rescued_when_quote_is_absent(registry, case_reply):
+    r = case_reply(before="10", after="2", change="-80%", quote="время сократилось с 10 до 2 минут")
+    [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
+    assert not c.metrics[0].quote_verified and c.metrics[0].change == "-80%"
