@@ -71,7 +71,7 @@
       {% set head, doubtful = headline(c) %}
       <tr>
         <td><span class="level level-{{ c.level.name|lower }}">{{ c.level.value }}</span></td>
-        <td class="nowrap">{{ c.region or c.country }}</td>
+        <td class="col-region">{{ c.region or c.country }}</td>
         <td class="case-title">
           <a href="/case/{{ c.id }}">{{ c.title }}</a>
           {% if c.organization %}<small>{{ c.organization }}</small>{% endif %}

@@ -1,7 +1,6 @@
 """Логика представления: фильтры списка, «главная цифра», пояснения флагов. Без HTTP."""
 from __future__ import annotations
 
-from aidigest.export_excel import metric_line
 from aidigest.models import Case, ConfirmationStatus, Flag, Level
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
@@ -70,11 +69,19 @@ def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = 
     return sorted(out, key=sort_key)
 
 
+def short_line(m) -> str:
+    """«название: было → стало (изменение)» без критерия — для списка."""
+    values = " → ".join(v for v in (m.before, m.after) if v)
+    if m.change:
+        values = f"{values} ({m.change})" if values else m.change
+    return f"{m.name}: {values}" if values else m.name
+
+
 def headline(c: Case) -> tuple[str, bool]:
     """Главная цифра кейса и признак «цифра не проверена цитатой»."""
     for m in c.metrics:
         if m.quote_verified:
-            return metric_line(m), False
+            return short_line(m), False
     if c.metrics:
-        return metric_line(c.metrics[0]), True
+        return short_line(c.metrics[0]), True
     return "—", False

@@ -109,6 +109,14 @@ Design: `docs/superpowers/specs/2026-11-07-ai-cases-pipeline-design.md`, пла�
 - Любая правка промпта (`extract.py`, `confirm.py`, `dedup.py`) сбрасывает кеш LLM для этих вызовов.
 - В промпт нельзя вставлять примеры с конкретными цитатами — GigaChat копирует их дословно.
 
+## Веб-интерфейс `aidigest_web`
+
+Design: `docs/superpowers/specs/2026-11-07-web-frontend-design.md`. Flask + Jinja2, свой CSS без фреймворков, сервер waitress; extra `[web]`.
+- **Не менять `src/aidigest/` ради фронта**: фронт только читает (модели, `CaseStore`, `export_xlsx`, `MonthlyUsage`) и запускает сбор отдельным процессом через `aidigest_web.runner`.
+- `web.env` (`WEB_PASSWORD`, `WEB_SECRET_KEY`) — не читать и не выводить, как остальные `*.env`.
+- Состояние запусков — `data/web/` (не в git). Запуск: `python -m aidigest_web` (localhost) или с `--host 0.0.0.0` только при заданном пароле.
+- Для проверки в браузере — `.claude/launch.json` (конфигурация `aidigest-web`). Кнопку «Запустить сбор» при проверке не нажимать — это расход кредитов.
+
 ## Правила
 
 - **`litellm.env` и `tavily.env` НИКОГДА не читать, не выводить, не коммитить и не отправлять куда-либо.** Код может загружать их в рантайме, но Claude не открывает эти файлы и не печатает их содержимое. То же для любых будущих файлов с ключами.

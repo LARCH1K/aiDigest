@@ -34,7 +34,7 @@ def test_sort_matches_excel_order():
 
 def test_headline_prefers_verified_metric(make_case, make_metric):
     c = make_case(metrics=[make_metric(name="охват", after="42%", before=None, quote_verified=False), make_metric()])
-    assert headline(c) == ("время в пробках: 13 мин → 5 мин [скорость, факт]", False)
+    assert headline(c) == ("время в пробках: 13 мин → 5 мин", False)
 
 
 def test_headline_marks_unverified(make_case, make_metric):
@@ -50,3 +50,10 @@ def test_flag_help_covers_all_flags():
     assert set(FLAG_HELP) == set(Flag)
     assert all(meaning and action for meaning, action in FLAG_HELP.values())
     assert set(STATUS_CLASS) == set(ConfirmationStatus)
+
+
+def test_headline_short_form(make_case, make_metric):
+    m = make_metric(name="затраты", before=None, after=None, change="-20%")
+    assert headline(make_case(metrics=[m])) == ("затраты: −20%".replace("−", "-"), False)
+    m2 = make_metric(name="план", before=None, after="42%", change=None)
+    assert headline(make_case(metrics=[m2]))[0] == "план: 42%"

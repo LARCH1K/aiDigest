@@ -34,8 +34,8 @@
         <tr>
           <td><b>{{ m.name }}</b>{% if m.kind.value == 'план' %}<small class="tag">план</small>{% endif %}</td>
           <td class="value">
-            {% if m.before or m.after %}{{ m.before or '…' }} → {{ m.after or '…' }}{% endif %}
-            {% if m.change %}<div class="change">{{ m.change }}</div>{% endif %}
+            {% if m.before and m.after %}{{ m.before }} → {{ m.after }}{% elif m.after or m.before %}{{ m.after or m.before }}{% endif %}
+            {% if m.change and m.change != m.after %}<div class="change">{{ m.change }}</div>{% endif %}
           </td>
           <td>{{ m.criterion }}</td>
           <td class="quote">
