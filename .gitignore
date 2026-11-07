@@ -1,0 +1,19 @@
+# Секреты
+*.env
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Временные файлы Office
+~$*
