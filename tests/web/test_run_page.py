@@ -101,3 +101,10 @@ def test_tavily_exhausted_blocks_start(data_dir):
     with pytest.raises(MonthExhausted):
         rm.start()
     assert calls == []
+
+
+def test_running_without_log_lines_explains_wait(data_dir):
+    client, _, rm = make(data_dir)
+    rm.start()
+    body = html(client.get("/run"))
+    assert "Запускается…" not in body and "появятся после первого поискового запроса" in body

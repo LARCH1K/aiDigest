@@ -158,3 +158,20 @@ def test_cli_run_refuses_when_tavily_says_exhausted(tmp_path, monkeypatch):
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=1000, limit=1000, plan="p"))
     assert main(["run", "--offline"]) == 2
+
+
+def test_cycle_reports_progress_to_stderr(tmp_path, registry, case_reply, capsys):
+    b = CreditBudget(30)
+    s = FakeSearch(lambda **kw: [A1, A2], budget=b)
+
+    def route(system, user):
+        if system == CONFIRM_SYSTEM_PROMPT:
+            return {"matches": []}
+        if "без кейса" in user:
+            return {"cases": []}
+        return sverd_reply(case_reply)
+    q = [QuerySpec(level=Level.SVERDLOVSK, text="ИИ Екатеринбург", use_registry_domains=False, language="ru")]
+    run_cycle(deps(tmp_path, s, FakeLLM(route), b, registry, q), set(Level), date(2026, 11, 7))
+    err = capsys.readouterr().err
+    assert "Поиск 1/1 [Свердловская область]: «ИИ Екатеринбург» — статей: 2, новых: 2" in err
+    assert "Статья 1/2" in err and "Подтверждение: кейсов в очереди 1" in err

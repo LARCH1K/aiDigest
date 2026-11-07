@@ -38,7 +38,7 @@
 <section class="card">
   <h2>Что происходит сейчас</h2>
   <pre class="log" data-log>{% for line in tail %}{{ line }}
-{% endfor %}{% if not tail %}Запускается…{% endif %}</pre>
+{% endfor %}{% if not tail %}Сбор идёт. Сообщения о ходе работы появятся после первого поискового запроса…{% endif %}</pre>
   <p class="hint">Обновляется само каждые 5 секунд.</p>
 </section>
 {% endif %}

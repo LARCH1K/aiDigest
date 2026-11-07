@@ -71,7 +71,8 @@ def main(argv: list[str] | None = None) -> int:
     runs = data_dir / "web" / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     started = datetime.now().replace(microsecond=0)
-    env = {**os.environ, "AIDIGEST_DATA_DIR": str(data_dir), "PYTHONIOENCODING": "utf-8"}
+    # PYTHONUNBUFFERED: вывод попадает в лог сразу, иначе страница минутами не видит ход сбора.
+    env = {**os.environ, "AIDIGEST_DATA_DIR": str(data_dir), "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
     # Настоящий номер процесса обёртки: в Windows python.exe из venv — запускалка, и Popen видит её номер.
     (runs / f"{run_id}.pid").write_text(str(os.getpid()), encoding="utf-8")
     _kill_children_with_runner()

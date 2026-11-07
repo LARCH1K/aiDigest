@@ -75,7 +75,8 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
     seen_now: set[str] = set()
     start = today - timedelta(days=s.freshness_days)
 
-    for q in (q for q in deps.queries if q.level in levels):
+    queries = [q for q in deps.queries if q.level in levels]
+    for qi, q in enumerate(queries, 1):
         domains = deps.registry.domains_for(q.level) if q.use_registry_domains else None
         try:
             articles = deps.search.search(q.text, pool="collect", include_domains=domains,
@@ -88,11 +89,15 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             _log(f"Ошибка поиска «{q.text}»: {e}")
             continue
 
-        for article in articles:
+        fresh = [a for a in articles
+                 if normalize_url(a.url) not in data.processed_urls and normalize_url(a.url) not in seen_now]
+        _log(f"Поиск {qi}/{len(queries)} [{q.level.value}]: «{q.text}» — статей: {len(articles)}, новых: {len(fresh)}")
+        for ai, article in enumerate(fresh, 1):
             url = normalize_url(article.url)
-            if url in data.processed_urls or url in seen_now:
+            if url in seen_now:
                 continue
             seen_now.add(url)
+            _log(f"  Статья {ai}/{len(fresh)}: {article.title[:90] or url}")
             rejected: list[str] = []
             try:
                 cases = extract_cases(article, deps.llm, deps.registry, today, s.article_max_chars,
@@ -125,7 +130,9 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
 
     deps.budget.close_collection()
     queue = plan_confirmation_queue(data.cases, new_ids, today, s.recheck_after_days, s.max_rechecks)
+    _log(f"Подтверждение: кейсов в очереди {len(queue)}")
     for i, case in enumerate(queue):
+        _log(f"  Подтверждение {i + 1}/{len(queue)}: {case.title[:90]}")
         try:
             confirm_case(case, deps.search, deps.llm, deps.registry, today, s.confirm_max_results)
             report.confirmations_done += 1

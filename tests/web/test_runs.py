@@ -134,3 +134,19 @@ def test_runner_binds_itself_before_spawning_and_writes_pid(tmp_path, monkeypatc
     runner.main(["20261108-143200"])
     assert order == ["bind", "spawn"]
     assert (tmp_path / "web" / "runs" / "20261108-143200.pid").read_text(encoding="utf-8").strip().isdigit()
+
+
+def test_runner_disables_output_buffering(tmp_path, monkeypatch):
+    seen = {}
+
+    class FakeProc:
+        def __init__(self, args, **kw):
+            seen["env"] = kw["env"]
+
+        def wait(self):
+            return 0
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProc)
+    monkeypatch.setattr(runner, "_kill_children_with_runner", lambda: None)
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    runner.main(["20261108-143200"])
+    assert seen["env"]["PYTHONUNBUFFERED"] == "1"
