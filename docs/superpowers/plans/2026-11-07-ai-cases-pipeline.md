@@ -170,7 +170,7 @@ def test_normalize_url_drops_tracking():
     assert normalize_url("https://WWW.Example.com/a/?id=5&utm_medium=x") == "https://www.example.com/a?id=5"
 
 def test_domain_of_decodes_punycode():
-    assert domain_of("https://xn--80aapampemcchfmo7a3c9ehj.xn--p1ai/news/1") == "нацпроекты.рф"
+    assert domain_of("https://xn--80akpjgfht4a0d.xn--p1ai/news/1") == "нацпроекты.рф"
     assert domain_of("https://www.chel.kp.ru/x") == "chel.kp.ru"
 
 def test_cache_roundtrip_cyrillic(tmp_path):
@@ -278,7 +278,7 @@ def test_real_registry_loads_and_covers_all_levels():
 
 def test_lookup_cyrillic_punycode_and_parent():
     r = SourceRegistry.load(Path("config/sources.yaml"))
-    assert r.lookup("https://xn--80aapampemcchfmo7a3c9ehj.xn--p1ai/x").reliability == Reliability.HIGH
+    assert r.lookup("https://xn--80akpjgfht4a0d.xn--p1ai/x").reliability == Reliability.HIGH
     assert r.lookup("https://chel.kp.ru/daily/1").source_type == SourceType.MEDIA
 
 def test_reuters_is_medium():
