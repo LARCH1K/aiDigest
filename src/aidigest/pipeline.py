@@ -12,7 +12,7 @@ from aidigest.config import QuerySpec, Settings
 from aidigest.confirm import confirm_case, plan_confirmation_queue
 from aidigest.dedup import find_duplicate, merge_into
 from aidigest.extract import extract_cases
-from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss
+from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss  # noqa: F401
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
@@ -93,9 +93,9 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             seen_now.add(url)
             try:
                 cases = extract_cases(article, deps.llm, deps.registry, today, s.article_max_chars)
-            except (LLMFormatError, OfflineCacheMiss) as e:
+            except Exception as e:  # битый ответ, нет в кеше, сеть/API LLM — статья повторится в след. раз
                 report.articles_failed += 1
-                _log(f"Статья пропущена ({url}): {e}")
+                _log(f"Статья пропущена ({url}): {type(e).__name__}: {e}")
                 continue
             report.articles_processed += 1
             if not cases:
@@ -103,8 +103,8 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             for case in cases:
                 try:
                     dup = find_duplicate(case, data.cases, deps.llm)
-                except (LLMFormatError, OfflineCacheMiss) as e:
-                    _log(f"Дедупликация не удалась ({url}): {e}")
+                except Exception as e:
+                    _log(f"Дедупликация не удалась ({url}): {type(e).__name__}: {e}")
                     dup = None
                 if dup is not None:
                     merge_into(dup, case, today)

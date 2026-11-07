@@ -1,6 +1,7 @@
 """Выгрузка базы кейсов в Excel для команды «Аналитика»."""
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -64,7 +65,7 @@ def _sheet(wb: Workbook, title: str, headers: list[str], rows, first: bool = Fal
     return ws
 
 
-def export_xlsx(cases: list[Case], report: Mapping[str, Any] | None, path: Path) -> None:
+def export_xlsx(cases: list[Case], report: Mapping[str, Any] | None, path: Path) -> Path:
     ordered = sorted(cases, key=_sort_key)
     wb = Workbook()
     _sheet(wb, "Кейсы", CASE_HEADERS, (_case_row(c) for c in ordered), first=True)
@@ -75,5 +76,12 @@ def export_xlsx(cases: list[Case], report: Mapping[str, Any] | None, path: Path)
             ws.append([k, v if isinstance(v, (int, float, str)) or v is None else str(v)])
         ws.column_dimensions["A"].width = 40
         ws.column_dimensions["B"].width = 40
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    wb.save(path)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        wb.save(path)
+        return path
+    except PermissionError:  # файл открыт в Excel — пишем рядом под другим именем
+        alt = path.with_name(f"{path.stem}_{datetime.now():%H%M%S}{path.suffix}")
+        wb.save(alt)
+        return alt

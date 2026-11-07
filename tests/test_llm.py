@@ -41,3 +41,18 @@ def test_offline_miss(tmp_path):
     llm = LiteLLMClient(None, None, "m", DiskCache(tmp_path), offline=True, client=FakeOpenAI([]))
     with pytest.raises(OfflineCacheMiss):
         llm.complete_json("s", "u")
+
+
+def test_schema_error_is_retried_and_not_cached(tmp_path):
+    def need_cases(v):
+        if not isinstance(v, dict) or "cases" not in v:
+            raise ValueError("нет cases")
+        return v
+    cache = DiskCache(tmp_path)
+    fake = FakeOpenAI(['{"result": 1}', '{"cases": []}'])
+    llm = LiteLLMClient(None, None, "m", cache, client=fake)
+    assert llm.complete_json("s", "u", validate=need_cases) == {"cases": []} and llm.calls == 2
+    bad = LiteLLMClient(None, None, "m", DiskCache(tmp_path / "b"), client=FakeOpenAI(['{"x": 1}', '{"y": 2}']))
+    with pytest.raises(LLMFormatError):
+        bad.complete_json("s", "u", validate=need_cases)
+    assert not list((tmp_path / "b").rglob("*.json"))

@@ -37,7 +37,7 @@ def test_confirmation_query_skips_empty_parts(make_case):
 
 
 def test_confirm_agrees_adds_source(make_case, make_metric, registry):
-    c = make_case(metrics=[make_metric(change="-24%", quote="...")])
+    c = make_case(metrics=[make_metric(name="ДТП", before="161", after="122", quote="...")])
     llm = FakeLLM([{"matches": [{"metric_index": 0, "url": KP.url, "value": "161 → 122", "agrees": True,
                                  "quote": "ДТП со 161 до 122"}]}])
     s = FakeSearch(lambda **kw: [KP])
@@ -87,3 +87,51 @@ def test_budget_exceeded_leaves_case_untouched(make_case, make_metric, registry)
     with pytest.raises(BudgetExceeded):
         confirm_case(c, s, FakeLLM([]), registry, D, 5)
     assert c.confirmation_attempts == 0 and Flag.CONFIRMATION_SKIPPED in c.flags
+
+
+# --- финальное ревью ---
+
+def test_agreement_quote_must_contain_metric_numbers(make_case, make_metric, registry):
+    art = Article(url="https://chel.kp.ru/2", domain="chel.kp.ru", title="", text="Погода в Челябинске была хорошей.")
+    c = make_case(metrics=[make_metric()])
+    llm = FakeLLM([{"matches": [{"metric_index": 0, "url": art.url, "value": "13 → 5", "agrees": True,
+                                 "quote": "Погода в Челябинске"}]}])
+    confirm_case(c, FakeSearch(lambda **kw: [art]), llm, registry, D, 5)
+    assert c.confirmation_status == ConfirmationStatus.SINGLE and c.metrics[0].confirmed_by == []
+
+
+def test_disagreement_value_must_be_in_quote(make_case, make_metric, registry):
+    c = make_case(metrics=[make_metric()])
+    llm = FakeLLM([{"matches": [{"metric_index": 0, "url": KP.url, "value": "40 минут", "agrees": False,
+                                 "quote": "ДТП со 161 до 122"}]}])
+    confirm_case(c, FakeSearch(lambda **kw: [KP]), llm, registry, D, 5)
+    assert c.confirmation_status == ConfirmationStatus.SINGLE
+
+
+def test_unverified_metric_cannot_be_confirmed(make_case, make_metric, registry):
+    c = make_case(metrics=[make_metric(before="161", after="122", quote_verified=False)])
+    llm = FakeLLM([{"matches": [{"metric_index": 0, "url": KP.url, "value": "161 → 122", "agrees": True,
+                                 "quote": "ДТП со 161 до 122"}]}])
+    confirm_case(c, FakeSearch(lambda **kw: [KP]), llm, registry, D, 5)
+    assert c.metrics[0].confirmed_by == []
+
+
+def test_articles_from_case_domains_are_dropped(make_case, make_metric, registry):
+    same = Article(url="https://www.gubernia74.ru/a", domain="gubernia74.ru", title="",
+                   text="сократилось с 13 до 5 минут")
+    c = make_case(metrics=[make_metric()])
+    llm = FakeLLM([])
+    confirm_case(c, FakeSearch(lambda **kw: [same]), llm, registry, D, 5)
+    assert llm.calls == 0 and c.confirmation_status == ConfirmationStatus.SINGLE and len(c.sources) == 1
+
+
+def test_recheck_searches_only_since_last_attempt(make_case, make_metric, registry):
+    last = D - timedelta(days=30)
+    c = make_case(metrics=[make_metric()], confirmation_attempts=1, last_confirmation_attempt=last)
+    s = FakeSearch(lambda **kw: [])
+    confirm_case(c, s, FakeLLM([]), registry, D, 5)
+    assert s.calls[0]["start_date"] == last
+    first = make_case(metrics=[make_metric()])
+    s2 = FakeSearch(lambda **kw: [])
+    confirm_case(first, s2, FakeLLM([]), registry, D, 5)
+    assert s2.calls[0]["start_date"] is None

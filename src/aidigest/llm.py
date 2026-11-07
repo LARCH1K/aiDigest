@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from aidigest.cache import DiskCache
 
@@ -22,7 +22,8 @@ class OfflineCacheMiss(Exception):
 class LLMClient(Protocol):
     calls: int
 
-    def complete_json(self, system: str, user: str) -> Any: ...
+    def complete_json(self, system: str, user: str,
+                      validate: Callable[[Any], Any] | None = None) -> Any: ...
 
 
 def parse_json_reply(text: str) -> Any:
@@ -64,22 +65,33 @@ class LiteLLMClient:
         resp = self._client.chat.completions.create(model=self.model, messages=messages, temperature=0)
         return resp.choices[0].message.content or ""
 
-    def complete_json(self, system: str, user: str) -> Any:
+    def complete_json(self, system: str, user: str,
+                      validate: Callable[[Any], Any] | None = None) -> Any:
+        """validate(value) возвращает нормализованное значение или бросает ValueError.
+
+        Невалидный ответ (не JSON или не та структура) переспрашивается один раз и никогда не кешируется.
+        """
+        check = validate or (lambda v: v)
         key = {"model": self.model, "system": system, "user": user}
         cached = self.cache.get("llm", key)
         if cached is not None:
-            return cached
+            try:
+                return check(cached)
+            except ValueError:
+                pass  # старый ответ из кеша не проходит проверку — спросим заново
         if self.offline:
             raise OfflineCacheMiss("нет ответа в кеше, а запуск офлайн")
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         reply = self._ask(messages)
         try:
-            value = parse_json_reply(reply)
+            raw = parse_json_reply(reply)
+            value = check(raw)
         except ValueError:
             messages += [{"role": "assistant", "content": reply}, {"role": "user", "content": RETRY_HINT}]
             try:
-                value = parse_json_reply(self._ask(messages))
+                raw = parse_json_reply(self._ask(messages))
+                value = check(raw)
             except ValueError as e:
                 raise LLMFormatError(str(e)) from e
-        self.cache.put("llm", key, value)
+        self.cache.put("llm", key, raw)
         return value

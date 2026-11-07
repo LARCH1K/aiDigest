@@ -72,7 +72,7 @@ def test_llm_format_error_skips_article_without_marking(tmp_path, registry):
     class Broken:
         calls = 0
 
-        def complete_json(self, system, user):
+        def complete_json(self, system, user, validate=None):
             raise LLMFormatError("битый")
     b = CreditBudget(30)
     s = FakeSearch(lambda **kw: [A1], budget=b)
@@ -99,3 +99,16 @@ def test_cli_export_offline(tmp_path, monkeypatch, make_case):
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     assert main(["export"]) == 0
     assert list((tmp_path / "out").glob("cases_*.xlsx"))
+
+
+def test_llm_api_error_skips_article_and_run_finishes(tmp_path, registry):
+    class Down:
+        calls = 0
+
+        def complete_json(self, system, user, validate=None):
+            raise ConnectionError("прокси недоступен")
+    b = CreditBudget(30)
+    s = FakeSearch(lambda **kw: [A1], budget=b)
+    q = [QuerySpec(level=Level.WORLD, text="x", use_registry_domains=False, language="en")]
+    r = run_cycle(deps(tmp_path, s, Down(), b, registry, q), set(Level), date(2026, 11, 7))
+    assert r.articles_failed == 1 and CaseStore(tmp_path / "c.json").load().processed_urls == set()

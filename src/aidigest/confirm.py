@@ -6,10 +6,10 @@ from datetime import date, timedelta
 
 from aidigest.llm import LLMClient
 from aidigest.models import Case, ConfirmationStatus
-from aidigest.quotes import quote_in_text
+from aidigest.quotes import extract_numbers, quote_in_text
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
-from aidigest.urls import normalize_url
+from aidigest.urls import domain_of, normalize_url
 
 ARTICLE_CHARS = 4000
 
@@ -23,6 +23,15 @@ quote — ДОСЛОВНАЯ цитата из статьи с этим числ
 Ответ — только JSON:
 {"matches": [{"metric_index": 0, "url": "", "value": "", "agrees": true, "quote": ""}]}
 Если совпадений нет — {"matches": []}."""
+
+
+def _metric_numbers(metric) -> list[float]:
+    return [n for part in (metric.before, metric.after, metric.change) for n in extract_numbers(part)]
+
+
+def _all_in(wanted: list[float], have: list[float]) -> bool:
+    """Непустой набор чисел, каждое из которых есть в have."""
+    return bool(wanted) and all(any(abs(w - h) <= 1e-6 for h in have) for w in wanted)
 
 
 def _due_for_recheck(c: Case, today: date, recheck_after_days: int, max_rechecks: int) -> bool:
@@ -56,12 +65,16 @@ def _case_for_prompt(case: Case) -> str:
 
 def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: SourceRegistry,
                  today: date, max_results: int) -> None:
-    exclude = sorted({s.domain for s in case.sources})
+    own = {domain_of(s.url) for s in case.sources} | {domain_of(m.source_url) for m in case.metrics}
+    # Повторная попытка ищет только материалы, вышедшие после прошлой (и не берёт старый ответ из кеша).
+    since = case.last_confirmation_attempt if case.confirmation_attempts > 0 else None
     # BudgetExceeded пробрасывается до любых изменений кейса.
-    articles = search.search(confirmation_query(case), pool="confirm", exclude_domains=exclude,
-                             max_results=max_results)
+    found = search.search(confirmation_query(case), pool="confirm", exclude_domains=sorted(own),
+                          start_date=since, max_results=max_results)
     case.confirmation_attempts += 1
     case.last_confirmation_attempt = today
+    # Независимость источника проверяем сами, не полагаясь на exclude_domains поисковика.
+    articles = [a for a in found if domain_of(a.url) not in own]
     if not articles:
         case.recompute_status()
         return
@@ -81,14 +94,23 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
         article = by_url.get(url)
         if article is None or not isinstance(idx, int) or not 0 <= idx < len(case.metrics):
             continue
-        if not quote_in_text(str(m.get("quote") or ""), article.text):
+        quote = str(m.get("quote") or "")
+        if not quote_in_text(quote, article.text):
             continue  # совпадение без настоящей цитаты не принимаем
         metric = case.metrics[idx]
+        if not metric.quote_verified:
+            continue  # непроверенную цифру нельзя «подтвердить»
         if m.get("agrees") is True:
+            # В цитате второго источника должны стоять те же числа, что у показателя.
+            if not _all_in(_metric_numbers(metric), extract_numbers(quote)):
+                continue
             if url not in metric.confirmed_by:
                 metric.confirmed_by.append(url)
         else:
-            metric.conflicting_values.append(f"{m.get('value')} ({url})")
+            value = str(m.get("value") or "")
+            if not _all_in(extract_numbers(value), extract_numbers(quote)):
+                continue
+            metric.conflicting_values.append(f"{value} ({url})")
         if url not in known:
             case.sources.append(registry.to_source(article))
             known.add(url)

@@ -47,8 +47,7 @@ def _parse_levels(raw: str | None) -> set[Level]:
 
 def _export(store: CaseStore, report, today: date) -> Path:
     out = _data_dir() / "out" / f"cases_{today.isoformat()}.xlsx"
-    export_xlsx(store.load().cases, report, out)
-    return out
+    return export_xlsx(store.load().cases, report, out)
 
 
 def cmd_run(args) -> int:

@@ -43,3 +43,17 @@ def test_export_without_report(tmp_path, make_case):
 def test_metric_line_skips_empty_parts(make_metric):
     assert metric_line(make_metric()) == "время в пробках: 13 мин → 5 мин [скорость, факт]"
     assert metric_line(make_metric(before=None, after=None, change="-23%")) == "время в пробках: (-23%) [скорость, факт]"
+
+
+def test_locked_file_falls_back_to_new_name(tmp_path, make_case, monkeypatch):
+    from openpyxl import Workbook
+    real_save = Workbook.save
+    target = tmp_path / "cases.xlsx"
+
+    def save(self, filename):
+        if str(filename) == str(target):
+            raise PermissionError("файл открыт в Excel")
+        return real_save(self, filename)
+    monkeypatch.setattr(Workbook, "save", save)
+    written = export_xlsx([make_case()], None, target)
+    assert written != target and written.exists() and written.parent == tmp_path

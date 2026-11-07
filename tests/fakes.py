@@ -11,7 +11,7 @@ class FakeLLM:
         self.calls = 0
         self.log: list[tuple[str, str]] = []
 
-    def complete_json(self, system: str, user: str) -> Any:
+    def complete_json(self, system: str, user: str, validate=None) -> Any:
         self.calls += 1
         self.log.append((system, user))
         if callable(self._replies):

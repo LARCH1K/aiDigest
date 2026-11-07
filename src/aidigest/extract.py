@@ -81,24 +81,34 @@ def _opt(v: Any) -> str | None:
     return s or None
 
 
+def _cases_from_reply(reply: Any) -> list[dict]:
+    """Список кейсов из ответа LLM; ValueError, если структура не та."""
+    # GigaChat иногда возвращает один кейс без обёртки или голый список — принимаем оба варианта.
+    if isinstance(reply, list):
+        cases = reply
+    elif isinstance(reply, dict) and "cases" in reply:
+        cases = reply["cases"]
+    elif isinstance(reply, dict) and ("metrics" in reply or "title" in reply):
+        cases = [reply]
+    else:
+        raise ValueError("ожидался объект с ключом cases")
+    if not isinstance(cases, list) or not all(isinstance(c, dict) for c in cases):
+        raise ValueError("cases должен быть списком объектов")
+    return cases
+
+
 def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, today: date,
                   max_chars: int) -> list[Case]:
     user = f"Заголовок: {article.title}\nURL: {article.url}\n\nТекст статьи:\n{article.text[:max_chars]}"
-    reply = llm.complete_json(SYSTEM_PROMPT, user)
-    # GigaChat иногда возвращает один кейс без обёртки или голый список — принимаем оба варианта.
-    if isinstance(reply, list):
-        reply = {"cases": reply}
-    elif isinstance(reply, dict) and "cases" not in reply and ("metrics" in reply or "title" in reply):
-        reply = {"cases": [reply]}
-    if not isinstance(reply, dict) or not isinstance(reply.get("cases"), list):
-        raise LLMFormatError("ожидался объект с ключом cases")
+    try:
+        cases_raw = _cases_from_reply(llm.complete_json(SYSTEM_PROMPT, user, validate=_cases_from_reply))
+    except ValueError as e:  # фейки и старые клиенты могут не применять validate сами
+        raise LLMFormatError(str(e)) from e
 
     url = normalize_url(article.url)
     source = registry.to_source(article)
     out: list[Case] = []
-    for raw in reply["cases"]:
-        if not isinstance(raw, dict):
-            raise LLMFormatError("элемент cases — не объект")
+    for raw in cases_raw:
         country = _opt(raw.get("country")) or "неизвестно"
         region = _opt(raw.get("region"))
         level = infer_level(country, region)
