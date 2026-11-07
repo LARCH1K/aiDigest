@@ -15,7 +15,7 @@ from aidigest.export_excel import export_xlsx
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.store import CaseStore
-from aidigest.usage import MonthlyUsage
+from aidigest.usage import MonthlyUsage, fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -62,16 +62,22 @@ def cmd_run(args) -> int:
         settings.first_run_budget if args.first_run else settings.run_budget)
     today = date.today()
     usage = MonthlyUsage(_data_dir() / "credits.json", settings.monthly_limit, settings.monthly_warn_share)
+    tavily = _creds("tavily.env", args.offline)
+    actual = fetch_tavily_usage(tavily.get("TAVILY_TOKEN"))
     total = usage.cap(today, requested)
+    if actual is not None:
+        # Фактический расход по данным Tavily — главный: наш учёт мог что-то пропустить.
+        print(f"Кредиты по данным Tavily: {actual.used:g} из {actual.limit:g}.")
+        usage.sync(today, actual.used)
+        total = min(total, actual.remaining)
     if requested > 0 and total <= 0:
-        print(f"Месячный лимит Tavily исчерпан: потрачено {usage.spent(today):g} из {settings.monthly_limit:g}. "
-              "Запуск отменён.")
+        spent, limit = (actual.used, actual.limit) if actual else (usage.spent(today), settings.monthly_limit)
+        print(f"Лимит Tavily исчерпан: потрачено {spent:g} из {limit:g}. Запуск отменён.")
         return 2
     if total < requested:
         print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
     budget = CreditBudget(total, settings.confirm_share)
     cache = DiskCache(_data_dir() / "cache")
-    tavily = _creds("tavily.env", args.offline)
     deps = Deps(
         search=TavilySearch(tavily.get("TAVILY_TOKEN"), cache, budget, offline=args.offline),
         llm=_llm(settings, cache, args.offline),

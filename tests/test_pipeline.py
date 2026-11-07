@@ -138,3 +138,23 @@ def test_rejected_candidates_are_counted(tmp_path, registry, case_reply):
     rep = run_cycle(deps(tmp_path, s, llm, b, registry, q), set(Level), date(2026, 11, 7))
     assert rep.candidates_rejected == 1 and rep.cases_new == 0 and rep.articles_rejected == 1
     assert rep.as_rows()["Кандидатов отсеяно (не конкретное внедрение)"] == 1
+
+
+def test_cli_run_caps_budget_by_tavily_remaining(tmp_path, monkeypatch, capsys):
+    import aidigest.cli as cli
+    from aidigest.usage import TavilyUsage
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=990, limit=1000, plan="p"))
+    assert main(["run", "--offline", "--budget", "30"]) == 0
+    out = capsys.readouterr().out
+    assert "по данным Tavily: 990 из 1000" in out and "10 вместо 30" in out
+    import json
+    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))[date.today().strftime("%Y-%m")] == 990
+
+
+def test_cli_run_refuses_when_tavily_says_exhausted(tmp_path, monkeypatch):
+    import aidigest.cli as cli
+    from aidigest.usage import TavilyUsage
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=1000, limit=1000, plan="p"))
+    assert main(["run", "--offline"]) == 2

@@ -98,13 +98,14 @@ def init(app: Flask) -> None:
             except AlreadyRunning:
                 flash("Сбор уже идёт — дождитесь, пока он закончится.", "warn")
             except MonthExhausted:
-                flash("Месячный лимит кредитов Tavily исчерпан — новый сбор возможен в следующем месяце.", "bad")
+                flash("Лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения лимита.", "bad")
             return redirect(url_for("run"))
         current = rm.current()
         history = rm.history(10)
-        spent, limit = rm.month_spent(), rm.month_limit()
+        credits = rm.credits()
+        spent, limit = credits["spent"], credits["limit"]
         return render_template("run.html", current=current, tail=rm.tail(current) if current else [],
-                               history=history, last=history[0] if history else None,
+                               history=history, last=history[0] if history else None, credits_source=credits["source"],
                                spent=spent, limit=limit, remaining=max(0, limit - spent), run_budget=rm.run_budget())
 
     @app.route("/run/status")

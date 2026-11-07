@@ -8,13 +8,14 @@
 
 <div class="grid-2 run-grid">
   <section class="card">
-    <h2>Кредиты поиска в этом месяце</h2>
+    <h2>Кредиты поиска</h2>
     {% set pct = (100 * spent / limit) if limit else 100 %}
     <div class="meter" role="img" aria-label="Потрачено {{ spent|round|int }} из {{ limit|round|int }}">
       <div class="meter-fill {{ 'meter-warn' if pct >= 80 }}" style="width: {{ [pct, 100]|min }}%"></div>
     </div>
     <p class="meter-text"><b>{{ spent|round|int }}</b> из {{ limit|round|int }} потрачено · осталось {{ remaining|round|int }}</p>
-    <p class="muted">Один запуск тратит до {{ run_budget|round|int }} кредитов. Лимит обновляется 1-го числа.</p>
+    <p class="muted">Один запуск тратит до {{ run_budget|round|int }} кредитов.
+      {% if credits_source == 'tavily' %}Цифры — по данным Tavily.{% else %}Tavily сейчас недоступен — цифры по нашему учёту, реальный расход может быть больше.{% endif %}</p>
   </section>
 
   <section class="card run-card" {% if current %}data-running{% endif %}>
@@ -28,7 +29,7 @@
       <form method="post">
         <button class="btn btn-primary btn-lg" name="start" {{ 'disabled' if remaining <= 0 }}>▶ Запустить сбор</button>
       </form>
-      {% if remaining <= 0 %}<p class="error">Месячный лимит исчерпан — запуск будет доступен в следующем месяце.</p>{% endif %}
+      {% if remaining <= 0 %}<p class="error">Лимит кредитов исчерпан — новый запуск возможен после пополнения лимита Tavily.</p>{% endif %}
     {% endif %}
   </section>
 </div>

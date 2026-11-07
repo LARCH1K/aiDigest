@@ -76,3 +76,10 @@ def make_case(make_metric, make_source):
             base["sources"] = [make_source()]
         return Case(**base)
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _no_real_tavily_usage(monkeypatch):
+    """Тесты не ходят в сеть: фактический расход Tavily по умолчанию «недоступен» (тест может переопределить)."""
+    monkeypatch.setattr("aidigest.usage.fetch_tavily_usage", lambda token, timeout=10: None)
+    monkeypatch.setattr("aidigest.cli.fetch_tavily_usage", lambda token, timeout=10: None)

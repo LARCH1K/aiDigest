@@ -74,3 +74,30 @@ def test_history_shows_last_report(data_dir):
     log = client.get(f"/run/log/{info.run_id}")
     assert log.status_code == 200 and "Кредитов Tavily потрачено" in html(log)
     assert client.get("/run/log/..%2F..%2Fcredits").status_code == 404
+
+
+def test_run_page_prefers_tavily_numbers(data_dir):
+    from aidigest.usage import TavilyUsage
+    client, _, rm = make(data_dir)
+    rm._tavily = lambda: TavilyUsage(used=210, limit=1000, plan="Researcher")
+    body = html(client.get("/run"))
+    assert "210" in body and "по данным Tavily" in body and "1-го числа" not in body
+
+
+def test_run_page_falls_back_to_local_counter(data_dir):
+    (data_dir / "credits.json").write_text(json.dumps({"2026-11": 150}), encoding="utf-8")
+    client, _, rm = make(data_dir)
+    rm._tavily = lambda: None
+    body = html(client.get("/run"))
+    assert "150" in body and "по нашему учёту" in body
+
+
+def test_tavily_exhausted_blocks_start(data_dir):
+    import pytest
+    from aidigest.usage import TavilyUsage
+    from aidigest_web.runs import MonthExhausted
+    _, calls, rm = make(data_dir)
+    rm._tavily = lambda: TavilyUsage(used=1000, limit=1000, plan="p")
+    with pytest.raises(MonthExhausted):
+        rm.start()
+    assert calls == []

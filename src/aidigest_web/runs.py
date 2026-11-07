@@ -103,27 +103,52 @@ class RunManager:
         self._now = now
 
     # --- кредиты ---
-    def _usage(self):
+    TAVILY_CACHE_SECONDS = 60
+
+    def _tavily(self):
+        """Фактический расход по данным Tavily (GET /usage, бесплатно), с кешем на минуту. None — недоступно."""
+        import time
+        from aidigest import usage as usage_mod
+        cached = getattr(self, "_tavily_cache", None)
+        if cached and time.monotonic() - cached[0] < self.TAVILY_CACHE_SECONDS:
+            return cached[1]
+        env = self.project_root / "tavily.env"
+        token = None
+        if env.exists():
+            from aidigest.creds import load_env_file
+            token = load_env_file(env).get("TAVILY_TOKEN")
+        result = usage_mod.fetch_tavily_usage(token, timeout=5)
+        self._tavily_cache = (time.monotonic(), result)
+        return result
+
+    def _local(self):
         from aidigest.config import load_settings
         from aidigest.usage import MonthlyUsage
-        settings = load_settings(self.project_root / "config" / "settings.yaml") \
-            if (self.project_root / "config" / "settings.yaml").exists() else None
+        path = self.project_root / "config" / "settings.yaml"
+        settings = load_settings(path) if path.exists() else None
         limit = settings.monthly_limit if settings else 1000
         return MonthlyUsage(self.data_dir / "credits.json", limit), limit, (settings.run_budget if settings else 30)
 
+    def credits(self) -> dict:
+        """Расход кредитов для страницы: по данным Tavily, а если он недоступен — по нашему учёту."""
+        actual = self._tavily()
+        if actual is not None:
+            return {"spent": actual.used, "limit": actual.limit, "source": "tavily"}
+        usage, limit, _ = self._local()
+        return {"spent": usage.spent(self._now().date()), "limit": limit, "source": "local"}
+
     def month_spent(self) -> float:
-        usage, _, _ = self._usage()
-        return usage.spent(self._now().date())
+        return self.credits()["spent"]
 
     def month_limit(self) -> float:
-        return self._usage()[1]
+        return self.credits()["limit"]
 
     def run_budget(self) -> float:
-        return self._usage()[2]
+        return self._local()[2]
 
     def month_remaining(self) -> float:
-        usage, _, _ = self._usage()
-        return usage.remaining(self._now().date())
+        c = self.credits()
+        return max(0.0, c["limit"] - c["spent"])
 
     # --- состояние ---
     def _result_path(self, run_id: str) -> Path:
