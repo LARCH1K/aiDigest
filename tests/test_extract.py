@@ -32,7 +32,7 @@ def test_non_case_article_returns_empty(registry):
 
 
 def test_unknown_criterion_and_stage_are_coerced(registry, case_reply):
-    [c] = extract_cases(ART, FakeLLM([case_reply(criterion="удобство", stage="запущен")]), registry, D, 12000)
+    [c] = extract_cases(ART, FakeLLM([case_reply(criterion="удобство", name="индекс", stage="запущен")]), registry, D, 12000)
     assert c.metrics[0].criterion == OTHER_CRITERION and c.stage == Stage.UNKNOWN
 
 
@@ -85,3 +85,54 @@ def test_invented_change_is_not_rescued(registry, case_reply):
     r = case_reply(before="13 мин", after="5 мин", change="-70%")
     [c] = extract_cases(ART, FakeLLM([r]), registry, D, 12000)
     assert not c.metrics[0].quote_verified
+
+
+# --- пакет «к показу»: отсев не-кейсов, федеральный уровень, критерии ---
+from aidigest.methodology import guess_criterion
+
+
+def test_llm_marked_non_case_is_dropped_with_reason(registry, case_reply):
+    r = case_reply()
+    r["cases"][0]["is_concrete"] = False
+    r["cases"][0]["not_concrete_reason"] = "отраслевая статистика, а не проект"
+    rejected = []
+    assert extract_cases(ART, FakeLLM([r]), registry, D, 12000, rejected=rejected) == []
+    assert rejected == ["т: отраслевая статистика, а не проект"]
+
+
+def test_case_without_implementer_and_place_is_dropped(registry, case_reply):
+    r = case_reply(region=None, organization=None, title="План закупок ТЭК")
+    rejected = []
+    assert extract_cases(ART, FakeLLM([r]), registry, D, 12000, rejected=rejected) == []
+    assert "не указано, кто и где внедрил" in rejected[0]
+
+
+def test_russian_case_without_region_is_federal(registry, case_reply):
+    [c] = extract_cases(ART, FakeLLM([case_reply(region=None, organization="Минфин России")]), registry, D, 12000)
+    assert c.level == Level.RF_REGIONS and c.region == "федеральный уровень"
+
+
+def test_world_case_keeps_empty_region(registry, case_reply):
+    [c] = extract_cases(ART, FakeLLM([case_reply(country="Германия", region=None, organization="Digitalservice")]),
+                        registry, D, 12000)
+    assert c.region is None
+
+
+def test_guess_criterion_by_keywords():
+    assert guess_criterion("экономия затрат на персонал", Methodology.BUSINESS) == "операционные затраты"
+    assert guess_criterion("сокращение времени обработки заявок", Methodology.BUSINESS) == "время процесса"
+    assert guess_criterion("доля ошибок в документах", Methodology.BUSINESS) == "уровень ошибок"
+    assert guess_criterion("окупаемость инвестиций", Methodology.BUSINESS) == "ROI"
+    assert guess_criterion("время ожидания ответа", Methodology.R1) == "скорость"
+    assert guess_criterion("экономия бюджета", Methodology.R1) == "экономическая эффективность"
+    assert guess_criterion("точность прогноза", Methodology.R1) == "качество"
+    assert guess_criterion("число пользователей", Methodology.M1) == "реализуемость и масштаб"
+    assert guess_criterion("что-то непонятное", Methodology.R1) == OTHER_CRITERION
+
+
+def test_unknown_criterion_is_mapped_by_metric_name(registry, case_reply):
+    r = case_reply(sector="бизнес", organization="X5", name="экономия затрат на логистику", criterion="эффективность",
+                   before=None, after=None, change="-20%", quote="затраты на логистику снизились на 20%")
+    art = Article(url="https://x5.ru/1", domain="x5.ru", title="", text="В X5 затраты на логистику снизились на 20%.")
+    [c] = extract_cases(art, FakeLLM([r]), registry, D, 12000)
+    assert c.metrics[0].criterion == "операционные затраты"

@@ -27,6 +27,7 @@ class RunReport:
     articles_processed: int = 0
     articles_rejected: int = 0
     articles_failed: int = 0
+    candidates_rejected: int = 0
     cases_new: int = 0
     cases_updated: int = 0
     confirmations_done: int = 0
@@ -41,6 +42,7 @@ class RunReport:
             "Статей обработано": self.articles_processed,
             "Статей отсеяно (не кейс)": self.articles_rejected,
             "Статей с ошибкой LLM (повтор в след. раз)": self.articles_failed,
+            "Кандидатов отсеяно (не конкретное внедрение)": self.candidates_rejected,
             "Кейсов новых": self.cases_new,
             "Кейсов обновлено": self.cases_updated,
             "Подтверждений проведено": self.confirmations_done,
@@ -91,13 +93,18 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             if url in data.processed_urls or url in seen_now:
                 continue
             seen_now.add(url)
+            rejected: list[str] = []
             try:
-                cases = extract_cases(article, deps.llm, deps.registry, today, s.article_max_chars)
+                cases = extract_cases(article, deps.llm, deps.registry, today, s.article_max_chars,
+                                      rejected=rejected)
             except Exception as e:  # битый ответ, нет в кеше, сеть/API LLM — статья повторится в след. раз
                 report.articles_failed += 1
                 _log(f"Статья пропущена ({url}): {type(e).__name__}: {e}")
                 continue
             report.articles_processed += 1
+            report.candidates_rejected += len(rejected)
+            for reason in rejected:
+                _log(f"Отсеян кандидат ({url}): {reason}")
             if not cases:
                 report.articles_rejected += 1
             for case in cases:

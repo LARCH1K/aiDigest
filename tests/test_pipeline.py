@@ -127,3 +127,14 @@ def test_cli_run_records_monthly_usage(tmp_path, monkeypatch):
     assert main(["run", "--offline", "--budget", "3"]) == 0
     data = json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))
     assert data == {date.today().strftime("%Y-%m"): 0}
+
+
+def test_rejected_candidates_are_counted(tmp_path, registry, case_reply):
+    b = CreditBudget(30)
+    s = FakeSearch(lambda **kw: [A1], budget=b)
+    r = case_reply(region=None, organization=None)
+    llm = FakeLLM(lambda system, user: {"matches": []} if system == CONFIRM_SYSTEM_PROMPT else r)
+    q = [QuerySpec(level=Level.WORLD, text="x", use_registry_domains=False, language="en")]
+    rep = run_cycle(deps(tmp_path, s, llm, b, registry, q), set(Level), date(2026, 11, 7))
+    assert rep.candidates_rejected == 1 and rep.cases_new == 0 and rep.articles_rejected == 1
+    assert rep.as_rows()["Кандидатов отсеяно (не конкретное внедрение)"] == 1

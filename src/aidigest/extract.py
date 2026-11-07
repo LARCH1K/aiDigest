@@ -6,8 +6,9 @@ from datetime import date
 from typing import Any
 
 from aidigest.llm import LLMClient, LLMFormatError
-from aidigest.methodology import CRITERIA, OTHER_CRITERION, infer_level, methodology_prompt, select_methodology
-from aidigest.models import Article, Case, Metric, MetricKind, Sector, Stage
+from aidigest.methodology import (CRITERIA, OTHER_CRITERION, guess_criterion, infer_level, methodology_prompt,
+                                  select_methodology)
+from aidigest.models import Article, Case, Level, Metric, MetricKind, Sector, Stage
 from aidigest.quotes import verify_metric
 from aidigest.registry import SourceRegistry
 from aidigest.urls import normalize_url
@@ -18,7 +19,11 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 Кейс — это конкретное внедрение: известно, КТО внедрил (организация, ведомство, регион, компания),
 ГДЕ и ЧТО сделано (какая система на основе ИИ и для какой задачи).
 НЕ являются кейсами: общие новости рынка, мнения и интервью без конкретного проекта, анонсы конференций,
-обзоры технологий, планы «внедрить ИИ» без указания конкретного проекта. Если кейсов нет — верни {{"cases": []}}.
+обзоры технологий, планы «внедрить ИИ» без указания конкретного проекта, отраслевая статистика и прогнозы
+(суммарные затраты отрасли, опросы компаний, рейтинги регионов), продажа ИИ-продукта без названного заказчика.
+Если кейсов нет — верни {{"cases": []}}.
+Если сомневаешься, кейс ли это, всё равно верни его, но с is_concrete: false и причиной в not_concrete_reason.
+Для настоящего кейса is_concrete: true.
 
 Для каждого кейса укажи:
 - country — страна по-русски («Россия», «Германия», «Республика Корея»);
@@ -35,8 +40,10 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 - unit — единица; kind — «факт» (уже достигнуто) или «план» (ожидается/целевое значение);
 - quote — ДОСЛОВНАЯ цитата из статьи (одно предложение или его часть), в которой стоят эти числа.
   Цитату копируй символ в символ, не перефразируй.
-- criterion — критерий методики (см. ниже). Методика зависит от сектора и уровня:
-  госсектор в России → Р-1; госсектор за рубежом → М-1; бизнес → бизнес-метрики.
+- criterion — критерий методики (см. ниже), РОВНО одно из допустимых значений, символ в символ.
+  Методика зависит от сектора и уровня: госсектор в России → Р-1; госсектор за рубежом → М-1;
+  бизнес → бизнес-метрики (экономия денег и расходов → «операционные затраты»; сроки и скорость →
+  «время процесса»; ошибки, брак, точность → «уровень ошибок»; окупаемость и доход → «ROI»).
 
 ЗАПРЕЩЕНО придумывать, округлять или пересчитывать числа. Нет числа в тексте — нет показателя.
 ЗАПРЕЩЕНО вычислять before/after из изменения: если в тексте сказано только «снизилось на 23%»,
@@ -53,7 +60,7 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 {methodology_prompt()}
 
 Ответ — только JSON без пояснений, строго такого вида:
-{{"cases": [{{"country": "", "region": null, "municipality": null, "organization": null,
+{{"cases": [{{"is_concrete": true, "not_concrete_reason": null, "country": "", "region": null, "municipality": null, "organization": null,
   "sector": "госсектор", "industry": "", "ai_technology": "", "title": "", "summary": "", "stage": "неизвестно",
   "metrics": [{{"name": "", "criterion": "", "before": null, "after": null, "change": null,
                "unit": null, "kind": "факт", "quote": ""}}]}}]}}"""
@@ -66,12 +73,12 @@ def _enum(enum_cls, value: Any, default):
         return default
 
 
-def _criterion(value: Any, allowed: list[str]) -> str:
+def _criterion(value: Any, name: str, methodology) -> str:
     v = str(value or "").strip().lower()
-    for c in allowed:
+    for c in CRITERIA[methodology]:
         if c.lower() == v:
             return c
-    return OTHER_CRITERION
+    return guess_criterion(f"{v} {name}", methodology)
 
 
 def _opt(v: Any) -> str | None:
@@ -97,8 +104,12 @@ def _cases_from_reply(reply: Any) -> list[dict]:
     return cases
 
 
+FEDERAL_REGION = "федеральный уровень"
+
+
 def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, today: date,
-                  max_chars: int) -> list[Case]:
+                  max_chars: int, rejected: list[str] | None = None) -> list[Case]:
+    """Кейсы статьи. Отсеянные кандидаты (не конкретное внедрение) — в rejected как «название: причина»."""
     user = f"Заголовок: {article.title}\nURL: {article.url}\n\nТекст статьи:\n{article.text[:max_chars]}"
     try:
         cases_raw = _cases_from_reply(llm.complete_json(SYSTEM_PROMPT, user, validate=_cases_from_reply))
@@ -109,9 +120,23 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
     source = registry.to_source(article)
     out: list[Case] = []
     for raw in cases_raw:
+        title = _opt(raw.get("title")) or article.title
         country = _opt(raw.get("country")) or "неизвестно"
         region = _opt(raw.get("region"))
+        organization = _opt(raw.get("organization"))
+        municipality = _opt(raw.get("municipality"))
+        if raw.get("is_concrete") is False:
+            reason = _opt(raw.get("not_concrete_reason")) or "не конкретное внедрение"
+            if rejected is not None:
+                rejected.append(f"{title}: {reason}")
+            continue
+        if not (organization or region or municipality):
+            if rejected is not None:
+                rejected.append(f"{title}: не указано, кто и где внедрил")
+            continue
         level = infer_level(country, region)
+        if level == Level.RF_REGIONS and not region:
+            region = FEDERAL_REGION
         sector = _enum(Sector, raw.get("sector"), Sector.GOV)
         methodology = select_methodology(level, sector)
         metrics = []
@@ -120,7 +145,7 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
                 continue
             metric = Metric(
                 name=_opt(m.get("name")) or "показатель",
-                criterion=_criterion(m.get("criterion"), CRITERIA[methodology]),
+                criterion=_criterion(m.get("criterion"), str(m.get("name") or ""), methodology),
                 before=_opt(m.get("before")), after=_opt(m.get("after")), change=_opt(m.get("change")),
                 unit=_opt(m.get("unit")), kind=_enum(MetricKind, m.get("kind"), MetricKind.FACT),
                 quote=str(m["quote"]).strip(), source_url=url,
@@ -136,10 +161,10 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
             metrics.append(metric)
         out.append(Case(
             id=uuid.uuid4().hex[:12], first_seen=today, updated=today, level=level,
-            country=country, region=region, municipality=_opt(raw.get("municipality")),
-            organization=_opt(raw.get("organization")), sector=sector,
+            country=country, region=region, municipality=municipality,
+            organization=organization, sector=sector,
             industry=_opt(raw.get("industry")) or "", ai_technology=_opt(raw.get("ai_technology")) or "",
-            title=_opt(raw.get("title")) or article.title, summary=_opt(raw.get("summary")) or "",
+            title=title, summary=_opt(raw.get("summary")) or "",
             stage=_enum(Stage, raw.get("stage"), Stage.UNKNOWN), methodology=methodology,
             metrics=metrics, sources=[source.model_copy()],
         ))
