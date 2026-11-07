@@ -48,3 +48,28 @@ def test_extract_numbers_spelled_multipliers():
     assert extract_numbers("превысила 9 миллионов рублей") == [9_000_000]
     assert extract_numbers("1,5 миллиарда") == [1_500_000_000]
     assert extract_numbers("12 тысяч человек") == [12_000]
+
+
+# --- пакет «к показу»: направление изменения и длина цитаты ---
+from aidigest.quotes import direction_consistent
+
+TEXT2 = "Число аварий снизилось на 23%. Выручка выросла на 15%. Точность 95%."
+
+
+def test_sign_contradicting_quote_is_rejected(make_metric):
+    up = make_metric(before=None, after=None, change="+23%", quote="Число аварий снизилось на 23%")
+    down = make_metric(before=None, after=None, change="-23%", quote="Число аварий снизилось на 23%")
+    assert not verify_metric(up, TEXT2) and verify_metric(down, TEXT2)
+    assert not direction_consistent(make_metric(before=None, after=None, change="-15%", quote="Выручка выросла на 15%"))
+
+
+def test_unsigned_change_and_mixed_words_are_not_judged(make_metric):
+    assert direction_consistent(make_metric(before=None, after=None, change="23%", quote="Число аварий снизилось на 23%"))
+    assert direction_consistent(make_metric(before=None, after=None, change="-5%",
+                                            quote="расходы снизились на 5%, а выручка выросла"))
+
+
+def test_too_short_quote_is_rejected(make_metric):
+    assert not quote_in_text("95%", TEXT2)
+    assert not quote_in_text("Точность 95%", TEXT2)
+    assert quote_in_text("Выручка выросла на 15%", TEXT2)

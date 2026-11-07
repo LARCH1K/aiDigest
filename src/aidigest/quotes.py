@@ -45,9 +45,15 @@ def _strip_punct(s: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", s)).strip()
 
 
+MIN_QUOTE_WORDS = 3  # короткий обрывок («95%», «5 минут») подтверждает что угодно
+
+_DOWN = ("снизил", "снижен", "сократил", "сокращен", "уменьшил", "уменьшен", "упал", "падени", "меньше", "ниже")
+_UP = ("вырос", "выросл", "рост", "увеличил", "увеличен", "повысил", "повышен", "прирост", "больше", "выше")
+
+
 def quote_in_text(quote: str, text: str) -> bool:
     q, t = normalize_text(quote), normalize_text(text)
-    if not q:
+    if len(re.findall(r"\w+", q)) < MIN_QUOTE_WORDS:
         return False
     if q in t:
         return True
@@ -65,5 +71,20 @@ def numbers_in_quote(metric: Metric) -> bool:
     return all(any(_close(w, h) for h in have) for w in wanted)
 
 
+def direction_consistent(metric: Metric) -> bool:
+    """Знак change не противоречит словам цитаты («+23%» при «снизилось на 23%» — ложь).
+
+    Без явного знака или при словах обоих направлений не судим."""
+    change = (metric.change or "").strip()
+    if not change or change[0] not in "+-−–":
+        return True
+    q = normalize_text(metric.quote)
+    down = any(w in q for w in _DOWN)
+    up = any(w in q for w in _UP)
+    if down == up:
+        return True
+    return (change[0] == "+") == up
+
+
 def verify_metric(metric: Metric, text: str) -> bool:
-    return quote_in_text(metric.quote, text) and numbers_in_quote(metric)
+    return quote_in_text(metric.quote, text) and numbers_in_quote(metric) and direction_consistent(metric)
