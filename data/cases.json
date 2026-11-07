@@ -1,4 +1,2766 @@
 {
-  "cases": [],
-  "processed_urls": []
+  "cases": [
+    {
+      "id": "52b0e8fac21a",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "Свердловская область",
+      "country": "Россия",
+      "region": "Свердловская область",
+      "municipality": null,
+      "organization": "Уралтехмаркет",
+      "sector": "бизнес",
+      "industry": "промышленность",
+      "ai_technology": "промышленная робототехника",
+      "title": "Создание Центра развития промышленной робототехники",
+      "summary": "В Свердловской области создается Центр развития промышленной робототехники на базе компании 'Уралтехмаркет' с поддержкой федерального гранта. Цель — разработка решений в промышленной робототехнике, внедрение роботизированных комплексов и обучение сотрудников.",
+      "stage": "в разработке",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "плотность роботизации",
+          "criterion": "прочее",
+          "before": "16 промышленных роботов на 10 тыс. сотрудников",
+          "after": "23 промышленных робота на 10 тыс. сотрудников",
+          "change": null,
+          "unit": "промышленных роботов на 10 тыс. сотрудников",
+          "kind": "факт",
+          "quote": "если в 2023 году на 10 тыс. сотрудников приходилось 16 промышленных роботов, то в 2025 году — уже 23",
+          "source_url": "https://oblgazeta.ru/news/2026/10/169265",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://oblgazeta.ru/news/2026/10/169265",
+          "domain": "oblgazeta.ru",
+          "title": "В Свердловской области создадут первый Центр развития промышленной робототехники | Областная газета",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "982695ae9ee8",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Минобороны",
+      "sector": "госсектор",
+      "industry": "армия и оборона",
+      "ai_technology": "машинное обучение",
+      "title": "Обучение военных нейросетей на данных с дронов",
+      "summary": "Минобороны создало сервис для обучения военных нейросетей на видеозаписях с боевых дронов. Сервис доступен более чем 40 организациям-разработчикам ИИ для беспилотных систем.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "число организаций-участников",
+          "criterion": "прочее",
+          "before": null,
+          "after": "более 40",
+          "change": null,
+          "unit": "организаций",
+          "kind": "факт",
+          "quote": "Доступ к системе уже получили более 40 организаций",
+          "source_url": "https://ura.news/news/1053135380",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://ura.news/news/1053135380",
+          "domain": "ura.news",
+          "title": "ВС РФ начали использовать боевые видео с дронов для обучения нейросетей: заявление Минобороны, видео",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "b9f63064d792",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Школково",
+      "sector": "бизнес",
+      "industry": "образование",
+      "ai_technology": "генеративный ИИ",
+      "title": "ИИ-проверка сочинений по русскому языку",
+      "summary": "Компания \"Школково\" внедрила сервис ИИ-проверки сочинений по русскому языку, обучив нейросеть на корпусах данных экспертов ЕГЭ и актуальных нормах языка. Сервис протестировали десятки тысяч учеников и 440 учителей.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "число протестированных учеников",
+          "criterion": "прочее",
+          "before": null,
+          "after": "десятки тысяч",
+          "change": null,
+          "unit": "ученики",
+          "kind": "факт",
+          "quote": "Сервис уже протестировали десятки тысяч учеников",
+          "source_url": "https://www.rbc.ru/education/12/10/2026/6aac01a19a7947855b15cd98",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "число учителей, протестировавших сервис",
+          "criterion": "прочее",
+          "before": null,
+          "after": "440",
+          "change": null,
+          "unit": "учителей",
+          "kind": "факт",
+          "quote": "а также 440 учителей русского языка из разных регионов России",
+          "source_url": "https://www.rbc.ru/education/12/10/2026/6aac01a19a7947855b15cd98",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/12/10/2026/6aac01a19a7947855b15cd98",
+          "domain": "rbc.ru",
+          "title": "Как ИИ изменил подготовку к ЕГЭ и ОГЭ",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "365f180ee686",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Германия",
+      "region": null,
+      "municipality": null,
+      "organization": "DHL",
+      "sector": "бизнес",
+      "industry": "логистика",
+      "ai_technology": "ИИ-агенты",
+      "title": "Использование ИИ-агента MySupplyChain в логистике",
+      "summary": "Компания DHL внедрила ИИ-агента MySupplyChain, что позволило повысить точность соблюдения сроков на 30% и сократить транспортные расходы на 20%.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "точность соблюдения сроков",
+          "criterion": "прочее",
+          "before": null,
+          "after": null,
+          "change": "+30%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "точность соблюдения сроков у нее выросла на 30%",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "транспортные расходы",
+          "criterion": "прочее",
+          "before": null,
+          "after": null,
+          "change": "-20%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "транспортные расходы сократились на 20%",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "domain": "rbc.ru",
+          "title": "Сколько вы заплатите за ИИ-агента: разбор основных статей затрат",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "5a86bd4fc28b",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Технологии доверия",
+      "sector": "бизнес",
+      "industry": "ИТ",
+      "ai_technology": "ИИ-агенты",
+      "title": "Внедрение ИИ-агента на платформе AutoFAQ Xplain",
+      "summary": "Компания 'Технологии доверия' внедрила ИИ-агента для внутренней ИТ-поддержки, который обрабатывает около 80% запросов сотрудников и экономит более 100 человеко-часов в месяц.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "обработка запросов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "80%",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Решение отвечает на обращения сотрудников, обрабатывая порядка 80% запросов",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://habr.com/ru/articles/1059506"
+          ],
+          "conflicting_values": []
+        },
+        {
+          "name": "экономия человеко-часов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "100",
+          "change": null,
+          "unit": "человеко-часа в месяц",
+          "kind": "факт",
+          "quote": "экономя более 100 человеко-часов в месяц",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://habr.com/ru/articles/1059506"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "domain": "rbc.ru",
+          "title": "Сколько вы заплатите за ИИ-агента: разбор основных статей затрат",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        },
+        {
+          "url": "https://habr.com/ru/articles/1059506",
+          "domain": "habr.com",
+          "title": "От чат-бота до ИИ-агента: 13 проектов российских компаний / Хабр",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "d27fbb56bb2c",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Яндекс Такси",
+      "sector": "бизнес",
+      "industry": "транспорт",
+      "ai_technology": "ИИ-агенты",
+      "title": "ИИ-агент поддержки водителей и клиентов на базе 'Алиса AI'",
+      "summary": "Компания 'Яндекс Такси' внедрила ИИ-агента поддержки водителей и клиентов, который автоматически закрывает 60% запросов и прогнозирует экономический эффект в размере 600 млн рублей.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "закрытие запросов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "60%",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Закрывая 60% таких запросов автоматически.",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "прогнозируемый экономический эффект",
+          "criterion": "прочее",
+          "before": null,
+          "after": "600 млн",
+          "change": null,
+          "unit": "рублей",
+          "kind": "план",
+          "quote": "Прогнозируемый эффект от внедрения— 600 млн руб.",
+          "source_url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+          "domain": "rbc.ru",
+          "title": "Сколько вы заплатите за ИИ-агента: разбор основных статей затрат",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "6e9dd1ce7a0f",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Новосибирская область",
+      "municipality": null,
+      "organization": "Минфин и Минцифры",
+      "sector": "госсектор",
+      "industry": "бюджетный контроль",
+      "ai_technology": "предиктивная аналитика",
+      "title": "ИИ-аудит бюджетных расходов в Новосибирской области",
+      "summary": "В Новосибирской области запущен пилотный проект системы 'Бюджетный контролёр' на базе искусственного интеллекта для выявления неэффективных бюджетных расходов. Система анализирует контракты по 44-ФЗ и 223-ФЗ, отчетность казначейства и региональные программы, сравнивая цены закупок с рыночными показателями.",
+      "stage": "пилот",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "обнаруженные контракты с признаками завышения цен",
+          "criterion": "качество",
+          "before": null,
+          "after": "142",
+          "change": null,
+          "unit": "контракты",
+          "kind": "факт",
+          "quote": "В Нижегородской области за три месяца пилотного тестирования «Бюджетного контролера» выявлено 142 контракта с признаками завышения цен",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.fa.ru/university/structure/university/uso/press-service/press-releases/glavy-regionov-poluchat-tsifrovogo-pomoshchnika-federalnyy-tsentr-zapuskaet-ii-audit-byudzhetnykh-ra"
+          ],
+          "conflicting_values": []
+        },
+        {
+          "name": "суммарный перерасход по выявленным контрактам",
+          "criterion": "экономическая эффективность",
+          "before": null,
+          "after": "87 млн руб.",
+          "change": null,
+          "unit": "рублей",
+          "kind": "факт",
+          "quote": "совокупный перерасход оценили в 87 млн руб.",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.fa.ru/university/structure/university/uso/press-service/press-releases/glavy-regionov-poluchat-tsifrovogo-pomoshchnika-federalnyy-tsentr-zapuskaet-ii-audit-byudzhetnykh-ra"
+          ],
+          "conflicting_values": []
+        },
+        {
+          "name": "потенциальная ежегодная экономия бюджетов всех уровней",
+          "criterion": "экономическая эффективность",
+          "before": null,
+          "after": "до 50 млрд рублей",
+          "change": null,
+          "unit": "рублей",
+          "kind": "план",
+          "quote": "полномасштабное использование ИИ-аудита может приносить бюджетам всех уровней до 50 млрд рублей ежегодной экономии",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "domain": "rbc.ru",
+          "title": "Москва запускает в Новосибирской области ИИ-аудит бюджетных расходов",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        },
+        {
+          "url": "https://www.fa.ru/university/structure/university/uso/press-service/press-releases/glavy-regionov-poluchat-tsifrovogo-pomoshchnika-federalnyy-tsentr-zapuskaet-ii-audit-byudzhetnykh-ra",
+          "domain": "fa.ru",
+          "title": "Главы регионов получат цифрового помощника: федеральный центр запускает ИИ-аудит бюджетных расходов",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "ce64c0419151",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "Свердловская область",
+      "country": "Россия",
+      "region": "Свердловская область",
+      "municipality": null,
+      "organization": "Минфин и Минцифры",
+      "sector": "госсектор",
+      "industry": "бюджетный контроль",
+      "ai_technology": "предиктивная аналитика",
+      "title": "Оптимизация закупок через ИИ-аудит в Свердловской области",
+      "summary": "В Свердловской области система 'Бюджетный контролёр' выявила дублирующие закупки одинакового оборудования двумя муниципальными учреждениями, что позволило сэкономить 12 млн рублей.",
+      "stage": "пилот",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "сумма возможной экономии за счёт объединения закупок",
+          "criterion": "экономическая эффективность",
+          "before": null,
+          "after": "12 млн рублей",
+          "change": null,
+          "unit": "рублей",
+          "kind": "факт",
+          "quote": "В Свердловской области система обнаружила, что два муниципальных учреждения одновременно планировали закупку одинакового дорогостоящего оборудования, хотя могли объединить потребности и сэкономить 12 млн рублей.",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "domain": "rbc.ru",
+          "title": "Москва запускает в Новосибирской области ИИ-аудит бюджетных расходов",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "1b0d6fae8263",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Министерство финансов",
+      "sector": "госсектор",
+      "industry": "бюджетный контроль",
+      "ai_technology": "ИИ-агент",
+      "title": "ИИ-агент Министерства финансов для проверки бюджетных заявок",
+      "summary": "Министерство финансов использует ИИ-агента для проверки бюджетных заявок, повысив точность обработки до 84% и сократив время рассмотрения с трёх до одного дня.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "точность обработки бюджетных заявок",
+          "criterion": "качество",
+          "before": null,
+          "after": "84%",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "его точность достигла 84%",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "время обработки одной бюджетной заявки",
+          "criterion": "скорость",
+          "before": "три дня",
+          "after": "один день",
+          "change": null,
+          "unit": "дни",
+          "kind": "факт",
+          "quote": "время обработки одной заявки сократилось с трех дней до одного",
+          "source_url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+          "domain": "rbc.ru",
+          "title": "Москва запускает в Новосибирской области ИИ-аудит бюджетных расходов",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "1c6e1c3d4189",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "Свердловская область",
+      "country": "Россия",
+      "region": "Свердловская область",
+      "municipality": "Екатеринбург",
+      "organization": "АО «УУК»",
+      "sector": "бизнес",
+      "industry": "образование",
+      "ai_technology": "ИИ-репетитор",
+      "title": "ИИ-репетитор «Винни» для образования",
+      "summary": "Компания «Винни», резидент технопарка «Университетский», представила свой ИИ-репетитор на форуме-выставке «Учебная Сибирь – 2026». Продукт включает интерактивное обучение школьников, личный кабинет для родителей и аналитический кабинет для преподавателей.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://vk.ru/uralhitech",
+          "domain": "vk.ru",
+          "title": "Технопарк «Университетский» – АО «УУК»",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "8f1cb3c80b38",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "США",
+      "region": null,
+      "municipality": null,
+      "organization": "Zillow",
+      "sector": "бизнес",
+      "industry": "недвижимость",
+      "ai_technology": "генеративный ИИ",
+      "title": "ИИ для автоматической оценки недвижимости Zillow Offers",
+      "summary": "Компания Zillow использовала алгоритмы генеративного ИИ для автоматической оценки стоимости домов и массового выкупа недвижимости, но закрыла направление из-за убытков, вызванных некорректностью модели.",
+      "stage": "неизвестно",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/14/10/2026/6ac6bd029a794719c83336ee",
+          "domain": "rbc.ru",
+          "title": "Проблема не в технологии: почему 95% ИИ-проектов проваливаются",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "стадия_неясна",
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "a7234ff52075",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Канада",
+      "region": null,
+      "municipality": null,
+      "organization": "Air Canada",
+      "sector": "бизнес",
+      "industry": "авиаперевозки",
+      "ai_technology": "чат-бот",
+      "title": "Чат-бот Air Canada",
+      "summary": "Air Canada внедрила чат-бота для общения с пассажирами, но из-за отсутствия актуальных регламентов и человеческого контроля бот давал неверные ответы, противоречащие официальной политике авиакомпании.",
+      "stage": "неизвестно",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/14/10/2026/6ac6bd029a794719c83336ee",
+          "domain": "rbc.ru",
+          "title": "Проблема не в технологии: почему 95% ИИ-проектов проваливаются",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "стадия_неясна",
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "ef84c51bbcfe",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "США",
+      "region": null,
+      "municipality": null,
+      "organization": "Morgan Stanley",
+      "sector": "бизнес",
+      "industry": "финансы",
+      "ai_technology": "генеративный ИИ",
+      "title": "Генеративный ИИ в Morgan Stanley",
+      "summary": "Morgan Stanley внедрила генеративный ИИ не для замены сотрудников, а для автоматизации поиска информации в корпоративных документах, что позволило консультантам больше времени уделять клиентам.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/education/14/10/2026/6ac6bd029a794719c83336ee",
+          "domain": "rbc.ru",
+          "title": "Проблема не в технологии: почему 95% ИИ-проектов проваливаются",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "73ba04aeaa8c",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Верховный суд РФ",
+      "sector": "госсектор",
+      "industry": "правосудие",
+      "ai_technology": "поиск и анализ судебной практики, выявление противоречий и ошибок, автоматизация протоколирования",
+      "title": "Внедрение ИИ в судебные системы регионов России",
+      "summary": "Искусственный интеллект внедряют в работу судов более чем в 20 регионах России в пилотном режиме. Направления использования включают поиск и анализ судебной практики, выявление ошибок и автоматизацию протоколов.",
+      "stage": "пилот",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "число регионов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "более 20",
+          "change": null,
+          "unit": "регионы",
+          "kind": "факт",
+          "quote": "Уже более чем в 20 регионах России тестируются ИИ-технологии в судебной системе.",
+          "source_url": "https://ura.news/news/1053138656",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.teleport2001.ru/news/2026-10-24/220517-ii-vnedrili-v-sudy-v-desyatkakh-regionov-rossii-v-tom-chisle-v-amurskoy-oblasti.html",
+            "https://russian.rt.com/russia/news/1698990-krasnov-testirovanie-ii-sudy/amp",
+            "https://news.rambler.ru/world/57295667-krasnov-ispytaniya-modeley-ii-idut-v-sudah-bolee-20-regionov-rf",
+            "https://readovka.news/news/250886"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://ura.news/news/1053138656",
+          "domain": "ura.news",
+          "title": "Искусственный интеллект в судебной системе: 20 регионов, направления, сроки, заявление Краснова",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        },
+        {
+          "url": "https://www.teleport2001.ru/news/2026-10-24/220517-ii-vnedrili-v-sudy-v-desyatkakh-regionov-rossii-v-tom-chisle-v-amurskoy-oblasti.html",
+          "domain": "teleport2001.ru",
+          "title": "ИИ внедрили в суды в десятках регионов России, в том числе в Амурской области | ТЕЛЕПОРТ.РФ",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://russian.rt.com/russia/news/1698990-krasnov-testirovanie-ii-sudy/amp",
+          "domain": "russian.rt.com",
+          "title": "Краснов рассказал о тестировании моделей ИИ в судах десятков российских регионов",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://news.rambler.ru/world/57295667-krasnov-ispytaniya-modeley-ii-idut-v-sudah-bolee-20-regionov-rf",
+          "domain": "news.rambler.ru",
+          "title": "Краснов: испытания моделей ИИ идут в судах более 20 регионов РФ - Рамблер/новости",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://readovka.news/news/250886",
+          "domain": "readovka.news",
+          "title": "Краснов пообещал открыть доступ к ИИ-сервисам всем судам России - Readovka.news",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "21317367da79",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Пермский край",
+      "municipality": null,
+      "organization": "правоохранительные органы Пермского края",
+      "sector": "госсектор",
+      "industry": "безопасность",
+      "ai_technology": "распознавание лиц",
+      "title": "Система распознавания лиц в Пермском крае",
+      "summary": "Правоохранительные органы Пермского края внедрили систему распознавания лиц, которая помогла раскрыть более 520 преступлений в 2025 году. Оперативность розыска повысилась на 40–45%.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "количество раскрытых преступлений",
+          "criterion": "прочее",
+          "before": null,
+          "after": "более 520",
+          "change": null,
+          "unit": "преступления",
+          "kind": "факт",
+          "quote": "помогла раскрыть более 520 преступлений",
+          "source_url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "оперативность розыска",
+          "criterion": "прочее",
+          "before": null,
+          "after": null,
+          "change": "+40–45%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Оперативность розыска выросла на 40–45%",
+          "source_url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "domain": "rbc.ru",
+          "title": "Как искусственный интеллект изменил российский IT-рынок - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "7f1f7d9c0f43",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": "Москва и Подмосковье",
+      "organization": "МТС Web Services (MWS)",
+      "sector": "бизнес",
+      "industry": "телекоммуникации",
+      "ai_technology": "шумоподавление AI TelcoMixer",
+      "title": "Пилотный проект шумоподавления AI TelcoMixer от МТС Web Services",
+      "summary": "МТС Web Services запустила пилотный проект с использованием технологии шумоподавления AI TelcoMixer для улучшения качества телефонных разговоров в шумных местах. Услуга охватывает 600 тыс. абонентов Москвы и Подмосковья.",
+      "stage": "пилот",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "охват абонентов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "600 тыс.",
+          "change": null,
+          "unit": "абонентов",
+          "kind": "факт",
+          "quote": "Услуга работает для 600 тыс. абонентов Москвы и Подмосковья.",
+          "source_url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.cnews.ru/news/line/2025-10-24_mts_pervoj_na_rynke_zapuskaet",
+            "https://www.computerra.ru/326637/mts-pervoj-v-rossii-zapustila-ai-shumopodavlenie-v-golosovyh-vyzovah",
+            "https://www.vedomosti.ru/technologies/trendsrub/news/2025/10/24/1149626-golosovih-vizovah"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "domain": "rbc.ru",
+          "title": "Как искусственный интеллект изменил российский IT-рынок - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        },
+        {
+          "url": "https://www.cnews.ru/news/line/2025-10-24_mts_pervoj_na_rynke_zapuskaet",
+          "domain": "cnews.ru",
+          "title": "МТС первой на рынке запускает функцию ИИ-шумоподавления в голосовых вызовах - CNews",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://www.computerra.ru/326637/mts-pervoj-v-rossii-zapustila-ai-shumopodavlenie-v-golosovyh-vyzovah",
+          "domain": "computerra.ru",
+          "title": "МТС первой в России запустила AI-шумоподавление в голосовых вызовах | Компьютерра",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://www.vedomosti.ru/technologies/trendsrub/news/2025/10/24/1149626-golosovih-vizovah",
+          "domain": "vedomosti.ru",
+          "title": "МТС запустил AI-шумоподавление в голосовых вызовах - Ведомости.Технологии и инновации",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "6189bb5d34ff",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Альфа-банк",
+      "sector": "бизнес",
+      "industry": "финансы",
+      "ai_technology": "AI-native-модель банка, корпоративные ассистенты, агентные системы",
+      "title": "AI-native-модель банка Альфа-банк",
+      "summary": "Альфа-банк строит AI-native-модель, где ИИ интегрирован в бизнес-процессы. ИИ выполняет до 90% операций в некоторых направлениях сервисного обслуживания без участия человека.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "доля операций, выполняемых ИИ",
+          "criterion": "прочее",
+          "before": null,
+          "after": "до 90%",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "по некоторым направлениям сервисного обслуживания агенты выполняют до 90% операций без участия человека.",
+          "source_url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+          "domain": "rbc.ru",
+          "title": "Как искусственный интеллект изменил российский IT-рынок - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "996c7fc426eb",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Русал",
+      "sector": "бизнес",
+      "industry": "металлургия",
+      "ai_technology": "машинный слух",
+      "title": "Технология машинного слуха для оптимизации работы мельниц",
+      "summary": "Компания 'Русал' внедрила технологию машинного слуха для оптимизации работы мельниц в глиноземном производстве. Алгоритм анализирует виброакустические сигналы оборудования и регулирует загрузку бокситовой руды, снижая износ механизмов и потребление электроэнергии.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "7dd61f7e9333",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "СИБУР",
+      "sector": "бизнес",
+      "industry": "химическая промышленность",
+      "ai_technology": "генеративный ИИ",
+      "title": "Моделирование полимеров с помощью генеративного ИИ",
+      "summary": "СИБУР совместно со Сбером и ЦРТ реализует проект по моделированию полимеров и созданию материалов с новыми свойствами с применением генеративного ИИ.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "c2daa9d438be",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Р-Фарм",
+      "sector": "бизнес",
+      "industry": "фармацевтика",
+      "ai_technology": "генеративный ИИ",
+      "title": "Разработка антител с помощью генеративного ИИ",
+      "summary": "Лаборатория искусственного интеллекта Сбера и компания 'Р-Фарм' разработали ИИ-решение для генерации антител, сокращающее разработку структуры молекулы с двух лет до двух месяцев.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "9a4feb48cccb",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Роснефть и Университет ИТМО",
+      "sector": "бизнес",
+      "industry": "нефтегазовая промышленность",
+      "ai_technology": "генеративный дизайн",
+      "title": "Концептуальное проектирование портовых промышленно-логистических комплексов",
+      "summary": "Роснефть и Университет ИТМО создали решение для проектирования портовых промышленно-логистических комплексов в Арктике с использованием генеративного дизайна.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "6a34c7775c76",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Курский электроаппаратный завод (КЭАЗ)",
+      "sector": "бизнес",
+      "industry": "машиностроение",
+      "ai_technology": "ИИ и машинное зрение",
+      "title": "Система рекомендаций на основе ИИ для оптимизации технологических процессов",
+      "summary": "КЭАЗ тестирует систему рекомендаций на основе ИИ и машинного зрения, которая распознает движения, определяет паттерны поведения и выдает рекомендации, увеличивая производительность труда на 30%.",
+      "stage": "пилот",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "рост производительности труда",
+          "criterion": "прочее",
+          "before": null,
+          "after": "30%",
+          "change": "+30%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Результатом является рост производительности труда на 30%.",
+          "source_url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "81e72c495370",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Т-Банк",
+      "sector": "бизнес",
+      "industry": "банковская сфера",
+      "ai_technology": "ИИ-ассистент по информационной безопасности",
+      "title": "ИИ-ассистент Safeliner для информационной безопасности",
+      "summary": "Специалисты Т-Банка представили первый в России ИИ-ассистент по информационной безопасности — систему Safeliner, которая анализирует потенциальные уязвимости и фильтрует ложные срабатывания.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+          "domain": "tadviser.ru",
+          "title": "Искусственный интеллект в производственной сфере",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "b9061c43ecfa",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "X5",
+      "sector": "бизнес",
+      "industry": "розничная торговля",
+      "ai_technology": "предиктивная аналитика",
+      "title": "ИИ для прогнозирования спроса и управления ассортиментом в X5",
+      "summary": "Ретейлер X5 использует искусственный интеллект для прогнозирования спроса, ценообразования и управления ассортиментом, получив в 2025 году дополнительную операционную прибыль в размере около 5 млрд рублей.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "дополнительная операционная прибыль",
+          "criterion": "операционные затраты",
+          "before": null,
+          "after": "5 млрд руб.",
+          "change": null,
+          "unit": "рублей",
+          "kind": "факт",
+          "quote": "по оценке компании, в 2025 году это принесло около 5 млрд руб. дополнительной операционной прибыли",
+          "source_url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "domain": "rbc.ru",
+          "title": "Экономика цифровизации: как бизнес меняет требования к ИТ-проектам - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "b529b7f4f536",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "СберТех",
+      "sector": "бизнес",
+      "industry": "ИТ",
+      "ai_technology": "генеративный ИИ",
+      "title": "ИИ-ассистенты для разработки ПО в СберТех",
+      "summary": "Компания 'СберТех' применяет ИИ-ассистентов для генерации, дополнения и документирования кода.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "domain": "rbc.ru",
+          "title": "Экономика цифровизации: как бизнес меняет требования к ИТ-проектам - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "3a94369250be",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "ИТ-холдинг Т1",
+      "sector": "бизнес",
+      "industry": "ИТ",
+      "ai_technology": "генеративный ИИ",
+      "title": "Экономия на разработке кода с помощью ИИ в ИТ-холдинге Т1",
+      "summary": "В 2025 году ИТ-холдинг Т1 сэкономил 1 млрд рублей благодаря использованию ИИ при написании кода. В 2026 году планируется создание с помощью ИИ не менее 20% всего кода.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "экономия на разработке кода",
+          "criterion": "операционные затраты",
+          "before": null,
+          "after": "1 млрд руб.",
+          "change": null,
+          "unit": "рублей",
+          "kind": "факт",
+          "quote": "в 2025 году сэкономила 1 млрд руб. благодаря применению ИИ при написании кода",
+          "source_url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "доля кода, создаваемого с помощью ИИ",
+          "criterion": "прочее",
+          "before": null,
+          "after": "20%",
+          "change": null,
+          "unit": "%",
+          "kind": "план",
+          "quote": "В 2026-м компания планирует создавать с помощью ИИ не менее 20% всего кода.",
+          "source_url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+          "domain": "rbc.ru",
+          "title": "Экономика цифровизации: как бизнес меняет требования к ИТ-проектам - РБК Отрасли",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "СМИ"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "eb2b6329817c",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "VPG LaserONE",
+      "sector": "бизнес",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-ассистент хирурга в урологии Urolase Vision System",
+      "summary": "Компания VPG LaserONE разработала ИИ-ассистент хирурга в урологии Urolase Vision System.",
+      "stage": "неизвестно",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "стадия_неясна",
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "18f40c1f553a",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Сбер",
+      "sector": "бизнес",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-модель Сбера для выявления злокачественных образований",
+      "summary": "ИИ-модель Сбера помогла выявить почти вдвое больше злокачественных образований при диспансеризации.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "9a50e1f0b93b",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "НПЦ медпомощи детям",
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-система подбора имплантов и планирования операций",
+      "summary": "НПЦ медпомощи детям получили финансирование в размере 102 млн рублей из бюджета на создание ИИ-системы подбора имплантов и планирования операций.",
+      "stage": "в разработке",
+      "methodology": "Р-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "25b518c7737b",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Сеченовский Университет",
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ для различия четырёх заболеваний лёгких по выдоху",
+      "summary": "В Сеченовском Университете научили ИИ различать четыре заболевания легких по выдоху.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "30080436b043",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Клиники «Медскан»",
+      "sector": "бизнес",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-агенты для разъяснения результатов анализов",
+      "summary": "Клиники «Медскан» начали пользоваться ИИ-агентами, которые разъясняют пациентам результаты анализов на понятном языке.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "79ddd63538f2",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Сеть клиник «Будь Здоров»",
+      "sector": "бизнес",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-сервис для повышения качества работы врачей",
+      "summary": "Сеть клиник «Будь Здоров» внедрила ИИ-сервис для повышения качества работы врачей.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "d41cf2f665fe",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Inspectrum Clinic",
+      "sector": "бизнес",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "ИИ-система ускорения медосмотров",
+      "summary": "Российская ИИ-система от Inspectrum Clinic ускоряет медосмотры в 10 раз.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "ускорение медосмотров",
+          "criterion": "время процесса",
+          "before": null,
+          "after": "в 10 раз быстрее",
+          "change": "в 10 раз",
+          "unit": null,
+          "kind": "факт",
+          "quote": "Российская ИИ-система от Inspectrum Clinic ускоряет медосмотры в 10 раз.",
+          "source_url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.instagram.com/p/DLXVsPXM0t_"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://www.instagram.com/p/DLXVsPXM0t_",
+          "domain": "instagram.com",
+          "title": "🔥 Inspectrum CSP в СМИ: неожиданный ажиотаж! ...",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "7509e130cf0b",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Москва",
+      "municipality": "Москва",
+      "organization": "Депздрав Москвы",
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "Цифровые помощники терапевтов в московских поликлиниках",
+      "summary": "Разработанный Сбером и Правительством Москвы цифровой помощник помог терапевтам столичных поликлиник поставить 14 млн диагнозов.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "количество поставленных диагнозов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "14 млн",
+          "change": null,
+          "unit": "диагнозов",
+          "kind": "факт",
+          "quote": "Разработанный Сбером и Правительством Москвы цифровой помощник помог терапевтам столичных поликлиник поставить 14 млн диагнозов.",
+          "source_url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "30b54f87ed42",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Москва",
+      "municipality": "Москва",
+      "organization": null,
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "Анализ маммограмм с помощью ИИ в Москве",
+      "summary": "В Москве при помощи искусственного интеллекта с начала года проанализированы 100 тысяч маммограмм.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "анализировано маммограмм",
+          "criterion": "прочее",
+          "before": null,
+          "after": "100 тысяч",
+          "change": null,
+          "unit": "маммограмм",
+          "kind": "факт",
+          "quote": "В Москве при помощи искусственного интеллекта с начала года проанализированы 100 тысяч маммограмм.",
+          "source_url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "ae689590cbf6",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Москва",
+      "municipality": "Москва",
+      "organization": "Мэрия Москвы",
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "Открытие московского медицинского датасета для ИИ-разработчиков",
+      "summary": "Мэрия Москвы открыла разработчикам ИИ-систем медицинский датасет, включающий КТ-, МРТ- и маммографические снимки.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "cfc9219aab56",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Москва",
+      "municipality": "Москва",
+      "organization": null,
+      "sector": "госсектор",
+      "industry": "здравоохранение",
+      "ai_technology": "",
+      "title": "Рост скорости обработки КТ-снимков в московских поликлиниках",
+      "summary": "Скорость обработки нейросетями КТ-снимков в московских поликлиниках выросла на 70%, а определение ковидной пневмонии достигло 94%.",
+      "stage": "внедрён",
+      "methodology": "Р-1",
+      "metrics": [
+        {
+          "name": "скорость обработки КТ-снимков",
+          "criterion": "прочее",
+          "before": null,
+          "after": "на 70% выше",
+          "change": "+70%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Скорость обработки нейросетями КТ-снимков в московских поликлиниках выросла на 70%, а определение ковидной пневмонии достигло 94%.",
+          "source_url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://www.mos.ru/news/item/105965073",
+            "https://telemedai.ru/press-centr/novosti/eksperimentu-po-vnedreniyu-kompyuternogo-zreniya-v-medicinu-2-goda"
+          ],
+          "conflicting_values": []
+        },
+        {
+          "name": "точность определения ковидной пневмонии",
+          "criterion": "качество",
+          "before": null,
+          "after": "94%",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Скорость обработки нейросетями КТ-снимков в московских поликлиниках выросла на 70%, а определение ковидной пневмонии достигло 94%.",
+          "source_url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://telemedai.ru/press-centr/novosti/eksperimentu-po-vnedreniyu-kompyuternogo-zreniya-v-medicinu-2-goda"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "zdrav.expert",
+          "title": "Искусственный интеллект в медицине России",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://www.mos.ru/news/item/105965073",
+          "domain": "mos.ru",
+          "title": "Скорость обработки лучевых снимков искусственным ...",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        },
+        {
+          "url": "https://telemedai.ru/press-centr/novosti/eksperimentu-po-vnedreniyu-kompyuternogo-zreniya-v-medicinu-2-goda",
+          "domain": "telemedai.ru",
+          "title": "Эксперименту по внедрению компьютерного зрения в ...",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "77f0cb5a587d",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Казахстан",
+      "region": null,
+      "municipality": null,
+      "organization": "АО 'Самрук-Энерго'",
+      "sector": "бизнес",
+      "industry": "энергетика",
+      "ai_technology": "предиктивная аналитика",
+      "title": "ИИ ускорил расчёт объёмов запасов угля с 10 дней до 20 минут",
+      "summary": "Искусственный интеллект применяется в АО 'Самрук-Энерго' для ускорения расчётов объёмов запасов угля с 10 дней до 20 минут.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "время расчёта запасов угля",
+          "criterion": "время процесса",
+          "before": "10 дней",
+          "after": "20 минут",
+          "change": null,
+          "unit": null,
+          "kind": "факт",
+          "quote": "Искусственный интеллект ускорил расчёт объёмов запасов угля с 10 дней до 20 минут.",
+          "source_url": "https://kazpravda.kz/t/%D0%B8%D0%B8",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://kazpravda.kz/t/%D0%B8%D0%B8",
+          "domain": "kazpravda.kz",
+          "title": "Тэг / ИИ",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "af3358a7d29f",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Казахстан",
+      "region": null,
+      "municipality": null,
+      "organization": "студент Кызылординского университета имени Коркыт ата",
+      "sector": "бизнес",
+      "industry": "сельское хозяйство",
+      "ai_technology": "интеллектуальная платформа",
+      "title": "ИИ-разработка для агросектора",
+      "summary": "Студент Нурдаулет Дузенов создал интеллектуальную платформу AgriX для повышения эффективности сельского хозяйства.",
+      "stage": "в разработке",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://kazpravda.kz/t/%D0%B8%D0%B8",
+          "domain": "kazpravda.kz",
+          "title": "Тэг / ИИ",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "4ec37fe0604f",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Минэнерго и Минпромторг",
+      "sector": "бизнес",
+      "industry": "топливно-энергетический комплекс",
+      "ai_technology": "программно-аппаратные комплексы",
+      "title": "План закупок программно-аппаратных комплексов предприятиями ТЭК",
+      "summary": "Минэнерго и Минпромторг составили план закупок программно-аппаратных комплексов для предприятий ТЭК на сумму 1 трлн рублей.",
+      "stage": "в разработке",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "Сумма затрат на закупки",
+          "criterion": "прочее",
+          "before": null,
+          "after": "1 трлн рублей",
+          "change": null,
+          "unit": "рублей",
+          "kind": "факт",
+          "quote": "До 2030 года компании топливно-энергетического комплекса (ТЭК) приобретут доверенные программно-аппаратные комплексы (ПАКи) на сумму свыше 1 трлн рублей.",
+          "source_url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D0%B5_%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D0%B8_%D0%B2_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%BD%D0%BE-%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "quote_verified": true,
+          "confirmed_by": [
+            "https://secpost.ru/predpriyatiya-tek-potratyat-svyshe-1-trl-rublej-na-ib-kompleksy"
+          ],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D0%B5_%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D0%B8_%D0%B2_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%BD%D0%BE-%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "tadviser.ru",
+          "title": "Цифровые технологии в топливно-энергетическом комплексе России",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        },
+        {
+          "url": "https://secpost.ru/predpriyatiya-tek-potratyat-svyshe-1-trl-rublej-na-ib-kompleksy",
+          "domain": "secpost.ru",
+          "title": "Предприятия ТЭК потратят свыше 1 трлн рублей на доверенные ПАКи",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "подтверждено",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "68c4c7a9a848",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Правительство РФ",
+      "sector": "бизнес",
+      "industry": "угольная промышленность",
+      "ai_technology": "искусственный интеллект, цифровые двойники",
+      "title": "Программа развития угольной промышленности с применением ИИ и цифровых двойников",
+      "summary": "Утверждена программа развития угольной промышленности России с упором на цифровую трансформацию, включая инструменты искусственного интеллекта, цифровые двойники и автоматизацию процессов.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D0%B5_%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D0%B8_%D0%B2_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%BD%D0%BE-%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "tadviser.ru",
+          "title": "Цифровые технологии в топливно-энергетическом комплексе России",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "4c3b33b25d16",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": "Тыва",
+      "municipality": null,
+      "organization": null,
+      "sector": "бизнес",
+      "industry": "нефтепереработка",
+      "ai_technology": "цифровой учет",
+      "title": "Цифровой учет бензина от НПЗ до АЗС",
+      "summary": "В России внедряют цифровой учет бензина от нефтеперерабатывающих заводов до автозаправочных станций, первым регионом стал Тыва.",
+      "stage": "пилот",
+      "methodology": "бизнес-метрики",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D0%B5_%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D0%B8_%D0%B2_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%BD%D0%BE-%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+          "domain": "tadviser.ru",
+          "title": "Цифровые технологии в топливно-энергетическом комплексе России",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "1cfe56521315",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Северсталь",
+      "sector": "бизнес",
+      "industry": "металлургия",
+      "ai_technology": "компьютерное зрение",
+      "title": "Система инспекции полосы и контроля качества реза кромки полосы",
+      "summary": "В 2026 году \"Северсталь\" выводит на рынок систему инспекции полосы и контроля качества реза кромки полосы на базе компьютерного зрения и нейросетей. Система распознает и классифицирует отклонения в качестве продукции в реальном времени, создает цифровую карту дефектов и повысила точность распознавания дефектов.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "точность распознавания дефектов",
+          "criterion": "прочее",
+          "before": null,
+          "after": "повысилась",
+          "change": null,
+          "unit": "%",
+          "kind": "факт",
+          "quote": "Она заменила зарубежный аналог на Череповецком меткомбинате и при этом повысила точность распознавания дефектов.",
+          "source_url": "https://www.vedomosti.ru/partner/articles/2026/11/02/1242161-neironnie-svyazi-dlya-konveiera",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.vedomosti.ru/partner/articles/2026/11/02/1242161-neironnie-svyazi-dlya-konveiera",
+          "domain": "vedomosti.ru",
+          "title": "Нейронные связи для конвейера - Ведомости&",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "101949ff150e",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "регионы РФ",
+      "country": "Россия",
+      "region": null,
+      "municipality": null,
+      "organization": "Северсталь",
+      "sector": "бизнес",
+      "industry": "металлургия",
+      "ai_technology": "робототехника",
+      "title": "Роботизация Северстали",
+      "summary": "В 2026 году в \"Северстали\" внедрено 20 робототехнических комплексов, к концу года планируется увеличить их количество до 50, а в перспективе – до 600.",
+      "stage": "масштабирование",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "количество робототехнических комплексов",
+          "criterion": "прочее",
+          "before": "20",
+          "after": "50",
+          "change": "+30",
+          "unit": "единиц",
+          "kind": "факт",
+          "quote": "Сейчас в \"Северстали\" внедрено порядка 20 робототехнических комплексов, к концу 2026 г. количество роботов планируется довести до 50, а в перспективе – до 600.",
+          "source_url": "https://www.vedomosti.ru/partner/articles/2026/11/02/1242161-neironnie-svyazi-dlya-konveiera",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.vedomosti.ru/partner/articles/2026/11/02/1242161-neironnie-svyazi-dlya-konveiera",
+          "domain": "vedomosti.ru",
+          "title": "Нейронные связи для конвейера - Ведомости&",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    },
+    {
+      "id": "a6fb6115a4c1",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Испания",
+      "region": null,
+      "municipality": null,
+      "organization": "General State Administration (AGE)",
+      "sector": "госсектор",
+      "industry": "госуслуги",
+      "ai_technology": "искусственный интеллект, виртуальный помощник",
+      "title": "060 WebChat. AI-базированная служба помощи гражданам",
+      "summary": "Виртуальный помощник на базе ИИ, предоставляющий гражданам информацию круглосуточно через веб, позволяет пользователям мгновенно разрешать частые вопросы. Также предлагает возможность взаимодействия с человеком в ограниченные рабочие часы для запросов, требующих более подробной информации.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [
+        {
+          "name": "число ежегодных разговоров",
+          "criterion": "прочее",
+          "before": null,
+          "after": "150,000",
+          "change": null,
+          "unit": "разговоров",
+          "kind": "факт",
+          "quote": "The figure of 150,000 annual conversations indicates substantial use",
+          "source_url": "https://oecd.ai/en/dashboards/policy-initiatives/060-webchat-ai%E2%80%91based-citizen-assistance-service",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "сокращение нагрузки на традиционные каналы",
+          "criterion": "прочее",
+          "before": null,
+          "after": null,
+          "change": "снижение",
+          "unit": null,
+          "kind": "факт",
+          "quote": "The initiative has served to alleviate pressure on traditional in-person and telephone channels",
+          "source_url": "https://oecd.ai/en/dashboards/policy-initiatives/060-webchat-ai%E2%80%91based-citizen-assistance-service",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/060-webchat-ai%E2%80%91based-citizen-assistance-service",
+          "domain": "oecd.ai",
+          "title": "060 WebChat. AI‑based Citizen Assistance Service - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "один_источник"
+      ]
+    },
+    {
+      "id": "fc3903b3e98b",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": null,
+      "organization": "Министерство экономики и финансов Италии",
+      "sector": "госсектор",
+      "industry": "налоговая служба",
+      "ai_technology": "юридическая сводка, извлечение информации",
+      "title": "Проект PRODIGIT: модернизация судебных налоговых процедур с помощью ИИ",
+      "summary": "Проект PRODIGIT направлен на повышение эффективности и точности юридических процессов, связанных с налогами, путем снижения административной нагрузки с использованием инструментов на базе искусственного интеллекта.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "1c0ed2f97cf4",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": "Болонья",
+      "organization": "Муниципалитет Болоньи",
+      "sector": "госсектор",
+      "industry": "умный город",
+      "ai_technology": "ответственное управление ИИ",
+      "title": "BolognAI - Платформа городской интеллектуальной системы",
+      "summary": "Платформа BolognAI предназначена для ответственного управления искусственным интеллектом в городе Болонья, сочетая стратегическое видение с оперативной реализацией.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "80ba54ccd934",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": null,
+      "organization": "Национальный институт социального обеспечения Италии",
+      "sector": "госсектор",
+      "industry": "социальное обеспечение",
+      "ai_technology": "генеративный ИИ",
+      "title": "Упрощение текстов посредством GenAI",
+      "summary": "Использование генеративного ИИ для переписывания сложных правительственных документов на понятном языке, сохраняя юридическую точность и повышая доступность информации для граждан.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [
+        {
+          "name": "количество пользователей портала",
+          "criterion": "прочее",
+          "before": null,
+          "after": "45 миллионов",
+          "change": null,
+          "unit": "человек",
+          "kind": "факт",
+          "quote": "Focused on the Service Pages of Italy's National Institute of Social Security portal, which serves 45 million users",
+          "source_url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "предпочтение пользователей",
+          "criterion": "прочее",
+          "before": null,
+          "after": "сильное предпочтение",
+          "change": null,
+          "unit": null,
+          "kind": "факт",
+          "quote": "AI-generated versions received strong user preference over the original texts",
+          "source_url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник"
+      ]
+    },
+    {
+      "id": "dac59b7d1f16",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": null,
+      "organization": "Formez PA",
+      "sector": "госсектор",
+      "industry": "государственная служба",
+      "ai_technology": "обработка естественного языка",
+      "title": "Пилотный проект Formez PA: автоматический отбор резюме кандидатов",
+      "summary": "ИИ-система Formez PA автоматически обрабатывает и ранжирует резюме кандидатов на должности консультантов, используя обработку естественного языка для выявления навыков и соответствия требованиям вакансий.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "1b5611316b94",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": null,
+      "organization": "Агентство по доходам Италии",
+      "sector": "госсектор",
+      "industry": "налоговое администрирование",
+      "ai_technology": "продвинутый анализ данных",
+      "title": "ИИ в налоговой администрации Италии",
+      "summary": "Агентство по доходам Италии применяет продвинутые аналитические программные средства для предотвращения уклонения от налогов путём анализа данных из налогового реестра и архива финансовых операций.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "1aaea22161a3",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Италия",
+      "region": null,
+      "municipality": "Мессина",
+      "organization": "Муниципалитет Мессины",
+      "sector": "госсектор",
+      "industry": "умный город",
+      "ai_technology": "цифровой двойник города, искусственный интеллект",
+      "title": "Цифровой двойник города Мессины (GDU)",
+      "summary": "Платформа цифрового двойника города Мессины объединяет данные с IoT-датчиков, административных источников и городских систем для поддержки принятия решений и моделирования сценариев.",
+      "stage": "внедрён",
+      "methodology": "М-1",
+      "metrics": [],
+      "sources": [
+        {
+          "url": "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+          "domain": "oecd.ai",
+          "title": "AI Community Juries and National Civic AI Governance Framework (ENIA) - OECD.AI",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "статистика"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 0,
+      "last_confirmation_attempt": null,
+      "flags": [
+        "нет_измеримых_показателей"
+      ]
+    },
+    {
+      "id": "8a0a13a7baff",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "Эль-Сальвадор",
+      "region": null,
+      "municipality": null,
+      "organization": "Правительство Эль-Сальвадора",
+      "sector": "госсектор",
+      "industry": "образование",
+      "ai_technology": "адаптивное обучение, компьютерное зрение",
+      "title": "Цифровая трансформация образования в Эль-Сальвадоре",
+      "summary": "Правительство Эль-Сальвадора внедряет цифровые образовательные инструменты с поддержкой ИИ для улучшения базовых навыков учащихся, таких как чтение и математика. Система включает индивидуализированного цифрового репетитора и платформы мониторинга прогресса учеников.",
+      "stage": "масштабирование",
+      "methodology": "М-1",
+      "metrics": [
+        {
+          "name": "охват учеников",
+          "criterion": "прочее",
+          "before": null,
+          "after": "500000",
+          "change": null,
+          "unit": "учеников",
+          "kind": "план",
+          "quote": "Over the next few years, it is expected to reach approximately 500,000 students in public schools across the country.",
+          "source_url": "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "начальное покрытие школ",
+          "criterion": "прочее",
+          "before": "10",
+          "after": null,
+          "change": null,
+          "unit": "школ",
+          "kind": "факт",
+          "quote": "The government launched the reform in 2024 with a 10-school pilot.",
+          "source_url": "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "расширение до 2025 года",
+          "criterion": "прочее",
+          "before": null,
+          "after": "200",
+          "change": null,
+          "unit": "школ",
+          "kind": "факт",
+          "quote": "By mid-2025 it had expanded to about 200 schools",
+          "source_url": "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "текущий охват школ",
+          "criterion": "прочее",
+          "before": null,
+          "after": "1000",
+          "change": null,
+          "unit": "школ",
+          "kind": "факт",
+          "quote": "it now reaches nearly 1,000",
+          "source_url": "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+          "domain": "worldbank.org",
+          "title": "Learning for Tomorrow: How El Salvador Is Using AI to Transform Education",
+          "published_at": null,
+          "reliability": "высокая",
+          "source_type": "кейсы"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник"
+      ]
+    },
+    {
+      "id": "e371f776d2d4",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "США",
+      "region": "Колорадо",
+      "municipality": "Денвер",
+      "organization": "Gartner",
+      "sector": "бизнес",
+      "industry": "услуги поддержки клиентов",
+      "ai_technology": "агентный ИИ",
+      "title": "Внедрение агентного ИИ в службе поддержки клиентов",
+      "summary": "На конференции Gartner обсуждались успехи внедрения агентного ИИ в различных отраслях, включая здравоохранение, логистику и страхование. Приведены примеры сокращения количества звонков, уменьшения времени отклика и ускорения обработки претензий.",
+      "stage": "неизвестно",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "сокращение количества звонков",
+          "criterion": "операционные затраты",
+          "before": null,
+          "after": "160000",
+          "change": null,
+          "unit": "количество звонков",
+          "kind": "факт",
+          "quote": "One healthcare organization eliminated 160,000 calls annually",
+          "source_url": "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-customer-service-and-support-conference-day-1-highlights",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "уменьшение времени отклика",
+          "criterion": "время процесса",
+          "before": "17 минут",
+          "after": "32 секунды",
+          "change": null,
+          "unit": "время",
+          "kind": "факт",
+          "quote": "a logistics provider reduced response times from 17 minutes to 32 seconds",
+          "source_url": "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-customer-service-and-support-conference-day-1-highlights",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "ускорение обработки претензий",
+          "criterion": "время процесса",
+          "before": "дни",
+          "after": "часы",
+          "change": null,
+          "unit": "время",
+          "kind": "факт",
+          "quote": "an insurer cut claims processing times from days to hours",
+          "source_url": "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-customer-service-and-support-conference-day-1-highlights",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-customer-service-and-support-conference-day-1-highlights",
+          "domain": "gartner.com",
+          "title": "Gartner Customer Service & Support Conference: Day 1 Highlights",
+          "published_at": null,
+          "reliability": "средняя",
+          "source_type": "аналитика рынка"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник",
+        "стадия_неясна"
+      ]
+    },
+    {
+      "id": "c58f6af34229",
+      "first_seen": "2026-11-07",
+      "updated": "2026-11-07",
+      "level": "мир",
+      "country": "США",
+      "region": null,
+      "municipality": null,
+      "organization": "Anthropic",
+      "sector": "бизнес",
+      "industry": "IT, разработка ПО",
+      "ai_technology": "генеративный ИИ",
+      "title": "Изменения в организации труда и найма в Anthropic благодаря ИИ",
+      "summary": "Компания Anthropic внедрила широкое использование ИИ-агентов, что привело к изменению структуры занятости и повышению производительности сотрудников. Использование ИИ позволило сократить долю младших технических позиций, увеличить производительность инженеров и не-технических работников, а также изменить требования к кандидатам.",
+      "stage": "внедрён",
+      "methodology": "бизнес-метрики",
+      "metrics": [
+        {
+          "name": "соотношение часов работы ИИ-агентов к сотрудникам",
+          "criterion": "прочее",
+          "before": null,
+          "after": "6 к 1",
+          "change": null,
+          "unit": "раз",
+          "kind": "факт",
+          "quote": "agent hours outnumbered employees’ six to one.",
+          "source_url": "https://www.anthropic.com/research/employment-at-anthropic",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "рост коммитов кода инженерами",
+          "criterion": "прочее",
+          "before": null,
+          "after": "в 5 раз выше",
+          "change": "в 5 раз",
+          "unit": "раз",
+          "kind": "факт",
+          "quote": "code commits per engineer have risen the fastest, coming in at 5x their velocity as six months ago",
+          "source_url": "https://www.anthropic.com/research/employment-at-anthropic",
+          "quote_verified": true,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "доля младших технических сотрудников",
+          "criterion": "прочее",
+          "before": "21%",
+          "after": "14%",
+          "change": "-7%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "the share of junior-level employees in technical departments at Anthropoc dropped from 21% to 14% since early 2025.",
+          "source_url": "https://www.anthropic.com/research/employment-at-anthropic",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        },
+        {
+          "name": "доля младших технических позиций среди новых сотрудников",
+          "criterion": "прочее",
+          "before": "27%",
+          "after": "9%",
+          "change": "-18%",
+          "unit": "%",
+          "kind": "факт",
+          "quote": "the proportion of junior technical hires fell even faster, from 27% to 9%. Postings for juniors have fallen particularly sharply since December 2025.",
+          "source_url": "https://www.anthropic.com/research/employment-at-anthropic",
+          "quote_verified": false,
+          "confirmed_by": [],
+          "conflicting_values": []
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/research/employment-at-anthropic",
+          "domain": "anthropic.com",
+          "title": "How employment is changing at Anthropic",
+          "published_at": null,
+          "reliability": "не_оценена",
+          "source_type": "неизвестно"
+        }
+      ],
+      "confirmation_status": "один_источник",
+      "confirmation_attempts": 1,
+      "last_confirmation_attempt": "2026-11-07",
+      "flags": [
+        "цифра_не_найдена_в_тексте",
+        "один_источник",
+        "источник_не_оценён"
+      ]
+    }
+  ],
+  "processed_urls": [
+    "https://ekb.rbc.ru/ekb/freenews/6ae300209a7947204f3c6d0d",
+    "https://founderreports.com/ai-productivity-statistics",
+    "https://hbr.org/2026/10/the-deployment-failure-holding-back-your-ai-investments",
+    "https://hh.ru/vacancy/138732856",
+    "https://kazpravda.kz/t/%D0%B8%D0%B8",
+    "https://live.worldbank.org/en/event/2026/annual-meetings-civil-society-townhall",
+    "https://naukaip.ru/wp-content/uploads/2026/10/MK-2800.pdf",
+    "https://oblgazeta.ru/news/2026/10/169265",
+    "https://oblgazeta.ru/news/2026/10/171641",
+    "https://oecd.ai/en/dashboards/policy-initiatives/060-webchat-ai%E2%80%91based-citizen-assistance-service",
+    "https://oecd.ai/en/dashboards/policy-initiatives/ai-community-juries-and-national-civic-ai-governance-framework-enia",
+    "https://ura.news/news/1053135380",
+    "https://ura.news/news/1053138656",
+    "https://vk.ru/uralhitech",
+    "https://www.1cbit.ru/blog/iskusstvennyy-intellekt-v-promyshlennosti-kak-ii-menyaet-proizvodstvo",
+    "https://www.1cbit.ru/blog/vidy-iskusstvennogo-intellekta-polnyy-gid-po-tekhnologiyam-i-modelyam",
+    "https://www.amplifai.com/blog/generative-ai-statistics",
+    "https://www.anthropic.com/research/employment-at-anthropic",
+    "https://www.brookings.edu/articles/how-are-countries-evaluating-ai-models",
+    "https://www.csis.org/analysis/meters-machine-learning-building-ai-ready-utilities-india",
+    "https://www.e1.ru/text/job/2026/11/03/76737001",
+    "https://www.facebook.com/100091287607841/videos/%D0%B1%D0%BE%D0%BB%D1%8C%D1%88%D0%B5-%D0%BA%D0%BB%D0%B8%D0%B5%D0%BD%D1%82%D0%BE%D0%B2-%D0%B1%D0%BE%D0%BB%D1%8C%D1%88%D0%B5-%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%BE%D0%B2-%D0%B1%D0%BE%D0%BB%D1%8C%D1%88%D0%B5-%D0%B7%D0%B0%D0%B4%D0%B0%D1%87-%D0%B0-%D0%BA%D0%B0%D0%BA-%D1%83%D1%81%D0%BF%D0%B5%D0%B2%D0%B0%D1%82%D1%8C-%D0%B2%D1%81%D1%91-%D0%B8-%D0%BF%D1%80%D0%B8-%D1%8D%D1%82%D0%BE%D0%BC-%D1%80%D0%B0%D0%B7%D0%B2/1132407049488851",
+    "https://www.frontiersin.org/journals/sustainable-cities/articles/10.3389/frsc.2026.1959012/full",
+    "https://www.gartner.com/en/articles/ai-roi",
+    "https://www.gartner.com/en/newsroom/press-releases/2026-10-19-gartner-it-symposium-xpo-2026-orlando-day-1-highlights",
+    "https://www.gartner.com/en/newsroom/press-releases/2026-10-19-gartner-survey-finds-only-13-percent-of-cios-say-their-enterprise-has-realized-significant-or-transformational-value-from-ai",
+    "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-customer-service-and-support-conference-day-1-highlights",
+    "https://www.gartner.com/en/newsroom/press-releases/2026-11-04-gartner-idnetifies-three-steps-for-cfos-to-turn-ai-time-saavings-into-business-value",
+    "https://www.gartner.com/en/webinar/1026243/2006724-the-emerging-market-quadrant-for-ai-agents-for-marketing-established-vendors",
+    "https://www.govtech.com/voices/6-steps-to-overcoming-local-governments-ai-conundrum",
+    "https://www.instagram.com/p/DfUJPYjgie4",
+    "https://www.instagram.com/reel/DewnPFQCdGL",
+    "https://www.instagram.com/reel/DfHp2lCNhT5",
+    "https://www.kp.ru/daily/277825/5317438",
+    "https://www.linkedin.com/posts/guy-berger-b641b2_ai-brass-tacks-the-south-african-mat-my-activity-7513986477450604544-pWkQ",
+    "https://www.moveworks.com/us/en/resources/blog/how-does-generative-ai-increase-productivity",
+    "https://www.rbc.ru/education/02/11/2026/6ae444a49a7947175e734f8d",
+    "https://www.rbc.ru/education/12/10/2026/6aac01a19a7947855b15cd98",
+    "https://www.rbc.ru/education/14/10/2026/6ac6bd029a794719c83336ee",
+    "https://www.rbc.ru/education/17/07/2026/6a4ed3799a79475961a98769",
+    "https://www.rbc.ru/education/24/10/2026/6acf8d439a7947b8780b0617",
+    "https://www.rbc.ru/education/27/07/2026/6a6174559a7947709cd77e15",
+    "https://www.rbc.ru/industries/news/6ac894c52c1dfbc0547231b8",
+    "https://www.rbc.ru/industries/news/6ad0afb69a794750acb8e73f",
+    "https://www.rbc.ru/nsk/17/05/2026/6a0951b49a7947e2bdc7a1d6",
+    "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9_%D1%81%D1%84%D0%B5%D1%80%D0%B5",
+    "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_(%D1%80%D1%8B%D0%BD%D0%BE%D0%BA_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8)",
+    "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D0%B0%D1%8F_%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F_%D0%B3%D0%BE%D1%81%D1%83%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F_%28%D1%81%D1%82%D1%80%D0%B0%D1%82%D0%B5%D0%B3%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%B5_%D0%BD%D0%B0%D0%BF%D1%80%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5%29",
+    "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D1%8B%D0%B5_%D1%82%D0%B5%D1%85%D0%BD%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D0%B8_%D0%B2_%D1%82%D0%BE%D0%BF%D0%BB%D0%B8%D0%B2%D0%BD%D0%BE-%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC_%D0%BA%D0%BE%D0%BC%D0%BF%D0%BB%D0%B5%D0%BA%D1%81%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8",
+    "https://www.tadviser.ru/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%AD%D0%BA%D0%BE%D0%BD%D0%BE%D0%BC%D0%B8%D0%BA%D0%B0_%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85_%D0%B8_%D1%86%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D0%B0%D1%8F_%D1%82%D1%80%D0%B0%D0%BD%D1%81%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F_%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B0_%28%D0%BD%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9_%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%29",
+    "https://www.vedomosti.ru/partner/articles/2026/11/02/1242161-neironnie-svyazi-dlya-konveiera",
+    "https://www.worldbank.org/en/news/feature/2026/10/08/aprender-futuro-el-salvador-utiliza-inteligencia-artificial-transformar-educacion",
+    "https://www.zik.ru/z-novosti",
+    "https://zdrav.expert/index.php/%D0%A1%D1%82%D0%B0%D1%82%D1%8C%D1%8F:%D0%98%D1%81%D0%BA%D1%83%D1%81%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9_%D0%B8%D0%BD%D1%82%D0%B5%D0%BB%D0%BB%D0%B5%D0%BA%D1%82_%D0%B2_%D0%BC%D0%B5%D0%B4%D0%B8%D1%86%D0%B8%D0%BD%D0%B5_%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8"
+  ]
 }

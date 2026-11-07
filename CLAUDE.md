@@ -90,6 +90,25 @@
 
 Пример вызова LLM — `test_litellm.py`: креды читаются из `litellm.env` (ключи `LITELLM_API_KEY`, `LITELLM_BASE_URL`, опционально `LITELLM_MODEL`) и передаются в `openai.OpenAI(base_url=...)`.
 
+## Пайплайн `aidigest` (как запускать)
+
+Design: `docs/superpowers/specs/2026-11-07-ai-cases-pipeline-design.md`, план: `docs/superpowers/plans/2026-11-07-ai-cases-pipeline.md`.
+
+```bash
+.venv/Scripts/python -m pytest -q                       # тесты (без сети)
+.venv/Scripts/python -m aidigest run                    # регулярный цикл (~30 кредитов Tavily)
+.venv/Scripts/python -m aidigest run --budget 5 --levels "Свердловская область"   # отладка
+.venv/Scripts/python -m aidigest run --offline --budget 0                         # только кеш
+.venv/Scripts/python -m aidigest export                 # Excel из базы без поиска
+.venv/Scripts/python -m aidigest eval --offline         # эталон из кеша (без вызовов LLM)
+```
+
+- База кейсов — `data/cases.json` (в git), выгрузки — `data/out/`, кеш Tavily/LLM/HTTP — `data/cache/` (не в git; не удалять без нужды — это сэкономленные кредиты).
+- Конфиги: `config/sources.yaml` (справочник источников), `config/queries.yaml` (запросы), `config/settings.yaml` (бюджеты).
+- Эталон: `eval/reference_cases.yaml`; ручные тексты статей — `eval/texts/<id>-<n>.txt`.
+- Любая правка промпта (`extract.py`, `confirm.py`, `dedup.py`) сбрасывает кеш LLM для этих вызовов.
+- В промпт нельзя вставлять примеры с конкретными цитатами — GigaChat копирует их дословно.
+
 ## Правила
 
 - **`litellm.env` и `tavily.env` НИКОГДА не читать, не выводить, не коммитить и не отправлять куда-либо.** Код может загружать их в рантайме, но Claude не открывает эти файлы и не печатает их содержимое. То же для любых будущих файлов с ключами.
