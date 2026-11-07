@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Кейсы{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>Кейсы внедрения ИИ</h1>
+    <p class="muted">Мир, регионы России и Свердловская область. Каждая цифра — с дословной цитатой из статьи.</p>
+  </div>
+</section>
+
+<form class="filters card" method="get" action="/">
+  <label class="field field-grow">
+    <span>Поиск</span>
+    <input type="search" name="q" value="{{ f.q }}" placeholder="Например: Екатеринбург, водоканал, чат-бот">
+  </label>
+  <label class="field">
+    <span>Уровень</span>
+    <select name="level">
+      <option value="">Все уровни</option>
+      {% for l in levels %}<option value="{{ l.value }}" {{ 'selected' if f.level == l.value }}>{{ l.value }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="field">
+    <span>Подтверждение</span>
+    <select name="status">
+      <option value="">Любое</option>
+      {% for s in statuses %}<option value="{{ s.value }}" {{ 'selected' if f.status == s.value }}>{{ STATUS_LABEL[s] }}</option>{% endfor %}
+    </select>
+  </label>
+  <div class="checks">
+    <input type="hidden" name="metrics" value="0">
+    <label class="check"><input type="checkbox" name="metrics" value="1" {{ 'checked' if f.metrics }}> только с цифрами</label>
+    <label class="check"><input type="checkbox" name="doubtful" value="1" {{ 'checked' if f.doubtful }}> скрыть сомнительные</label>
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-primary" type="submit">Показать</button>
+    <a class="btn btn-ghost" href="/">Сбросить</a>
+  </div>
+</form>
+
+<p class="summary">
+  <b>Найдено {{ cases|length }} из {{ total }}</b>
+  {% if updated %}<span class="dot">·</span> база обновлена {{ updated.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+</p>
+
+{% if total == 0 %}
+  <div class="empty card">
+    <h2>Кейсов пока нет</h2>
+    <p class="muted">Запустите сбор на странице <a href="/run">«Запуск сбора»</a> — через несколько минут здесь появятся кейсы.</p>
+  </div>
+{% elif not cases %}
+  <div class="empty card">
+    <h2>Ничего не нашлось</h2>
+    <p class="muted">Попробуйте убрать часть фильтров или <a href="/">сбросить</a> их.</p>
+  </div>
+{% else %}
+<div class="table-wrap card">
+  <table class="table sortable">
+    <thead>
+      <tr>
+        <th data-sort="text">Уровень</th>
+        <th data-sort="text">Регион</th>
+        <th data-sort="text">Кейс</th>
+        <th>Главная цифра</th>
+        <th data-sort="text">Стадия</th>
+        <th data-sort="text">Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in cases %}
+      {% set head, doubtful = headline(c) %}
+      <tr>
+        <td><span class="level level-{{ c.level.name|lower }}">{{ c.level.value }}</span></td>
+        <td class="nowrap">{{ c.region or c.country }}</td>
+        <td class="case-title">
+          <a href="/case/{{ c.id }}">{{ c.title }}</a>
+          {% if c.organization %}<small>{{ c.organization }}</small>{% endif %}
+        </td>
+        <td class="headline">{{ head }}{% if doubtful %} <span class="warn-mark" title="Цифра не найдена в тексте статьи — проверьте по ссылке">⚠</span>{% endif %}</td>
+        <td class="nowrap">{{ c.stage.value }}</td>
+        <td><span class="pill pill-{{ STATUS_CLASS[c.confirmation_status] }}">{{ STATUS_LABEL[c.confirmation_status] }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">Клик по заголовку колонки сортирует таблицу. ⚠ — цифру не удалось найти в тексте статьи.</p>
+{% endif %}
+{% endblock %}
