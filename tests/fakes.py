@@ -31,3 +31,23 @@ class FakeOpenAI:
         self.requests.append(kw)
         text = self._texts.pop(0)
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
+
+
+class FakeSearch:
+    """SearchClient для тестов: results — dict {запрос: статьи} или функция(**kw) -> статьи."""
+
+    def __init__(self, results, cost: float = 1, budget=None):
+        self._results = results
+        self.cost = cost
+        self.budget = budget
+        self.calls: list[dict] = []
+
+    def search(self, query, *, pool, include_domains=None, exclude_domains=None, start_date=None, max_results=5):
+        kw = dict(query=query, pool=pool, include_domains=include_domains, exclude_domains=exclude_domains,
+                  start_date=start_date, max_results=max_results)
+        if self.budget is not None:
+            self.budget.spend(pool, self.cost)
+        self.calls.append(kw)
+        if callable(self._results):
+            return list(self._results(**kw))
+        return list(self._results.get(query, []))

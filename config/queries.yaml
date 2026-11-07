@@ -1,0 +1,56 @@
+# Поисковые запросы регулярного цикла. Один запрос = 1 кредит Tavily (basic).
+# use_registry_domains: true — искать только по доменам справочника для этого уровня.
+queries:
+  # --- Свердловская область ---
+  - level: Свердловская область
+    text: внедрение искусственного интеллекта Свердловская область результаты
+    use_registry_domains: true
+    language: ru
+  - level: Свердловская область
+    text: нейросеть ИИ внедрили Екатеринбург сократилось время
+    use_registry_domains: true
+    language: ru
+  - level: Свердловская область
+    text: Свердловская область искусственный интеллект пилотный проект
+    use_registry_domains: false
+    language: ru
+  - level: Свердловская область
+    text: Екатеринбург предприятие внедрило искусственный интеллект эффект
+    use_registry_domains: false
+    language: ru
+
+  # --- Регионы РФ ---
+  - level: регионы РФ
+    text: регион внедрил искусственный интеллект сократилось время экономия бюджета
+    use_registry_domains: true
+    language: ru
+  - level: регионы РФ
+    text: ИИ госуправление регион пилотный проект результаты
+    use_registry_domains: true
+    language: ru
+  - level: регионы РФ
+    text: область внедрила нейросеть компьютерное зрение ЖКХ транспорт медицина результат
+    use_registry_domains: false
+    language: ru
+  - level: регионы РФ
+    text: компания внедрила искусственный интеллект экономия рост производительности кейс
+    use_registry_domains: false
+    language: ru
+
+  # --- Мир ---
+  - level: мир
+    text: government AI pilot results reduced processing time public services
+    use_registry_domains: true
+    language: en
+  - level: мир
+    text: AI use case public sector deployment measurable impact
+    use_registry_domains: true
+    language: en
+  - level: мир
+    text: municipality deployed artificial intelligence results percent reduction
+    use_registry_domains: false
+    language: en
+  - level: мир
+    text: company deployed generative AI productivity gains percent case study
+    use_registry_domains: false
+    language: en
