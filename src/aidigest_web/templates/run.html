@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Запуск сбора{% endblock %}
+{% block content %}
+<section class="hero"><div>
+  <h1>Запуск сбора</h1>
+  <p class="muted">Сбор ищет свежие статьи за последние 30 дней, достаёт из них кейсы с цифрами и ищет подтверждения во втором издании. Обычно занимает 5–15 минут.</p>
+</div></section>
+
+<div class="grid-2 run-grid">
+  <section class="card">
+    <h2>Кредиты поиска в этом месяце</h2>
+    {% set pct = (100 * spent / limit) if limit else 100 %}
+    <div class="meter" role="img" aria-label="Потрачено {{ spent|round|int }} из {{ limit|round|int }}">
+      <div class="meter-fill {{ 'meter-warn' if pct >= 80 }}" style="width: {{ [pct, 100]|min }}%"></div>
+    </div>
+    <p class="meter-text"><b>{{ spent|round|int }}</b> из {{ limit|round|int }} потрачено · осталось {{ remaining|round|int }}</p>
+    <p class="muted">Один запуск тратит до {{ run_budget|round|int }} кредитов. Лимит обновляется 1-го числа.</p>
+  </section>
+
+  <section class="card run-card" {% if current %}data-running{% endif %}>
+    {% if current %}
+      <h2><span class="spinner" aria-hidden="true"></span> Идёт сбор</h2>
+      <p>Начат в <b>{{ current.started.strftime('%H:%M') }}</b> (<span data-minutes>{{ current.minutes }}</span> мин назад). Страницу можно закрыть — сбор продолжится.</p>
+      <form method="post"><button class="btn btn-primary btn-lg" name="start" disabled>Запустить сбор</button></form>
+    {% else %}
+      <h2>Новый сбор</h2>
+      <p>Нажмите кнопку — сбор пойдёт в фоне, а новые кейсы появятся в списке по мере обработки.</p>
+      <form method="post">
+        <button class="btn btn-primary btn-lg" name="start" {{ 'disabled' if remaining <= 0 }}>▶ Запустить сбор</button>
+      </form>
+      {% if remaining <= 0 %}<p class="error">Месячный лимит исчерпан — запуск будет доступен в следующем месяце.</p>{% endif %}
+    {% endif %}
+  </section>
+</div>
+
+{% if current %}
+<section class="card">
+  <h2>Что происходит сейчас</h2>
+  <pre class="log" data-log>{% for line in tail %}{{ line }}
+{% endfor %}{% if not tail %}Запускается…{% endif %}</pre>
+  <p class="hint">Обновляется само каждые 5 секунд.</p>
+</section>
+{% endif %}
+
+{% if last %}
+<section class="card">
+  <div class="card-head">
+    <h2>Последний запуск</h2>
+    <span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn'}.get(last.state, 'bad') }}">{{ last.label }}</span>
+  </div>
+  <p class="muted">{{ last.started.strftime('%d.%m.%Y %H:%M') }}{% if last.finished %} · длился {{ last.minutes }} мин{% endif %} · <a href="/run/log/{{ last.run_id }}" target="_blank">полный лог</a></p>
+  {% if last.report %}
+  <dl class="stats">
+    {% for key, value in last.report.items() if not key.startswith('Флаг') %}
+      <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% elif last.state == 'interrupted' %}
+  <p>Сбор был прерван (например, выключили компьютер). Новые данные, которые он успел сохранить, уже в базе.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if history|length > 1 %}
+<section class="card">
+  <h2>История запусков</h2>
+  <table class="table compact">
+    <thead><tr><th>Начат</th><th>Длительность</th><th>Итог</th><th>Новых кейсов</th><th></th></tr></thead>
+    <tbody>
+    {% for r in history %}
+      <tr>
+        <td>{{ r.started.strftime('%d.%m.%Y %H:%M') }}</td>
+        <td>{{ r.minutes if r.finished else '—' }} мин</td>
+        <td><span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn'}.get(r.state, 'bad') }}">{{ r.label }}</span></td>
+        <td>{{ r.report.get('Кейсов новых', '—') }}</td>
+        <td><a href="/run/log/{{ r.run_id }}" target="_blank">лог</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

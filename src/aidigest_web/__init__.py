@@ -21,6 +21,8 @@ def create_app(data_dir: Path, password: str | None, secret_key: str | None = No
     app.config["DATA_DIR"] = Path(data_dir)
     app.config["WEB_PASSWORD"] = password or None
     app.secret_key = secret_key or secrets.token_hex(32)
+    # Чужой сайт не сможет отправить форму «Запустить сбор» с cookie вошедшего пользователя.
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.extensions["runs"] = run_manager or RunManager(Path(data_dir), PROJECT_ROOT)
     auth.init(app)
     routes.init(app)

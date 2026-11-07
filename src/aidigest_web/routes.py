@@ -5,11 +5,13 @@ import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
-from flask import Flask, abort, current_app, render_template, request, send_file
+from flask import (Flask, Response, abort, current_app, flash, jsonify, redirect, render_template, request,
+                   send_file, url_for)
 
 from aidigest.export_excel import export_xlsx, metric_line
 from aidigest.models import ConfirmationStatus, Flag, Level
 from aidigest.store import CaseStore
+from aidigest_web.runs import AlreadyRunning, MonthExhausted
 from aidigest_web.views import FLAG_HELP, STATUS_CLASS, STATUS_LABEL, filter_cases, headline
 
 
@@ -60,6 +62,44 @@ def init(app: Flask) -> None:
         return send_file(written, as_attachment=True,
                          download_name=f"aidigest_cases_{date.today().isoformat()}.xlsx",
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    def _runs():
+        return current_app.extensions["runs"]
+
+    @app.route("/run", methods=["GET", "POST"])
+    def run():
+        rm = _runs()
+        if request.method == "POST":
+            try:
+                rm.start()
+                flash("Сбор запущен. Это займёт 5–15 минут — страницу можно закрыть и вернуться.", "ok")
+            except AlreadyRunning:
+                flash("Сбор уже идёт — дождитесь, пока он закончится.", "warn")
+            except MonthExhausted:
+                flash("Месячный лимит кредитов Tavily исчерпан — новый сбор возможен в следующем месяце.", "bad")
+            return redirect(url_for("run"))
+        current = rm.current()
+        history = rm.history(10)
+        spent, limit = rm.month_spent(), rm.month_limit()
+        return render_template("run.html", current=current, tail=rm.tail(current) if current else [],
+                               history=history, last=history[0] if history else None,
+                               spent=spent, limit=limit, remaining=max(0, limit - spent), run_budget=rm.run_budget())
+
+    @app.route("/run/status")
+    def run_status():
+        rm = _runs()
+        current = rm.current()
+        if current is None:
+            return jsonify(running=False)
+        return jsonify(running=True, started=current.started.isoformat() if current.run_id else None,
+                       minutes=current.minutes, tail=rm.tail(current))
+
+    @app.route("/run/log/<run_id>")
+    def run_log(run_id: str):
+        text = _runs().log_text(run_id)
+        if text is None:
+            abort(404)
+        return Response(text, mimetype="text/plain; charset=utf-8")
 
     @app.errorhandler(404)
     def not_found(_e):
