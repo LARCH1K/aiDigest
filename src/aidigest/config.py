@@ -18,6 +18,8 @@ class Settings(BaseModel):
     recheck_after_days: int = 28
     max_rechecks: int = 2
     llm_model: str = "GigaChat-3-Pro"
+    monthly_limit: float = 1000
+    monthly_warn_share: float = 0.8
 
 
 class QuerySpec(BaseModel):

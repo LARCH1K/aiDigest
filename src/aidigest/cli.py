@@ -15,6 +15,7 @@ from aidigest.export_excel import export_xlsx
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.store import CaseStore
+from aidigest.usage import MonthlyUsage
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -57,8 +58,17 @@ def cmd_run(args) -> int:
     settings = load_settings(ROOT / "config" / "settings.yaml")
     if args.days:
         settings.freshness_days = args.days
-    total = args.budget if args.budget is not None else (
+    requested = args.budget if args.budget is not None else (
         settings.first_run_budget if args.first_run else settings.run_budget)
+    today = date.today()
+    usage = MonthlyUsage(_data_dir() / "credits.json", settings.monthly_limit, settings.monthly_warn_share)
+    total = usage.cap(today, requested)
+    if requested > 0 and total <= 0:
+        print(f"Месячный лимит Tavily исчерпан: потрачено {usage.spent(today):g} из {settings.monthly_limit:g}. "
+              "Запуск отменён.")
+        return 2
+    if total < requested:
+        print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
     budget = CreditBudget(total, settings.confirm_share)
     cache = DiskCache(_data_dir() / "cache")
     tavily = _creds("tavily.env", args.offline)
@@ -70,9 +80,15 @@ def cmd_run(args) -> int:
         queries=load_queries(ROOT / "config" / "queries.yaml"),
         settings=settings, budget=budget,
     )
-    today = date.today()
-    report = run_cycle(deps, _parse_levels(args.levels), today)
+    try:
+        report = run_cycle(deps, _parse_levels(args.levels), today)
+    finally:
+        usage.record(today, budget.spent)  # учитываем расход, даже если запуск упал
     rows = report.as_rows()
+    rows["Кредитов Tavily за месяц"] = f"{usage.spent(today):g} из {settings.monthly_limit:g}"
+    warning = usage.warning(today)
+    if warning:
+        print(warning)
     for k, v in rows.items():
         print(f"{k}: {v}")
     print(f"Excel: {_export(deps.store, rows, today)}")

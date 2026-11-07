@@ -112,3 +112,18 @@ def test_llm_api_error_skips_article_and_run_finishes(tmp_path, registry):
     q = [QuerySpec(level=Level.WORLD, text="x", use_registry_domains=False, language="en")]
     r = run_cycle(deps(tmp_path, s, Down(), b, registry, q), set(Level), date(2026, 11, 7))
     assert r.articles_failed == 1 and CaseStore(tmp_path / "c.json").load().processed_urls == set()
+
+
+def test_cli_run_refuses_when_month_exhausted(tmp_path, monkeypatch):
+    import json
+    (tmp_path / "credits.json").write_text(json.dumps({date.today().strftime("%Y-%m"): 1000}), encoding="utf-8")
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    assert main(["run", "--offline"]) == 2
+
+
+def test_cli_run_records_monthly_usage(tmp_path, monkeypatch):
+    import json
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    assert main(["run", "--offline", "--budget", "3"]) == 0
+    data = json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))
+    assert data == {date.today().strftime("%Y-%m"): 0}
