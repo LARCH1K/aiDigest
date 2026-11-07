@@ -1,0 +1,208 @@
+# Справочник источников. Меняется редко, правится вручную.
+# level: мир | регионы РФ | Свердловская область | null (подходит всем уровням)
+# reliability: высокая | средняя | низкая
+# source_type: официальная | статистика | кейсы | аналитика рынка | СМИ
+# Основа — материалы «Аналитики» (Вводные данные/md/). Решения спеки: Reuters и «Цифровой регион» — средняя.
+
+sources:
+  # --- РФ: госсектор и официальные источники ---
+  - name: Национальный портал ИИ (ai.gov.ru)
+    domains: [ai.gov.ru]
+    level: регионы РФ
+    reliability: высокая
+    source_type: официальная
+    update_frequency: неравномерно
+  - name: Минцифры России
+    domains: [digital.gov.ru]
+    level: регионы РФ
+    reliability: высокая
+    source_type: официальная
+    update_frequency: по мере принятия решений
+  - name: Правительство РФ
+    domains: [government.ru]
+    level: регионы РФ
+    reliability: высокая
+    source_type: официальная
+    update_frequency: по мере принятия решений
+  - name: Национальные проекты РФ
+    domains: [нацпроекты.рф]
+    level: регионы РФ
+    reliability: высокая
+    source_type: официальная
+    update_frequency: регулярно
+  - name: ИСИЭЗ НИУ ВШЭ
+    domains: [issek.hse.ru]
+    level: регионы РФ
+    reliability: высокая
+    source_type: статистика
+    update_frequency: регулярно
+  - name: Цифровой регион
+    domains: [digital.mosreg.ru]
+    level: регионы РФ
+    reliability: средняя
+    source_type: кейсы
+    update_frequency: неравномерно
+
+  # --- РФ: бизнес и аналитика ---
+  - name: Витрина ИИ-кейсов AI Russia
+    domains: [ai-russia.ru]
+    level: регионы РФ
+    reliability: средняя
+    source_type: кейсы
+    update_frequency: по мере поступления
+  - name: TAdviser
+    domains: [tadviser.ru]
+    level: регионы РФ
+    reliability: средняя
+    source_type: аналитика рынка
+    update_frequency: часто
+
+  # --- РФ: региональные СМИ (из эталонных кейсов «рос и рег») ---
+  - name: Губерния 74
+    domains: [gubernia74.ru]
+    level: регионы РФ
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Комсомольская правда (вкл. региональные выпуски)
+    domains: [kp.ru]
+    level: null
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: РБК (вкл. региональные выпуски)
+    domains: [rbc.ru]
+    level: null
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: IT Russia
+    domains: [itrussia.media]
+    level: регионы РФ
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: часто
+  - name: Реальное время
+    domains: [realnoevremya.ru]
+    level: регионы РФ
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Коммерсантъ (вкл. региональные выпуски)
+    domains: [kommersant.ru]
+    level: null
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+
+  # --- Свердловская область ---
+  - name: Правительство Свердловской области
+    domains: [midural.ru]
+    level: Свердловская область
+    reliability: высокая
+    source_type: официальная
+    update_frequency: ежедневно
+  - name: Минцифры Свердловской области
+    domains: [digital.midural.ru]
+    level: Свердловская область
+    reliability: высокая
+    source_type: официальная
+    update_frequency: регулярно
+  - name: Администрация Екатеринбурга
+    domains: [екатеринбург.рф, ekburg.ru]
+    level: Свердловская область
+    reliability: высокая
+    source_type: официальная
+    update_frequency: ежедневно
+  - name: Областная газета
+    domains: [oblgazeta.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Деловой квартал (DK.RU)
+    domains: [dk.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: E1.ru
+    domains: [e1.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: URA.RU
+    domains: [ura.news, ura.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Уральский бизнес-портал (URBC)
+    domains: [urbc.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Вести Урал
+    domains: [vesti-ural.ru]
+    level: Свердловская область
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
+  - name: Екатеринбург Today
+    domains: [ekaterinburgtoday.ru]
+    level: Свердловская область
+    reliability: низкая
+    source_type: СМИ
+    update_frequency: ежедневно
+
+  # --- Мир ---
+  - name: OECD AI Policy Observatory
+    domains: [oecd.ai]
+    level: мир
+    reliability: высокая
+    source_type: статистика
+    update_frequency: по мере поступления данных
+  - name: Stanford AI Index
+    domains: [hai.stanford.edu]
+    level: мир
+    reliability: высокая
+    source_type: статистика
+    update_frequency: ежегодно
+  - name: World Bank AI Repository
+    domains: [airepository.worldbank.org, worldbank.org]
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: по мере проверки кейсов
+  - name: NIA Korea
+    domains: [eng.nia.or.kr, nia.or.kr]
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+  - name: Agentic AI Hub (Германия)
+    domains: [digitalservice.bund.de]
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: по этапам пилотов
+  - name: McKinsey The State of AI
+    domains: [mckinsey.com]
+    level: мир
+    reliability: средняя
+    source_type: статистика
+    update_frequency: ежегодно
+  - name: Gartner AI Hub
+    domains: [gartner.com]
+    level: мир
+    reliability: средняя
+    source_type: аналитика рынка
+    update_frequency: часто
+  - name: Reuters AI
+    domains: [reuters.com]
+    level: мир
+    reliability: средняя
+    source_type: СМИ
+    update_frequency: ежедневно
