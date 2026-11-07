@@ -73,3 +73,17 @@ def test_too_short_quote_is_rejected(make_metric):
     assert not quote_in_text("95%", TEXT2)
     assert not quote_in_text("Точность 95%", TEXT2)
     assert quote_in_text("Выручка выросла на 15%", TEXT2)
+
+
+ELLIPSIS_TEXT = "Как показала практика, ИИ способен прогнозировать аварии, а также плановые отключения с точностью свыше 90%."
+
+
+def test_quote_with_ellipsis_matches_fragments_in_order():
+    assert quote_in_text("ИИ способен прогнозировать аварии... с точностью свыше 90%", ELLIPSIS_TEXT)
+    assert quote_in_text("ИИ способен прогнозировать аварии … с точностью свыше 90%", ELLIPSIS_TEXT)
+
+
+def test_ellipsis_fragments_out_of_order_or_absent_are_rejected():
+    assert not quote_in_text("с точностью свыше 90%... ИИ способен прогнозировать", ELLIPSIS_TEXT)
+    assert not quote_in_text("ИИ способен прогнозировать аварии... с точностью свыше 99%", ELLIPSIS_TEXT)
+    assert not quote_in_text("ИИ... 90%", ELLIPSIS_TEXT)

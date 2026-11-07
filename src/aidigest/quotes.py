@@ -55,10 +55,27 @@ def quote_in_text(quote: str, text: str) -> bool:
     q, t = normalize_text(quote), normalize_text(text)
     if len(re.findall(r"\w+", q)) < MIN_QUOTE_WORDS:
         return False
+    if "..." in q or "…" in q:
+        return _fragments_in_order(q, t)
     if q in t:
         return True
     q2 = _strip_punct(q)
     return bool(q2) and q2 in _strip_punct(t)
+
+
+def _fragments_in_order(q: str, t: str) -> bool:
+    """Цитата с многоточием: каждая часть (не короче 2 слов) есть в тексте, части идут по порядку."""
+    parts = [_strip_punct(x) for x in re.split(r"\.{3,}|…", q)]
+    parts = [x for x in parts if x]
+    if not parts or any(len(x.split()) < 2 for x in parts):
+        return False
+    hay, pos = _strip_punct(t), 0
+    for part in parts:
+        pos = hay.find(part, pos)
+        if pos < 0:
+            return False
+        pos += len(part)
+    return True
 
 
 def _close(a: float, b: float) -> bool:
