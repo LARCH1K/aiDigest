@@ -1,10 +1,215 @@
-"""Запуски сбора (реализация — задача 4)."""
+"""Запуски сбора с сайта: не больше одного одновременно, итоги и история хранятся в файлах.
+
+<data>/web/run.lock          — идёт запуск: {"run_id", "pid", "started"}
+<data>/web/runs/<id>.log     — вывод `python -m aidigest run`
+<data>/web/runs/<id>.json    — итог: {"run_id", "started", "finished", "exit_code", "state"}
+"""
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
+from typing import Callable
+
+REPORT_PREFIXES = ("Кредитов", "Вызовов", "Статей", "Кандидатов", "Кейсов", "Подтверждений", "Бюджет", "Флаг:")
+STATE_LABEL = {"running": "идёт", "ok": "успешно", "error": "ошибка", "limit": "месячный лимит исчерпан",
+               "interrupted": "прервано"}
+STALE_EMPTY_LOCK_SECONDS = 60
+
+
+class AlreadyRunning(Exception):
+    pass
+
+
+class MonthExhausted(Exception):
+    pass
+
+
+@dataclass
+class RunInfo:
+    run_id: str
+    started: datetime
+    state: str = "running"
+    finished: datetime | None = None
+    exit_code: int | None = None
+    log_path: Path | None = None
+    report: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def label(self) -> str:
+        return STATE_LABEL.get(self.state, self.state)
+
+    @property
+    def minutes(self) -> int:
+        end = self.finished or datetime.now()
+        return max(0, int((end - self.started).total_seconds() // 60))
+
+
+def parse_report(log_text: str) -> dict[str, str]:
+    """Строки отчёта CLI вида «Ключ: значение» (у флагов ключ сам содержит двоеточие)."""
+    out: dict[str, str] = {}
+    for line in log_text.splitlines():
+        line = line.strip()
+        if not line.startswith(REPORT_PREFIXES) or ": " not in line:
+            continue
+        key, value = line.rsplit(": ", 1)
+        out[key] = value
+    return out
+
+
+def default_pid_alive(pid: int) -> bool:
+    if sys.platform == "win32":
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+            return bool(ok) and code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 class RunManager:
-    def __init__(self, data_dir: Path, project_root: Path, **kw):
+    def __init__(self, data_dir: Path, project_root: Path, popen=subprocess.Popen,
+                 pid_alive: Callable[[int], bool] = default_pid_alive, now: Callable[[], datetime] = datetime.now):
         self.data_dir = Path(data_dir)
         self.project_root = Path(project_root)
+        self.web_dir = self.data_dir / "web"
+        self.runs_dir = self.web_dir / "runs"
+        self.lock = self.web_dir / "run.lock"
+        self._popen = popen
+        self._pid_alive = pid_alive
+        self._now = now
+
+    # --- кредиты ---
+    def _usage(self):
+        from aidigest.config import load_settings
+        from aidigest.usage import MonthlyUsage
+        settings = load_settings(self.project_root / "config" / "settings.yaml") \
+            if (self.project_root / "config" / "settings.yaml").exists() else None
+        limit = settings.monthly_limit if settings else 1000
+        return MonthlyUsage(self.data_dir / "credits.json", limit), limit, (settings.run_budget if settings else 30)
+
+    def month_spent(self) -> float:
+        usage, _, _ = self._usage()
+        return usage.spent(self._now().date())
+
+    def month_limit(self) -> float:
+        return self._usage()[1]
+
+    def run_budget(self) -> float:
+        return self._usage()[2]
+
+    def month_remaining(self) -> float:
+        usage, _, _ = self._usage()
+        return usage.remaining(self._now().date())
+
+    # --- состояние ---
+    def _result_path(self, run_id: str) -> Path:
+        return self.runs_dir / f"{run_id}.json"
+
+    def _log_path(self, run_id: str) -> Path:
+        return self.runs_dir / f"{run_id}.log"
+
+    def _write_result(self, run_id: str, started: datetime, state: str, exit_code: int | None) -> None:
+        self.runs_dir.mkdir(parents=True, exist_ok=True)
+        self._result_path(run_id).write_text(json.dumps({
+            "run_id": run_id, "started": started.isoformat(), "finished": self._now().isoformat(),
+            "exit_code": exit_code, "state": state}, ensure_ascii=False), encoding="utf-8")
+
+    def current(self) -> RunInfo | None:
+        """Идущий запуск или None. Заодно снимает блокировку закончившихся и прерванных запусков."""
+        if not self.lock.exists():
+            return None
+        try:
+            data = json.loads(self.lock.read_text(encoding="utf-8") or "{}")
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        if not data.get("run_id"):
+            # блокировку только что создали и ещё не дописали; совсем старую пустую — убираем
+            age = self._now().timestamp() - self.lock.stat().st_mtime
+            if age > STALE_EMPTY_LOCK_SECONDS:
+                self.lock.unlink(missing_ok=True)
+                return None
+            return RunInfo(run_id="", started=self._now())
+        run_id, started = data["run_id"], datetime.fromisoformat(data["started"])
+        if self._result_path(run_id).exists():
+            self.lock.unlink(missing_ok=True)
+            return None
+        if not self._pid_alive(int(data["pid"])):
+            self._write_result(run_id, started, "interrupted", None)
+            self.lock.unlink(missing_ok=True)
+            return None
+        return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
+
+    def start(self) -> RunInfo:
+        if self.month_remaining() <= 0:
+            raise MonthExhausted()
+        if self.current() is not None:
+            raise AlreadyRunning()
+        self.web_dir.mkdir(parents=True, exist_ok=True)
+        self.runs_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            raise AlreadyRunning() from None
+        started = self._now().replace(microsecond=0)
+        run_id = started.strftime("%Y%m%d-%H%M%S")
+        try:
+            kw = dict(cwd=str(self.project_root), env={**os.environ, "AIDIGEST_DATA_DIR": str(self.data_dir)},
+                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if sys.platform == "win32":
+                kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+            else:
+                kw["start_new_session"] = True
+            proc = self._popen([sys.executable, "-m", "aidigest_web.runner", run_id], **kw)
+            os.write(fd, json.dumps({"run_id": run_id, "pid": proc.pid, "started": started.isoformat()}).encode())
+        except Exception:
+            os.close(fd)
+            self.lock.unlink(missing_ok=True)
+            raise
+        os.close(fd)
+        return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
+
+    def history(self, limit: int = 10) -> list[RunInfo]:
+        if not self.runs_dir.exists():
+            return []
+        out = []
+        for p in sorted(self.runs_dir.glob("*.json"), reverse=True)[:limit]:
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            log = self._log_path(d["run_id"])
+            text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+            out.append(RunInfo(run_id=d["run_id"], started=datetime.fromisoformat(d["started"]),
+                               finished=datetime.fromisoformat(d["finished"]) if d.get("finished") else None,
+                               exit_code=d.get("exit_code"), state=d.get("state", "error"),
+                               log_path=log, report=parse_report(text)))
+        return out
+
+    def tail(self, run: RunInfo, lines: int = 30) -> list[str]:
+        if not run.log_path or not run.log_path.exists():
+            return []
+        text = run.log_path.read_text(encoding="utf-8", errors="replace")
+        return text.splitlines()[-lines:]
+
+    def log_text(self, run_id: str) -> str | None:
+        if not run_id.replace("-", "").isdigit():
+            return None
+        p = self._log_path(run_id)
+        return p.read_text(encoding="utf-8", errors="replace") if p.exists() else None
