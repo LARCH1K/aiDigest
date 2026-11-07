@@ -6,6 +6,8 @@ import os
 from datetime import date
 from pathlib import Path
 
+from aidigest.store import replace_with_retry
+
 
 class MonthlyUsage:
     def __init__(self, path: Path, limit: float, warn_share: float = 0.8):
@@ -39,7 +41,7 @@ class MonthlyUsage:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, self.path)
+        replace_with_retry(tmp, self.path)
 
     def warning(self, day: date) -> str | None:
         spent = self.spent(day)

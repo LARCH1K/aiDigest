@@ -3,6 +3,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+
+from aidigest.store import replace_with_retry
 from typing import Any
 
 
@@ -26,4 +28,4 @@ class DiskCache:
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(".tmp")
         tmp.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
-        os.replace(tmp, p)
+        replace_with_retry(tmp, p)
