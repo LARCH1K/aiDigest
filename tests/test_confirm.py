@@ -135,3 +135,56 @@ def test_recheck_searches_only_since_last_attempt(make_case, make_metric, regist
     s2 = FakeSearch(lambda **kw: [])
     confirm_case(first, s2, FakeLLM([]), registry, D, 5)
     assert s2.calls[0]["start_date"] is None
+
+
+# --- детерминированное подтверждение по числам ---
+from aidigest.confirm import find_number_confirmations
+
+CHEL = Article(url="https://74.ru/news/1", domain="74.ru", title="",
+               text="В Челябинске заработала система. Среднее время в пробках сократилось с 13 до 5 минут, сообщили в мэрии.")
+
+
+def test_code_confirms_when_numbers_name_and_place_match(make_case, make_metric, registry):
+    c = make_case(region="Челябинская область", metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин")])
+    found = find_number_confirmations(c, [CHEL])
+    assert found == [(0, "https://74.ru/news/1", "Среднее время в пробках сократилось с 13 до 5 минут, сообщили в мэрии.")]
+    confirm_case(c, FakeSearch(lambda **kw: [CHEL]), FakeLLM([{"matches": []}]), registry, D, 5)
+    assert c.confirmation_status == ConfirmationStatus.CONFIRMED and "https://74.ru/news/1" in c.metrics[0].confirmed_by
+
+
+def test_code_does_not_confirm_without_place(make_case, make_metric):
+    c = make_case(region="Белгородская область", organization="Белводоканал",
+                  metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин")])
+    assert find_number_confirmations(c, [CHEL]) == []
+
+
+def test_code_does_not_confirm_small_numbers_only(make_case, make_metric):
+    art = Article(url="https://74.ru/2", domain="74.ru", title="", text="В Челябинске время в пробках выросло с 5 до 7 минут.")
+    c = make_case(region="Челябинская область", metrics=[make_metric(name="время в пробках", before="5 мин", after="7 мин",
+                                                                      quote="время в пробках выросло с 5 до 7 минут")])
+    assert find_number_confirmations(c, [art]) == []
+
+
+def test_code_does_not_confirm_without_metric_word(make_case, make_metric):
+    art = Article(url="https://74.ru/3", domain="74.ru", title="", text="В Челябинске открыли 13 школ и 5 детсадов.")
+    c = make_case(region="Челябинская область", metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин")])
+    assert find_number_confirmations(c, [art]) == []
+
+
+def test_unverified_metric_is_not_code_confirmed(make_case, make_metric):
+    c = make_case(region="Челябинская область",
+                  metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин", quote_verified=False)])
+    assert find_number_confirmations(c, [CHEL]) == []
+
+
+def test_code_confirmation_survives_broken_llm_reply(make_case, make_metric, registry):
+    from aidigest.llm import LLMFormatError
+
+    class Broken:
+        calls = 0
+
+        def complete_json(self, system, user, validate=None):
+            raise LLMFormatError("битый JSON")
+    c = make_case(region="Челябинская область", metrics=[make_metric(name="время в пробках", before="13 мин", after="5 мин")])
+    confirm_case(c, FakeSearch(lambda **kw: [CHEL]), Broken(), registry, D, 5)
+    assert c.confirmation_status == ConfirmationStatus.CONFIRMED

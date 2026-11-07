@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 
-from aidigest.llm import LLMClient
+from aidigest.llm import LLMClient, LLMFormatError
 from aidigest.models import Case, ConfirmationStatus
-from aidigest.quotes import extract_numbers, quote_in_text
+from aidigest.models import Article
+from aidigest.quotes import extract_numbers, normalize_text, quote_in_text
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
 from aidigest.urls import domain_of, normalize_url
@@ -32,6 +34,47 @@ def _metric_numbers(metric) -> list[float]:
 def _all_in(wanted: list[float], have: list[float]) -> bool:
     """Непустой набор чисел, каждое из которых есть в have."""
     return bool(wanted) and all(any(abs(w - h) <= 1e-6 for h in have) for w in wanted)
+
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
+# Общие слова в названиях мест и ведомств — по ним «место кейса» не узнать.
+_GENERIC_PLACE = {"облас", "респу", "город", "район", "прави", "минис", "админ", "федер", "управ", "госуд",
+                  "росси", "нацио", "центр", "компа", "групп", "служб", "депар", "комит"}
+
+
+def _stems(text: str | None) -> set[str]:
+    return {w[:5] for w in re.findall(r"[^\W\d_]+", normalize_text(text or "")) if len(w) >= 5}
+
+
+def _distinctive(numbers: list[float]) -> bool:
+    """Хотя бы одно число не из мелких (0–10): «5 минут» встречается где угодно."""
+    return any(not (n.is_integer() and n <= 10) for n in numbers)
+
+
+def find_number_confirmations(case: Case, articles: list[Article]) -> list[tuple[int, str, str]]:
+    """Подтверждения без LLM: в статье другого издания есть предложение со всеми числами проверенного
+    показателя (хотя бы одно не мелкое) и словом из его названия, а сама статья упоминает место кейса.
+
+    Возвращает (индекс показателя, URL, предложение)."""
+    place = (_stems(case.region) | _stems(case.municipality) | _stems(case.organization)) - _GENERIC_PLACE
+    if not place:
+        return []
+    out = []
+    for article in articles:
+        if not (place & _stems(article.text)):
+            continue
+        sentences = _SENTENCE_SPLIT.split(article.text)
+        for i, metric in enumerate(case.metrics):
+            wanted = _metric_numbers(metric)
+            name = _stems(metric.name)
+            if not metric.quote_verified or not wanted or not _distinctive(wanted) or not name:
+                continue
+            for sentence in sentences:
+                have = extract_numbers(sentence)
+                if _all_in(wanted, have) and name & _stems(sentence):
+                    out.append((i, normalize_url(article.url), sentence.strip()))
+                    break
+    return out
 
 
 def _due_for_recheck(c: Case, today: date, recheck_after_days: int, max_rechecks: int) -> bool:
@@ -82,7 +125,10 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
     by_url = {normalize_url(a.url): a for a in articles}
     user = _case_for_prompt(case) + "\n\nСтатьи:\n" + "\n\n".join(
         f"URL: {u}\n{a.text[:ARTICLE_CHARS]}" for u, a in by_url.items())
-    reply = llm.complete_json(CONFIRM_SYSTEM_PROMPT, user)
+    try:
+        reply = llm.complete_json(CONFIRM_SYSTEM_PROMPT, user)
+    except LLMFormatError:
+        reply = {"matches": []}  # проверка по числам ниже всё равно отработает
     matches = reply.get("matches", []) if isinstance(reply, dict) else []
 
     known = {normalize_url(s.url) for s in case.sources}
@@ -113,5 +159,13 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
             metric.conflicting_values.append(f"{value} ({url})")
         if url not in known:
             case.sources.append(registry.to_source(article))
+            known.add(url)
+    # Детерминированные совпадения по числам — дополнение к осторожному LLM.
+    for i, url, _sentence in find_number_confirmations(case, articles):
+        metric = case.metrics[i]
+        if url not in metric.confirmed_by:
+            metric.confirmed_by.append(url)
+        if url not in known:
+            case.sources.append(registry.to_source(by_url[url]))
             known.add(url)
     case.recompute_status()
