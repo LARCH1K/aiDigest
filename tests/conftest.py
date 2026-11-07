@@ -33,6 +33,31 @@ def make_source():
     return _make
 
 
+@pytest.fixture(scope="session")
+def registry():
+    from pathlib import Path
+    from aidigest.registry import SourceRegistry
+    return SourceRegistry.load(Path(__file__).resolve().parent.parent / "config" / "sources.yaml")
+
+
+@pytest.fixture
+def case_reply():
+    """Ответ LLM формата extract.SYSTEM_PROMPT; region/stage/country — в кейс, остальное — в метрику."""
+    def _make(**kw):
+        case = {"country": "Россия", "region": "Челябинская область", "municipality": None,
+                "organization": None, "sector": "госсектор", "industry": "транспорт",
+                "ai_technology": "компьютерное зрение", "title": "т", "summary": "с", "stage": "внедрён"}
+        for k in ("region", "stage", "country", "sector", "organization", "title"):
+            if k in kw:
+                case[k] = kw.pop(k)
+        metric = {"name": "время в пробках", "criterion": "скорость", "before": "13 мин", "after": "5 мин",
+                  "change": None, "unit": "мин", "kind": "факт", "quote": "сократилось с 13 до 5 минут"}
+        metric.update(kw)
+        case["metrics"] = [metric]
+        return {"cases": [case]}
+    return _make
+
+
 @pytest.fixture
 def make_case(make_metric, make_source):
     def _make(**kw):
