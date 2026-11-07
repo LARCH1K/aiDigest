@@ -33,6 +33,12 @@
     });
   });
 
+  // --- «к списку кейсов»: вернуться назад с сохранёнными фильтрами, если пришли со списка ---
+  var back = document.querySelector("[data-back]");
+  if (back && document.referrer && new URL(document.referrer).origin === location.origin) {
+    back.addEventListener("click", function (e) { e.preventDefault(); history.back(); });
+  }
+
   // --- страница запуска: опрос статуса раз в 5 секунд ---
   var running = document.querySelector("[data-running]");
   if (running) {

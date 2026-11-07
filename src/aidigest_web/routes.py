@@ -1,7 +1,9 @@
 """Маршруты сайта. Данные только читаются из базы пайплайна."""
 from __future__ import annotations
 
+import io
 import tempfile
+from urllib.parse import urlsplit
 from datetime import date, datetime
 from pathlib import Path
 
@@ -19,18 +21,37 @@ def _store() -> CaseStore:
     return CaseStore(Path(current_app.config["DATA_DIR"]) / "cases.json")
 
 
+def _load_cases() -> tuple[list, bool]:
+    """Кейсы базы и признак «файл базы повреждён» (пустой или нечитаемый) — без ошибки 500."""
+    try:
+        return _store().load().cases, False
+    except (ValueError, OSError):
+        return [], True
+
+
+def safe_url(url: str | None) -> str:
+    """В ссылку попадают только http(s)-адреса: «javascript:» из данных не должен стать ссылкой."""
+    try:
+        return url if url and urlsplit(url).scheme in ("http", "https") else "#"
+    except ValueError:
+        return "#"
+
+
 def _updated_at() -> datetime | None:
     p = Path(current_app.config["DATA_DIR"]) / "cases.json"
     return datetime.fromtimestamp(p.stat().st_mtime) if p.exists() else None
 
 
 def init(app: Flask) -> None:
+    app.jinja_env.filters["safe_url"] = safe_url
     app.jinja_env.globals.update(STATUS_CLASS=STATUS_CLASS, STATUS_LABEL=STATUS_LABEL, FLAG_HELP=FLAG_HELP,
                                  metric_line=metric_line, headline=headline, Flag=Flag)
 
     @app.route("/")
     def cases():
-        all_cases = _store().load().cases
+        all_cases, broken = _load_cases()
+        if broken:
+            flash("Файл базы кейсов повреждён или пуст — запустите сбор, чтобы пересобрать данные.", "bad")
         args = request.args
         f = {
             "q": args.get("q", "").strip(),
@@ -46,7 +67,7 @@ def init(app: Flask) -> None:
 
     @app.route("/case/<case_id>")
     def case(case_id: str):
-        found = next((c for c in _store().load().cases if c.id == case_id), None)
+        found = next((c for c in _load_cases()[0] if c.id == case_id), None)
         if found is None:
             abort(404)
         return render_template("case.html", c=found)
@@ -57,9 +78,10 @@ def init(app: Flask) -> None:
 
     @app.route("/export.xlsx")
     def export():
-        tmp = Path(tempfile.mkdtemp(prefix="aidigest_web_")) / "cases.xlsx"
-        written = export_xlsx(_store().load().cases, None, tmp)
-        return send_file(written, as_attachment=True,
+        with tempfile.TemporaryDirectory(prefix="aidigest_web_") as tmp:
+            written = export_xlsx(_load_cases()[0], None, Path(tmp) / "cases.xlsx")
+            data = io.BytesIO(written.read_bytes())
+        return send_file(data, as_attachment=True,
                          download_name=f"aidigest_cases_{date.today().isoformat()}.xlsx",
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 

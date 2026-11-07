@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
 
@@ -19,6 +21,11 @@ REPORT_PREFIXES = ("Кредитов", "Вызовов", "Статей", "Кан
 STATE_LABEL = {"running": "идёт", "ok": "успешно", "error": "ошибка", "limit": "месячный лимит исчерпан",
                "interrupted": "прервано"}
 STALE_EMPTY_LOCK_SECONDS = 60
+# Сбор длится 5–15 минут. Запуск старше этого считаем прерванным: после перезагрузки Windows
+# номер процесса может достаться другой программе, и проверка «процесс жив» обманется.
+MAX_RUN_AGE = timedelta(hours=3)
+# Один веб-сервер, много потоков: проверка и создание блокировки не должны перемежаться.
+_STATE_LOCK = threading.RLock()
 
 
 class AlreadyRunning(Exception):
@@ -133,33 +140,47 @@ class RunManager:
 
     def current(self) -> RunInfo | None:
         """Идущий запуск или None. Заодно снимает блокировку закончившихся и прерванных запусков."""
-        if not self.lock.exists():
+        with _STATE_LOCK:
+            return self._current()
+
+    def _current(self) -> RunInfo | None:
+        try:
+            raw = self.lock.read_text(encoding="utf-8")
+            mtime = self.lock.stat().st_mtime
+        except FileNotFoundError:
             return None
         try:
-            data = json.loads(self.lock.read_text(encoding="utf-8") or "{}")
-        except (OSError, json.JSONDecodeError):
-            data = {}
-        if not data.get("run_id"):
-            # блокировку только что создали и ещё не дописали; совсем старую пустую — убираем
-            age = self._now().timestamp() - self.lock.stat().st_mtime
-            if age > STALE_EMPTY_LOCK_SECONDS:
+            data = json.loads(raw or "{}")
+            run_id, pid = data["run_id"], int(data["pid"])
+            started = datetime.fromisoformat(data["started"])
+        except (ValueError, KeyError, TypeError):
+            # блокировку только что создали и ещё не дописали (или файл испорчен); старую — убираем
+            if self._now().timestamp() - mtime > STALE_EMPTY_LOCK_SECONDS:
                 self.lock.unlink(missing_ok=True)
                 return None
             return RunInfo(run_id="", started=self._now())
-        run_id, started = data["run_id"], datetime.fromisoformat(data["started"])
         if self._result_path(run_id).exists():
             self.lock.unlink(missing_ok=True)
             return None
-        if not self._pid_alive(int(data["pid"])):
+        pid_file = self.runs_dir / f"{run_id}.pid"
+        try:
+            pid = int(pid_file.read_text(encoding="utf-8").strip())  # настоящий номер обёртки, если уже записан
+        except (OSError, ValueError):
+            pass
+        if self._now() - started > MAX_RUN_AGE or not self._pid_alive(pid):
             self._write_result(run_id, started, "interrupted", None)
             self.lock.unlink(missing_ok=True)
             return None
         return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
 
     def start(self) -> RunInfo:
+        with _STATE_LOCK:
+            return self._start()
+
+    def _start(self) -> RunInfo:
         if self.month_remaining() <= 0:
             raise MonthExhausted()
-        if self.current() is not None:
+        if self._current() is not None:
             raise AlreadyRunning()
         self.web_dir.mkdir(parents=True, exist_ok=True)
         self.runs_dir.mkdir(parents=True, exist_ok=True)
@@ -173,7 +194,8 @@ class RunManager:
             kw = dict(cwd=str(self.project_root), env={**os.environ, "AIDIGEST_DATA_DIR": str(self.data_dir)},
                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if sys.platform == "win32":
-                kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                # без окна консоли и отдельно от сервера: Ctrl+C в окне сервера не оборвёт сбор
+                kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
             else:
                 kw["start_new_session"] = True
             proc = self._popen([sys.executable, "-m", "aidigest_web.runner", run_id], **kw)
@@ -192,12 +214,13 @@ class RunManager:
         for p in sorted(self.runs_dir.glob("*.json"), reverse=True)[:limit]:
             try:
                 d = json.loads(p.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            log = self._log_path(d["run_id"])
+                run_id, started = d["run_id"], datetime.fromisoformat(d["started"])
+                finished = datetime.fromisoformat(d["finished"]) if d.get("finished") else None
+            except (OSError, ValueError, KeyError, TypeError):
+                continue  # испорченная запись истории — пропускаем
+            log = self._log_path(run_id)
             text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
-            out.append(RunInfo(run_id=d["run_id"], started=datetime.fromisoformat(d["started"]),
-                               finished=datetime.fromisoformat(d["finished"]) if d.get("finished") else None,
+            out.append(RunInfo(run_id=run_id, started=started, finished=finished,
                                exit_code=d.get("exit_code"), state=d.get("state", "error"),
                                log_path=log, report=parse_report(text)))
         return out
@@ -209,7 +232,7 @@ class RunManager:
         return text.splitlines()[-lines:]
 
     def log_text(self, run_id: str) -> str | None:
-        if not run_id.replace("-", "").isdigit():
+        if not re.fullmatch(r"\d{8}-\d{6}", run_id, re.ASCII):
             return None
         p = self._log_path(run_id)
         return p.read_text(encoding="utf-8", errors="replace") if p.exists() else None

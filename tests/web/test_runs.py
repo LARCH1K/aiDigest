@@ -91,14 +91,46 @@ def test_history_includes_report_and_tail(tmp_path):
 def test_runner_writes_result_json(tmp_path, monkeypatch):
     calls = []
 
-    def fake_run(args, **kw):
-        calls.append((args, kw))
-        kw["stdout"].write(b"\xd0\x9a\xd0\xb5\xd0\xb9\xd1\x81\xd0\xbe\xd0\xb2 \xd0\xbd\xd0\xbe\xd0\xb2\xd1\x8b\xd1\x85: 1\n")
-        return SimpleNamespace(returncode=2)
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    class FakeProc:
+        _handle = 0
+
+        def __init__(self, args, **kw):
+            calls.append((args, kw))
+            kw["stdout"].write("Кейсов новых: 1".encode("utf-8") + b"\n")
+
+        def wait(self):
+            return 2
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProc)
+    monkeypatch.setattr(runner, "_kill_children_with_runner", lambda: None)
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     assert runner.main(["20261108-143200"]) == 2
     res = json.loads((tmp_path / "web" / "runs" / "20261108-143200.json").read_text(encoding="utf-8"))
     assert res["state"] == "limit" and res["exit_code"] == 2 and res["finished"]
     assert calls[0][0][1:] == ["-m", "aidigest", "run"]
     assert calls[0][1]["env"]["PYTHONIOENCODING"] == "utf-8"
+
+
+def test_runner_pid_file_overrides_launcher_pid(tmp_path):
+    info = manager(tmp_path).start()
+    (tmp_path / "web" / "runs" / f"{info.run_id}.pid").write_text("777", encoding="utf-8")
+    m = RunManager(tmp_path, tmp_path / "root", pid_alive=lambda pid: pid == 777, now=lambda: NOW)
+    assert m.current() is not None  # запускалка (4242) мертва, но настоящая обёртка (777) жива
+    m2 = RunManager(tmp_path, tmp_path / "root", pid_alive=lambda pid: pid == 4242, now=lambda: NOW)
+    assert m2.current() is None and m2.history()[0].state == "interrupted"
+
+
+def test_runner_binds_itself_before_spawning_and_writes_pid(tmp_path, monkeypatch):
+    order = []
+
+    class FakeProc:
+        def __init__(self, args, **kw):
+            order.append("spawn")
+
+        def wait(self):
+            return 0
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeProc)
+    monkeypatch.setattr(runner, "_kill_children_with_runner", lambda: order.append("bind"))
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    runner.main(["20261108-143200"])
+    assert order == ["bind", "spawn"]
+    assert (tmp_path / "web" / "runs" / "20261108-143200.pid").read_text(encoding="utf-8").strip().isdigit()

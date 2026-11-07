@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ c.title }}{% endblock %}
 {% block content %}
-<a class="back" href="javascript:history.length > 1 ? history.back() : location.assign('/')">← к списку кейсов</a>
+<a class="back" href="/" data-back>← к списку кейсов</a>
 
 <section class="card case-head">
   <div class="case-head-top">
@@ -40,12 +40,12 @@
           <td>{{ m.criterion }}</td>
           <td class="quote">
             <blockquote>«{{ m.quote }}»</blockquote>
-            <a class="src" href="{{ m.source_url }}" target="_blank" rel="noopener">{{ m.source_url|replace('https://', '')|replace('http://', '')|truncate(48, true, '…') }}</a>
+            <a class="src" href="{{ m.source_url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ m.source_url|replace('https://', '')|replace('http://', '')|truncate(48, true, '…') }}</a>
           </td>
           <td class="checks-cell">
             {% if m.quote_verified %}<div class="ok-line">✔ цитата найдена в тексте</div>
             {% else %}<div class="bad-line">⚠ цитата или число не найдены</div>{% endif %}
-            {% for u in m.confirmed_by %}<div class="ok-line">✔ подтверждено: <a href="{{ u }}" target="_blank" rel="noopener">{{ u.split('/')[2] if '//' in u else u }}</a></div>{% endfor %}
+            {% for u in m.confirmed_by %}<div class="ok-line">✔ подтверждено: <a href="{{ u|safe_url }}" target="_blank" rel="noopener noreferrer">{{ u.split('/')[2] if '//' in u else u }}</a></div>{% endfor %}
             {% for v in m.conflicting_values %}<div class="bad-line">≠ другое значение: {{ v }}</div>{% endfor %}
           </td>
         </tr>
@@ -62,7 +62,7 @@
     <ul class="sources">
       {% for s in c.sources %}
       <li>
-        <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title or s.domain }}</a>
+        <a href="{{ s.url|safe_url }}" target="_blank" rel="noopener noreferrer">{{ s.title or s.domain }}</a>
         <span class="muted">{{ s.domain }}</span>
         <span class="tag tag-{{ 'ok' if s.reliability.value == 'высокая' else ('warn' if s.reliability.value == 'средняя' else 'muted') }}">достоверность: {{ s.reliability.value|replace('_', ' ') }}</span>
       </li>
