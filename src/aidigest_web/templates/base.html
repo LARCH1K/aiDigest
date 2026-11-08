@@ -18,6 +18,8 @@
     {% if not hide_nav %}
     <nav class="nav">
       <a href="/" class="{{ 'active' if nav in ('cases', 'case') }}">Кейсы</a>
+      <a href="/queries" class="{{ 'active' if nav == 'queries' }}">Запросы</a>
+      <a href="/sources" class="{{ 'active' if nav == 'sources' }}">Источники</a>
       <a href="/run" class="{{ 'active' if nav == 'run' }}">Запуск сбора</a>
       <a href="/help" class="{{ 'active' if nav == 'help' }}">Как читать таблицу</a>
     </nav>

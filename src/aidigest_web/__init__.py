@@ -14,12 +14,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def create_app(data_dir: Path, password: str | None, secret_key: str | None = None, run_manager=None,
-               run_mode: str = "local", trust_proxy: bool = False) -> Flask:
-    from aidigest_web import auth, routes
+               run_mode: str = "local", trust_proxy: bool = False, config_dir: Path | None = None) -> Flask:
+    from aidigest_web import auth, config_pages, routes
     from aidigest_web.runs import RunManager
 
     app = Flask(__name__)
     app.config["DATA_DIR"] = Path(data_dir)
+    app.config["CONFIG_DIR"] = Path(config_dir) if config_dir else PROJECT_ROOT / "config"
     app.config["WEB_PASSWORD"] = password or None
     app.secret_key = secret_key or secrets.token_hex(32)
     # Чужой сайт не сможет отправить форму «Запустить сбор» с cookie вошедшего пользователя.
@@ -33,4 +34,5 @@ def create_app(data_dir: Path, password: str | None, secret_key: str | None = No
     app.extensions["runs"] = run_manager or RunManager(Path(data_dir), PROJECT_ROOT, mode=run_mode)
     auth.init(app)
     routes.init(app)
+    config_pages.init(app)
     return app

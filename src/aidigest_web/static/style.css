@@ -226,6 +226,13 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
 .prose li { margin: 6px 0; }
 .prose p { margin: 0 0 10px; }
 .prose p:last-child { margin-bottom: 0; }
+
+/* Пояснения полей на страницах «Запросы» и «Источники» */
+.field-help { display: grid; grid-template-columns: minmax(150px, 210px) 1fr; gap: 8px 18px; margin: 0; }
+.field-help dt { font-weight: 600; }
+.field-help dd { margin: 0; color: var(--text); }
+@media (max-width: 640px) { .field-help { grid-template-columns: 1fr; } .field-help dd { margin-bottom: 6px; } }
+.card.prose { margin-bottom: 18px; }
 .flags-table td:first-child { width: 1%; }
 
 /* ---------- узкие экраны ---------- */
