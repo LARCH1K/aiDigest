@@ -47,8 +47,12 @@
 <section class="card">
   <div class="card-head">
     <h2>Последний запуск</h2>
-    <span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn'}.get(last.state, 'bad') }}">{{ last.label }}</span>
+    <span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn', 'busy': 'warn'}.get(last.state, 'bad') }}">{{ last.label }}</span>
   </div>
+  {% if last.reason %}<p class="error">{{ last.reason }}</p>
+  {% elif last.state == 'error' %}<p class="error">Сбор завершился с ошибкой — подробности в логе.</p>
+  {% elif last.state == 'interrupted' %}<p>Сбор был прерван (например, выключили компьютер). Новые данные, которые он успел сохранить, уже в базе.</p>
+  {% endif %}
   <p class="muted">{{ last.started.strftime('%d.%m.%Y %H:%M') }}{% if last.finished %} · длился {{ last.minutes }} мин{% endif %} · <a href="/run/log/{{ last.run_id }}" target="_blank">полный лог</a></p>
   {% if last.report %}
   <dl class="stats">
@@ -56,8 +60,6 @@
       <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
     {% endfor %}
   </dl>
-  {% elif last.state == 'interrupted' %}
-  <p>Сбор был прерван (например, выключили компьютер). Новые данные, которые он успел сохранить, уже в базе.</p>
   {% endif %}
 </section>
 {% endif %}
@@ -72,7 +74,8 @@
       <tr>
         <td>{{ r.started.strftime('%d.%m.%Y %H:%M') }}</td>
         <td>{{ r.minutes if r.finished else '—' }} мин</td>
-        <td><span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn'}.get(r.state, 'bad') }}">{{ r.label }}</span></td>
+        <td><span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn', 'busy': 'warn'}.get(r.state, 'bad') }}">{{ r.label }}</span>
+          {% if r.reason %}<small class="run-reason">{{ r.reason }}</small>{% endif %}</td>
         <td>{{ r.report.get('Кейсов новых', '—') }}</td>
         <td><a href="/run/log/{{ r.run_id }}" target="_blank">лог</a></td>
       </tr>

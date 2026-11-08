@@ -8,13 +8,13 @@ from aidigest_web.runs import RunManager
 NOW = datetime(2026, 11, 8, 14, 32, 0)
 
 
-def make(data_dir, alive=True):
+def make(data_dir):
     popen_calls = []
 
     def popen(args, **kw):
         popen_calls.append(args)
         return SimpleNamespace(pid=4242)
-    rm = RunManager(data_dir, data_dir / "root", popen=popen, pid_alive=lambda pid: alive, now=lambda: NOW)
+    rm = RunManager(data_dir, data_dir / "root", popen=popen, now=lambda: NOW)
     app = create_app(data_dir, password=None, secret_key="t", run_manager=rm)
     return app.test_client(), popen_calls, rm
 
@@ -108,3 +108,34 @@ def test_running_without_log_lines_explains_wait(data_dir):
     rm.start()
     body = html(client.get("/run"))
     assert "Запускается…" not in body and "появятся после первого поискового запроса" in body
+
+
+def write_result(data_dir, run_id, **extra):
+    runs = data_dir / "web" / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    (runs / f"{run_id}.json").write_text(json.dumps({
+        "run_id": run_id, "started": NOW.isoformat(), "finished": NOW.isoformat(), "exit_code": 1,
+        "state": "error", **extra}), encoding="utf-8")
+
+
+def test_run_page_shows_reason(data_dir):
+    client, _, _ = make(data_dir)
+    write_result(data_dir, "20261107-100000", reason="Причина постарше.")
+    write_result(data_dir, "20261108-100000", reason="Tavily недоступен — проверьте ключ.")
+    body = html(client.get("/run"))
+    assert '<p class="error">Tavily недоступен — проверьте ключ.</p>' in body
+    assert "Причина постарше." in body  # причина в таблице истории
+    assert "подробности в логе" not in body
+
+
+def test_run_page_error_without_reason_points_to_log(data_dir):
+    client, _, _ = make(data_dir)
+    write_result(data_dir, "20261108-100000")
+    assert "Сбор завершился с ошибкой — подробности в логе." in html(client.get("/run"))
+
+
+def test_interrupted_run_shows_reason_instead_of_generic_text(data_dir):
+    client, _, _ = make(data_dir)
+    write_result(data_dir, "20261108-100000", state="interrupted", exit_code=None, reason="Сбор оборвался (тест).")
+    body = html(client.get("/run"))
+    assert "Сбор оборвался (тест)." in body and "выключили компьютер" not in body

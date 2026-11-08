@@ -10,10 +10,10 @@ from aidigest_web.runs import RunManager
 NOW = datetime(2026, 11, 8, 14, 32, 0)
 
 
-def app_with_fake_runs(data_dir, password=None, alive=True, now=NOW):
+def app_with_fake_runs(data_dir, password=None, now=NOW):
     calls = []
     rm = RunManager(data_dir, data_dir / "root", popen=lambda a, **k: calls.append(a) or SimpleNamespace(pid=4242),
-                    pid_alive=lambda pid: alive, now=lambda: now)
+                    now=lambda: now)
     app = create_app(data_dir, password=password, secret_key="t", run_manager=rm)
     return app.test_client(), calls, rm
 
@@ -53,15 +53,21 @@ def test_empty_cases_file_does_not_crash(tmp_path):
 
 def test_very_old_lock_is_treated_as_interrupted(tmp_path):
     _, _, rm = app_with_fake_runs(tmp_path)
-    rm.start()
-    later = RunManager(tmp_path, tmp_path / "root", pid_alive=lambda pid: True, now=lambda: NOW + timedelta(hours=4))
+    info = rm.start()
+    (tmp_path / "web" / "runs" / f"{info.run_id}.heartbeat").write_text("", encoding="utf-8")  # heartbeat свежий
+    later = RunManager(tmp_path, tmp_path / "root", now=lambda: NOW + timedelta(hours=4))
     assert later.current() is None and later.history()[0].state == "interrupted"
 
 
 def test_malformed_lock_and_history_do_not_crash(tmp_path):
-    rm = RunManager(tmp_path, tmp_path / "root", pid_alive=lambda pid: True, now=lambda: NOW)
+    import os
+    import time
+    rm = RunManager(tmp_path, tmp_path / "root", now=lambda: NOW)
     (tmp_path / "web" / "runs").mkdir(parents=True)
-    (tmp_path / "web" / "run.lock").write_text(json.dumps({"run_id": "20261108-143200"}), encoding="utf-8")
+    lock = tmp_path / "web" / "run.lock"
+    lock.write_text(json.dumps({"run_id": "20261108-143200"}), encoding="utf-8")
+    old = time.time() - 1000
+    os.utime(lock, (old, old))  # испорченная и давняя блокировка
     (tmp_path / "web" / "runs" / "bad.json").write_text("{}", encoding="utf-8")
     assert rm.current() is None and rm.history() == []
 

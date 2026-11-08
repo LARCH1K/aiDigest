@@ -1,8 +1,9 @@
 """Запуски сбора с сайта: не больше одного одновременно, итоги и история хранятся в файлах.
 
-<data>/web/run.lock          — идёт запуск: {"run_id", "pid", "started"}
-<data>/web/runs/<id>.log     — вывод `python -m aidigest run`
-<data>/web/runs/<id>.json    — итог: {"run_id", "started", "finished", "exit_code", "state"}
+<data>/web/run.lock              — идёт запуск: {"run_id", "pid", "started"} (pid — справочно, не проверяется)
+<data>/web/runs/<id>.heartbeat   — сборщик жив: обёртка обновляет время изменения файла каждые HEARTBEAT_SECONDS
+<data>/web/runs/<id>.log         — вывод `python -m aidigest run`
+<data>/web/runs/<id>.json        — итог: {"run_id", "started", "finished", "exit_code", "state", "reason"}
 """
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -19,11 +21,19 @@ from typing import Callable
 
 REPORT_PREFIXES = ("Кредитов", "Вызовов", "Статей", "Кандидатов", "Кейсов", "Подтверждений", "Бюджет", "Флаг:")
 STATE_LABEL = {"running": "идёт", "ok": "успешно", "error": "ошибка", "limit": "месячный лимит исчерпан",
-               "interrupted": "прервано"}
+               "interrupted": "прервано", "busy": "уже шёл другой сбор"}
+# Код выхода `aidigest run` → итог; остальные коды — "error".
+STATE_BY_CODE = {0: "ok", 2: "limit", 3: "busy"}
 STALE_EMPTY_LOCK_SECONDS = 60
-# Сбор длится 5–15 минут. Запуск старше этого считаем прерванным: после перезагрузки Windows
-# номер процесса может достаться другой программе, и проверка «процесс жив» обманется.
+# Жив ли сбор, видно по heartbeat-файлу, а не по номеру процесса: сборщик может работать
+# в другом контейнере, где номера процессов не видны.
+HEARTBEAT_SECONDS = 15
+HEARTBEAT_STALE_SECONDS = 90
+# Сбор длится 5–15 минут. Запуск старше этого считаем прерванным, даже если heartbeat свежий (сбор завис).
 MAX_RUN_AGE = timedelta(hours=3)
+REASON_WORKER_MISSING = "Сборщик не взял заявку — сообщите команде разработки."
+REASON_HEARTBEAT_STALE = "Сбор оборвался (перезапуск или сбой сервера). Кейсы, которые он успел сохранить, уже в базе."
+REASON_TOO_LONG = "Сбор шёл дольше 3 часов и остановлен как зависший. Кейсы, которые он успел сохранить, уже в базе."
 # Один веб-сервер, много потоков: проверка и создание блокировки не должны перемежаться.
 _STATE_LOCK = threading.RLock()
 
@@ -45,6 +55,7 @@ class RunInfo:
     exit_code: int | None = None
     log_path: Path | None = None
     report: dict[str, str] = field(default_factory=dict)
+    reason: str | None = None
 
     @property
     def label(self) -> str:
@@ -68,46 +79,27 @@ def parse_report(log_text: str) -> dict[str, str]:
     return out
 
 
-def default_pid_alive(pid: int) -> bool:
-    if sys.platform == "win32":
-        import ctypes
-        kernel32 = ctypes.windll.kernel32
-        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-        if not handle:
-            return False
-        try:
-            code = ctypes.c_ulong()
-            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
-            return bool(ok) and code.value == 259  # STILL_ACTIVE
-        finally:
-            kernel32.CloseHandle(handle)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+def heartbeat_path(runs_dir: Path, run_id: str) -> Path:
+    return Path(runs_dir) / f"{run_id}.heartbeat"
 
 
 class RunManager:
     def __init__(self, data_dir: Path, project_root: Path, popen=subprocess.Popen,
-                 pid_alive: Callable[[int], bool] = default_pid_alive, now: Callable[[], datetime] = datetime.now):
+                 now: Callable[[], datetime] = datetime.now, clock: Callable[[], float] = time.time):
         self.data_dir = Path(data_dir)
         self.project_root = Path(project_root)
         self.web_dir = self.data_dir / "web"
         self.runs_dir = self.web_dir / "runs"
         self.lock = self.web_dir / "run.lock"
         self._popen = popen
-        self._pid_alive = pid_alive
         self._now = now
+        self._clock = clock  # секунды, сравниваются с mtime файлов
 
     # --- кредиты ---
     TAVILY_CACHE_SECONDS = 60
 
     def _tavily(self):
         """Фактический расход по данным Tavily (GET /usage, бесплатно), с кешем на минуту. None — недоступно."""
-        import time
         from aidigest import usage as usage_mod
         cached = getattr(self, "_tavily_cache", None)
         if cached and time.monotonic() - cached[0] < self.TAVILY_CACHE_SECONDS:
@@ -154,11 +146,12 @@ class RunManager:
     def _log_path(self, run_id: str) -> Path:
         return self.runs_dir / f"{run_id}.log"
 
-    def _write_result(self, run_id: str, started: datetime, state: str, exit_code: int | None) -> None:
+    def _write_result(self, run_id: str, started: datetime, state: str, exit_code: int | None,
+                      reason: str | None = None) -> None:
         self.runs_dir.mkdir(parents=True, exist_ok=True)
         self._result_path(run_id).write_text(json.dumps({
             "run_id": run_id, "started": started.isoformat(), "finished": self._now().isoformat(),
-            "exit_code": exit_code, "state": state}, ensure_ascii=False), encoding="utf-8")
+            "exit_code": exit_code, "state": state, "reason": reason}, ensure_ascii=False), encoding="utf-8")
 
     def current(self) -> RunInfo | None:
         """Идущий запуск или None. Заодно снимает блокировку закончившихся и прерванных запусков."""
@@ -173,27 +166,34 @@ class RunManager:
             return None
         try:
             data = json.loads(raw or "{}")
-            run_id, pid = data["run_id"], int(data["pid"])
+            run_id = data["run_id"]
             started = datetime.fromisoformat(data["started"])
         except (ValueError, KeyError, TypeError):
             # блокировку только что создали и ещё не дописали (или файл испорчен); старую — убираем
-            if self._now().timestamp() - mtime > STALE_EMPTY_LOCK_SECONDS:
+            if self._clock() - mtime > STALE_EMPTY_LOCK_SECONDS:
                 self.lock.unlink(missing_ok=True)
                 return None
             return RunInfo(run_id="", started=self._now())
         if self._result_path(run_id).exists():
             self.lock.unlink(missing_ok=True)
             return None
-        pid_file = self.runs_dir / f"{run_id}.pid"
-        try:
-            pid = int(pid_file.read_text(encoding="utf-8").strip())  # настоящий номер обёртки, если уже записан
-        except (OSError, ValueError):
-            pass
-        if self._now() - started > MAX_RUN_AGE or not self._pid_alive(pid):
-            self._write_result(run_id, started, "interrupted", None)
+        reason = self._dead_reason(run_id, started, mtime)
+        if reason:
+            self._write_result(run_id, started, "interrupted", None, reason)
             self.lock.unlink(missing_ok=True)
             return None
         return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
+
+    def _dead_reason(self, run_id: str, started: datetime, lock_mtime: float) -> str | None:
+        """Почему запуск считается прерванным; None — ещё жив."""
+        if self._now() - started > MAX_RUN_AGE:
+            return REASON_TOO_LONG
+        try:
+            beat = heartbeat_path(self.runs_dir, run_id).stat().st_mtime
+        except FileNotFoundError:
+            # сборщик ещё не отозвался: даём ему время, пока свежа сама заявка
+            return None if self._clock() - lock_mtime < HEARTBEAT_STALE_SECONDS else REASON_WORKER_MISSING
+        return None if self._clock() - beat < HEARTBEAT_STALE_SECONDS else REASON_HEARTBEAT_STALE
 
     def start(self) -> RunInfo:
         with _STATE_LOCK:
@@ -244,7 +244,7 @@ class RunManager:
             text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
             out.append(RunInfo(run_id=run_id, started=started, finished=finished,
                                exit_code=d.get("exit_code"), state=d.get("state", "error"),
-                               log_path=log, report=parse_report(text)))
+                               log_path=log, report=parse_report(text), reason=d.get("reason")))
         return out
 
     def tail(self, run: RunInfo, lines: int = 30) -> list[str]:
