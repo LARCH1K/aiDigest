@@ -7,6 +7,10 @@ from typing import Any, Callable, Protocol
 
 from aidigest.cache import DiskCache
 
+# Без таймаута зависший прокси блокирует сбор навсегда; повтор один — дальше ошибка
+LLM_TIMEOUT_SECONDS = 120
+LLM_MAX_RETRIES = 1
+
 RETRY_HINT = "Ответ должен быть только корректным JSON без пояснений."
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 
@@ -57,7 +61,8 @@ class LiteLLMClient:
         self.calls = 0
         if client is None and not offline:
             import openai
-            client = openai.OpenAI(api_key=api_key, base_url=base_url)
+            client = openai.OpenAI(api_key=api_key, base_url=base_url,
+                                   timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES)
         self._client = client
 
     def _ask(self, messages: list[dict]) -> str:

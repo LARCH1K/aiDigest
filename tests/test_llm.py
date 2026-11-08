@@ -56,3 +56,16 @@ def test_schema_error_is_retried_and_not_cached(tmp_path):
     with pytest.raises(LLMFormatError):
         bad.complete_json("s", "u", validate=need_cases)
     assert not list((tmp_path / "b").rglob("*.json"))
+
+
+def test_client_uses_timeout_and_single_retry(tmp_path, monkeypatch):
+    # Настоящий клиент не создаём: подменяем openai.OpenAI и запоминаем аргументы
+    seen = {}
+
+    def fake(**kwargs):
+        seen.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("openai.OpenAI", fake)
+    LiteLLMClient("k", "http://x", "m", DiskCache(tmp_path))
+    assert seen["timeout"] == 120 and seen["max_retries"] == 1
