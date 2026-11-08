@@ -14,11 +14,12 @@ for arg in "$@"; do
   esac
 done
 
-# Порт сайта берём из .env, как и docker compose
-if [ -f .env ]; then
-  HTTP_PORT=$(grep -E '^AIDIGEST_HTTP_PORT=' .env | tail -n 1 | cut -d= -f2- || true)
+# Порт сайта — как у docker compose: переменная окружения важнее .env, по умолчанию 80
+HTTP_PORT=${AIDIGEST_HTTP_PORT:-}
+if [ -z "$HTTP_PORT" ] && [ -f .env ]; then
+  HTTP_PORT=$(grep -E '^AIDIGEST_HTTP_PORT=' .env | tail -n 1 | cut -d= -f2- | tr -d "\r\"'" || true)
 fi
-HTTP_PORT=${HTTP_PORT:-${AIDIGEST_HTTP_PORT:-80}}
+HTTP_PORT=${HTTP_PORT:-80}
 
 echo "==> git pull"
 if ! git pull --ff-only; then
@@ -30,7 +31,8 @@ echo "==> Сборка образа"
 docker compose build
 
 echo "==> Тесты в образе"
-if ! docker compose run --rm --no-deps -e AIDIGEST_DATA_DIR=/tmp/t web python -m pytest -q -p no:cacheprovider; then
+# Обычный docker run, а не compose run: в тесты не должны попасть секреты из env_file
+if ! docker run --rm -e AIDIGEST_DATA_DIR=/tmp/t aidigest:latest python -m pytest -q -p no:cacheprovider; then
   echo "Тесты упали — контейнеры не тронуты." >&2
   exit 1
 fi

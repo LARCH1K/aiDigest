@@ -1,7 +1,7 @@
 # Секреты — никогда не попадают в образ
-*.env
-.env
-.env.*
+**/*.env
+**/.env
+**/.env.*
 # Окружение, данные и служебное
 .venv/
 data/
@@ -10,7 +10,7 @@ data/
 .idea/
 .superpowers/
 .claude/
-__pycache__/
-*.py[cod]
+**/__pycache__/
+**/*.py[cod]
 .pytest_cache/
 *.egg-info/
