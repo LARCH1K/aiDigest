@@ -1,4 +1,5 @@
 import aidigest_web.__main__ as web_main
+from aidigest.creds import WEB_KEYS, load_creds
 
 
 def test_pages_open_without_password(client):
@@ -43,6 +44,18 @@ def test_main_refuses_network_without_password(monkeypatch, tmp_path):
 def test_main_allows_network_with_password(monkeypatch, tmp_path):
     served = []
     monkeypatch.setattr(web_main, "_serve", lambda app, host, port: served.append((host, port)))
-    monkeypatch.setattr(web_main, "_web_env", lambda: {"WEB_PASSWORD": "x"})
+    monkeypatch.setattr(web_main, "_web_env", lambda: {"WEB_PASSWORD": "x", "WEB_SECRET_KEY": "k"})
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     assert web_main.main(["--host", "0.0.0.0", "--port", "8080"]) == 0 and served == [("0.0.0.0", 8080)]
+
+
+
+def test_main_refuses_network_without_secret_key(monkeypatch, tmp_path):
+    served = []
+    monkeypatch.setattr(web_main, "_serve", lambda app, host, port: served.append((host, port)))
+    # Вместо настоящего web.env — несуществующий файл: ключи берутся только из переменных.
+    monkeypatch.setattr(web_main, "_web_env", lambda: load_creds(tmp_path / "web.env", WEB_KEYS))
+    monkeypatch.setenv("WEB_PASSWORD", "x")
+    monkeypatch.delenv("WEB_SECRET_KEY", raising=False)
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    assert web_main.main(["--host", "0.0.0.0"]) == 2 and served == []

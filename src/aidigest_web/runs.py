@@ -112,11 +112,8 @@ class RunManager:
         cached = getattr(self, "_tavily_cache", None)
         if cached and time.monotonic() - cached[0] < self.TAVILY_CACHE_SECONDS:
             return cached[1]
-        env = self.project_root / "tavily.env"
-        token = None
-        if env.exists():
-            from aidigest.creds import load_env_file
-            token = load_env_file(env).get("TAVILY_TOKEN")
+        from aidigest.creds import TAVILY_KEYS, load_creds
+        token = load_creds(self.project_root / "tavily.env", TAVILY_KEYS).get("TAVILY_TOKEN")
         result = usage_mod.fetch_tavily_usage(token, timeout=5)
         self._tavily_cache = (time.monotonic(), result)
         return result

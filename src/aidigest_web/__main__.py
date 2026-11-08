@@ -12,11 +12,8 @@ LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 def _web_env() -> dict[str, str]:
-    path = PROJECT_ROOT / "web.env"
-    if not path.exists():
-        return {}
-    from aidigest.creds import load_env_file
-    return load_env_file(path)
+    from aidigest.creds import WEB_KEYS, load_creds
+    return load_creds(PROJECT_ROOT / "web.env", WEB_KEYS)
 
 
 def _serve(app, host: str, port: int) -> None:
@@ -37,7 +34,11 @@ def main(argv: list[str] | None = None) -> int:
     env = _web_env()
     password = env.get("WEB_PASSWORD") or None
     if args.host not in LOCAL_HOSTS and not password:
-        print("Открыть сайт в сеть без пароля нельзя: задайте WEB_PASSWORD в файле web.env в корне проекта.")
+        print("Открыть сайт в сеть без пароля нельзя: задайте WEB_PASSWORD (файл web.env в корне проекта или переменная окружения).")
+        return 2
+    if args.host not in LOCAL_HOSTS and not env.get("WEB_SECRET_KEY"):
+        print("Открыть сайт в сеть без постоянного ключа нельзя: задайте WEB_SECRET_KEY "
+              "(иначе каждая перевыкладка разлогинивает пользователей).")
         return 2
     data_dir = Path(os.environ.get("AIDIGEST_DATA_DIR") or PROJECT_ROOT / "data")
     app = create_app(data_dir, password, env.get("WEB_SECRET_KEY"))

@@ -10,7 +10,7 @@ from pathlib import Path
 from aidigest.budget import CreditBudget
 from aidigest.cache import DiskCache
 from aidigest.config import load_queries, load_settings
-from aidigest.creds import load_env_file
+from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
 from aidigest.export_excel import export_xlsx
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
@@ -24,13 +24,14 @@ def _data_dir() -> Path:
     return Path(os.environ.get("AIDIGEST_DATA_DIR") or ROOT / "data")
 
 
+_CRED_KEYS = {"litellm.env": LITELLM_KEYS, "tavily.env": TAVILY_KEYS}
+
+
 def _creds(name: str, offline: bool) -> dict[str, str]:
-    path = ROOT / name
-    if not path.exists():
-        if offline:
-            return {}
-        raise SystemExit(f"Не найден файл {name} в корне проекта.")
-    return load_env_file(path)
+    creds = load_creds(ROOT / name, _CRED_KEYS[name])
+    if not creds and not offline:
+        raise SystemExit(f"Не найдены ключи {name}: задайте файл в корне проекта или переменные окружения.")
+    return creds
 
 
 def _llm(settings, cache: DiskCache, offline: bool):
