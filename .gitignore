@@ -24,4 +24,5 @@ data/out/
 *.egg-info/
 .superpowers/
 data/web/
+data/run.cli.lock
 web.env

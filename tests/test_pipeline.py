@@ -175,3 +175,11 @@ def test_cycle_reports_progress_to_stderr(tmp_path, registry, case_reply, capsys
     err = capsys.readouterr().err
     assert "Поиск 1/1 [Свердловская область]: «ИИ Екатеринбург» — статей: 2, новых: 2" in err
     assert "Статья 1/2" in err and "Подтверждение: кейсов в очереди 1" in err
+
+
+def test_cli_run_refuses_when_locked(tmp_path, monkeypatch, capsys):
+    from aidigest.runlock import run_lock
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    with run_lock(tmp_path):
+        assert main(["run", "--offline", "--budget", "0"]) == 3
+    assert "Причина:" in capsys.readouterr().out
