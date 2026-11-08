@@ -31,10 +31,14 @@ def _data_dir() -> Path:
 _CRED_KEYS = {"litellm.env": LITELLM_KEYS, "tavily.env": TAVILY_KEYS}
 
 
+class MissingCreds(SystemExit):
+    """Нет ключей для онлайн-запуска; вне cmd_run ведёт себя как обычный SystemExit с сообщением."""
+
+
 def _creds(name: str, offline: bool) -> dict[str, str]:
     creds = load_creds(ROOT / name, _CRED_KEYS[name])
     if not creds and not offline:
-        raise SystemExit(f"Не найдены ключи {name}: задайте файл в корне проекта или переменные окружения.")
+        raise MissingCreds(f"Не найдены ключи {name}: задайте файл в корне проекта или переменные окружения.")
     return creds
 
 
@@ -57,15 +61,23 @@ def _export(store: CaseStore, report, today: date) -> Path:
 
 
 def cmd_run(args) -> int:
-    settings = load_settings(ROOT / "config" / "settings.yaml")
-    if args.days:
-        settings.freshness_days = args.days
+    """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс)."""
     try:
+        settings = load_settings(ROOT / "config" / "settings.yaml")
+        if args.days:
+            settings.freshness_days = args.days
         with run_lock(_data_dir()):
             return _run_locked(args, settings)
     except RunLocked:
         print("Причина: уже идёт другой сбор — дождитесь его окончания.")
         return EXIT_LOCKED
+    except MissingCreds as e:
+        print(f"Причина: {e}")
+        return 1
+    except Exception as e:
+        traceback.print_exc()
+        print(f"Причина: {explain(e)}")
+        return 1
 
 
 def _run_locked(args, settings) -> int:
@@ -103,10 +115,6 @@ def _run_locked(args, settings) -> int:
     )
     try:
         report = run_cycle(deps, _parse_levels(args.levels), today)
-    except Exception as e:
-        traceback.print_exc()
-        print(f"Причина: {explain(e)}")
-        return 1
     finally:
         usage.record(today, budget.spent)  # учитываем расход, даже если запуск упал
     rows = report.as_rows()

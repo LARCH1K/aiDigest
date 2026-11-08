@@ -211,8 +211,6 @@ def test_cycle_counts_failed_searches(tmp_path, registry):
 
 def test_cycle_remembers_llm_error(tmp_path, registry):
     class Down:
-        calls = 0
-
         def complete_json(self, system, user, validate=None):
             raise ConnectionError("прокси недоступен")
     b = CreditBudget(30)
@@ -249,3 +247,41 @@ def test_cli_run_prints_reason_when_all_searches_failed(tmp_path, monkeypatch, c
     out = capsys.readouterr().out
     assert "Excel:" in out
     assert out.strip().splitlines()[-1].startswith("Причина: Ни один поисковый запрос не выполнился. Tavily недоступен")
+
+
+def test_offline_cache_miss_is_not_failure(tmp_path, registry):
+    from aidigest.failure import failure_reason
+    from aidigest.llm import OfflineCacheMiss
+
+    class Offline:
+        def complete_json(self, system, user, validate=None):
+            raise OfflineCacheMiss("нет в кеше")
+    b = CreditBudget(30)
+    s = FakeSearch(lambda **kw: [A1], budget=b)
+    q = [QuerySpec(level=Level.WORLD, text="x", use_registry_domains=False, language="en")]
+    r = run_cycle(deps(tmp_path, s, Offline(), b, registry, q), set(Level), date(2026, 11, 7))
+    assert r.articles_failed == 1 and r.last_llm_error is None
+    assert failure_reason(r) is None
+
+
+def test_cli_run_prints_reason_when_keys_missing(tmp_path, monkeypatch, capsys):
+    import aidigest.cli as cli
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli, "load_creds", lambda path, keys: {})
+    assert main(["run", "--budget", "3"]) == 1
+    out = capsys.readouterr().out
+    assert out.count("Причина:") == 1 and "Причина: Не найдены ключи tavily.env" in out
+
+
+def test_cli_run_prints_reason_when_export_fails(tmp_path, monkeypatch, capsys):
+    import errno
+
+    import aidigest.cli as cli
+
+    def no_space(*a, **kw):
+        raise OSError(errno.ENOSPC, "x")
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(cli, "export_xlsx", no_space)
+    assert main(["run", "--offline", "--budget", "3"]) == 1
+    out = capsys.readouterr().out
+    assert out.count("Причина:") == 1 and "Причина: На сервере кончилось место" in out

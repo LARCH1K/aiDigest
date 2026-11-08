@@ -12,7 +12,7 @@ from aidigest.config import QuerySpec, Settings
 from aidigest.confirm import confirm_case, plan_confirmation_queue
 from aidigest.dedup import find_duplicate, merge_into
 from aidigest.extract import extract_cases
-from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss  # noqa: F401
+from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
@@ -112,7 +112,8 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
                                       rejected=rejected)
             except Exception as e:  # битый ответ, нет в кеше, сеть/API LLM — статья повторится в след. раз
                 report.articles_failed += 1
-                report.last_llm_error = e
+                if not isinstance(e, OfflineCacheMiss):  # офлайн-промах кеша — не сбой LiteLLM
+                    report.last_llm_error = e
                 _log(f"Статья пропущена ({url}): {type(e).__name__}: {e}")
                 continue
             report.articles_processed += 1
