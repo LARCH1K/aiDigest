@@ -103,7 +103,7 @@ Design: `docs/superpowers/specs/2026-11-07-ai-cases-pipeline-design.md`, пла�
 .venv/Scripts/python -m aidigest eval --offline         # эталон из кеша (без вызовов LLM)
 ```
 
-- База кейсов — `data/cases.json` (в git), выгрузки — `data/out/`, кеш Tavily/LLM/HTTP — `data/cache/` (не в git; не удалять без нужды — это сэкономленные кредиты).
+- База кейсов: локально — `data/cases.json` (не в git); на сервере — `/srv/aidigest/data`, сервер — главный источник базы. Выгрузки — `data/out/`, кеш Tavily/LLM/HTTP — `data/cache/` (не в git; не удалять без нужды — это сэкономленные кредиты).
 - Конфиги: `config/sources.yaml` (справочник источников), `config/queries.yaml` (запросы), `config/settings.yaml` (бюджеты).
 - Эталон: `eval/reference_cases.yaml`; ручные тексты статей — `eval/texts/<id>-<n>.txt`.
 - Любая правка промпта (`extract.py`, `confirm.py`, `dedup.py`) сбрасывает кеш LLM для этих вызовов.
@@ -116,6 +116,15 @@ Design: `docs/superpowers/specs/2026-11-07-web-frontend-design.md`. Flask + Jinj
 - `web.env` (`WEB_PASSWORD`, `WEB_SECRET_KEY`) — не читать и не выводить, как остальные `*.env`.
 - Состояние запусков — `data/web/` (не в git). Запуск: `python -m aidigest_web` (localhost) или с `--host 0.0.0.0` только при заданном пароле.
 - Для проверки в браузере — `.claude/launch.json` (конфигурация `aidigest-web`). Кнопку «Запустить сбор» при проверке не нажимать — это расход кредитов.
+
+## Сервер
+
+Инструкция: `docs/deploy.md` (первая установка, выкладка, копия базы, HTTPS). Design: `docs/superpowers/specs/2026-11-08-server-deployment-design.md`.
+- Docker Compose: сервисы `web` (сайт) и `worker` (сборщик, `python -m aidigest_web.worker`) из одного образа; данные — `/srv/aidigest/data`, ключи — `/srv/aidigest/secrets/*.env` (передаются через `env_file`, в образ не попадают).
+- Выкладка — на сервере `./deploy.sh` (`--force` — перезапустить worker, даже если идёт сбор). Зависимости образа — `requirements.lock`, пересобирается `tools/lock_deps.sh`.
+- `AIDIGEST_RUN_MODE`: `local` (по умолчанию, сайт сам запускает сбор) или `queue` (сайт пишет заявку, сбор выполняет worker; так на сервере).
+- `AIDIGEST_TRUST_PROXY=1` — только за HTTPS-прокси (Caddy), и тогда порт web наружу не публикуется.
+- Базу с сервера можно скачать себе (`scp`), но обратно не заливать.
 
 ## Правила
 
