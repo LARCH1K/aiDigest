@@ -68,7 +68,7 @@ def test_list_shows_first_seen_and_reliability(client):
     body = html(client.get("/"))
     assert "В базе с" in body and "Достоверность" in body
     assert "01.11.2026" in body and 'data-sort-value="2026-11-01"' in body
-    assert "средняя" in body
+    assert 'data-sort-value="2"><span class="pill pill-warn">средняя</span>' in body
 
 
 def test_list_filters_by_reliability(client):

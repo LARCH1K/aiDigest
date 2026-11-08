@@ -35,6 +35,15 @@ def test_queries_page_lists_real_queries(client):
     assert "Что означают поля" in body and "Только по справочнику" in body
 
 
+def test_queries_page_shows_freshness_from_settings(data_dir, tmp_path):
+    cfg = tmp_path / "cfg"
+    cfg.mkdir()
+    (cfg / "queries.yaml").write_text((CONFIG / "queries.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    (cfg / "settings.yaml").write_text("freshness_days: 45\n", encoding="utf-8")
+    app = create_app(data_dir, password=None, secret_key="t", config_dir=cfg)
+    assert "за последние 45 дн." in html(app.test_client().get("/queries"))
+
+
 def test_queries_page_survives_broken_yaml(data_dir, tmp_path):
     app = create_app(data_dir, password=None, secret_key="t", config_dir=broken_config(tmp_path))
     r = app.test_client().get("/queries")
@@ -48,7 +57,8 @@ def test_sources_page_lists_registry(client):
     assert r.status_code == 200
     assert "TAdviser" in body and "tadviser.ru" in body
     assert f"Найдено {len(sources)} из {len(sources)}" in body
-    assert "Что означают поля" in body and "не оценена" in body
+    assert "Что означают поля" in body
+    assert '<span class="pill pill-ok">высокая</span>' in body
 
 
 def test_sources_filter_by_reliability(client):

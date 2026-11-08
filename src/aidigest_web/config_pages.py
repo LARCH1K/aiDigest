@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 from flask import Flask, current_app, render_template, request
 
-from aidigest.config import QuerySpec, load_queries
+from aidigest.config import QuerySpec, Settings, load_queries, load_settings
 from aidigest.models import Level
 from aidigest.registry import SourceInfo, SourceRegistry
 from aidigest_web.views import RELIABILITY_ORDER, reliability_rank
@@ -51,7 +51,12 @@ def init(app: Flask) -> None:
             items, error = load_queries(path), None
         except _CONFIG_ERRORS as e:
             items, error = [], f"Не удалось прочитать {path.name}: {type(e).__name__}."
-        return render_template("queries.html", groups=group_queries(items), total=len(items), error=error)
+        try:
+            freshness = load_settings(_config_path("settings.yaml")).freshness_days
+        except _CONFIG_ERRORS:
+            freshness = Settings().freshness_days
+        return render_template("queries.html", groups=group_queries(items), total=len(items), error=error,
+                               freshness_days=freshness)
 
     @app.route("/sources")
     def sources():
