@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import traceback
 from datetime import date
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from aidigest.cache import DiskCache
 from aidigest.config import load_queries, load_settings
 from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
 from aidigest.export_excel import export_xlsx
+from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.runlock import RunLocked, run_lock
@@ -101,6 +103,10 @@ def _run_locked(args, settings) -> int:
     )
     try:
         report = run_cycle(deps, _parse_levels(args.levels), today)
+    except Exception as e:
+        traceback.print_exc()
+        print(f"Причина: {explain(e)}")
+        return 1
     finally:
         usage.record(today, budget.spent)  # учитываем расход, даже если запуск упал
     rows = report.as_rows()
@@ -111,6 +117,10 @@ def _run_locked(args, settings) -> int:
     for k, v in rows.items():
         print(f"{k}: {v}")
     print(f"Excel: {_export(deps.store, rows, today)}")
+    reason = failure_reason(report)
+    if reason is not None:
+        print(f"Причина: {reason}")
+        return 1
     return 0
 
 

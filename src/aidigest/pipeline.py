@@ -34,6 +34,11 @@ class RunReport:
     confirmations_deferred: int = 0
     budget_exhausted: bool = False
     flags: dict[str, int] = field(default_factory=dict)
+    # Для failure_reason — в отчёт (as_rows) не выводятся.
+    searches_ok: int = 0
+    searches_failed: int = 0
+    last_search_error: BaseException | None = None
+    last_llm_error: BaseException | None = None
 
     def as_rows(self) -> dict[str, Any]:
         rows = {
@@ -86,8 +91,11 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             _log("Бюджет сбора исчерпан — дальше обрабатываю уже найденное.")
             break
         except Exception as e:  # сеть, API — переходим к следующему запросу
+            report.searches_failed += 1
+            report.last_search_error = e
             _log(f"Ошибка поиска «{q.text}»: {e}")
             continue
+        report.searches_ok += 1
 
         fresh = [a for a in articles
                  if normalize_url(a.url) not in data.processed_urls and normalize_url(a.url) not in seen_now]
@@ -104,6 +112,7 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
                                       rejected=rejected)
             except Exception as e:  # битый ответ, нет в кеше, сеть/API LLM — статья повторится в след. раз
                 report.articles_failed += 1
+                report.last_llm_error = e
                 _log(f"Статья пропущена ({url}): {type(e).__name__}: {e}")
                 continue
             report.articles_processed += 1

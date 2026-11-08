@@ -183,3 +183,69 @@ def test_cli_run_refuses_when_locked(tmp_path, monkeypatch, capsys):
     with run_lock(tmp_path):
         assert main(["run", "--offline", "--budget", "0"]) == 3
     assert "Причина:" in capsys.readouterr().out
+
+
+def test_budget_exhausted_first_query_is_not_failure(tmp_path, registry):
+    from aidigest.failure import failure_reason
+    b = CreditBudget(0, confirm_share=0.0)
+    s = FakeSearch(lambda **kw: [A1], budget=b)
+    q = [QuerySpec(level=Level.WORLD, text=t, use_registry_domains=False, language="en") for t in ("a", "b")]
+    r = run_cycle(deps(tmp_path, s, FakeLLM([]), b, registry, q), set(Level), date(2026, 11, 7))
+    assert r.budget_exhausted and r.searches_ok == 0 and r.searches_failed == 0
+    assert failure_reason(r) is None
+
+
+def test_cycle_counts_failed_searches(tmp_path, registry):
+    import requests
+
+    def down(**kw):
+        raise requests.ConnectionError("сеть")
+    b = CreditBudget(30)
+    s = FakeSearch(down, budget=b)
+    q = [QuerySpec(level=Level.WORLD, text=t, use_registry_domains=False, language="en") for t in ("a", "b")]
+    r = run_cycle(deps(tmp_path, s, FakeLLM([]), b, registry, q), set(Level), date(2026, 11, 7))
+    assert r.searches_failed == len(q) and r.searches_ok == 0
+    assert isinstance(r.last_search_error, requests.ConnectionError)
+    assert "searches_failed" not in str(r.as_rows())
+
+
+def test_cycle_remembers_llm_error(tmp_path, registry):
+    class Down:
+        calls = 0
+
+        def complete_json(self, system, user, validate=None):
+            raise ConnectionError("прокси недоступен")
+    b = CreditBudget(30)
+    s = FakeSearch(lambda **kw: [A1], budget=b)
+    q = [QuerySpec(level=Level.WORLD, text="x", use_registry_domains=False, language="en")]
+    r = run_cycle(deps(tmp_path, s, Down(), b, registry, q), set(Level), date(2026, 11, 7))
+    assert r.searches_ok == 1 and isinstance(r.last_llm_error, ConnectionError)
+
+
+def test_cli_run_prints_reason_on_crash(tmp_path, monkeypatch, capsys):
+    import errno
+
+    def crash(*a, **kw):
+        raise OSError(errno.ENOSPC, "x")
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("aidigest.pipeline.run_cycle", crash)
+    assert main(["run", "--offline", "--budget", "3"]) == 1
+    out = capsys.readouterr().out
+    assert out.count("Причина:") == 1 and "Причина: На сервере кончилось место" in out
+    import json
+    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8")) == {date.today().strftime("%Y-%m"): 0}
+
+
+def test_cli_run_prints_reason_when_all_searches_failed(tmp_path, monkeypatch, capsys):
+    import requests
+
+    from aidigest.pipeline import RunReport
+
+    def failed(*a, **kw):
+        return RunReport(searches_failed=2, last_search_error=requests.ConnectionError())
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("aidigest.pipeline.run_cycle", failed)
+    assert main(["run", "--offline", "--budget", "3"]) == 1
+    out = capsys.readouterr().out
+    assert "Excel:" in out
+    assert out.strip().splitlines()[-1].startswith("Причина: Ни один поисковый запрос не выполнился. Tavily недоступен")
