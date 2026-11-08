@@ -27,6 +27,13 @@
       {% for s in statuses %}<option value="{{ s.value }}" {{ 'selected' if f.status == s.value }}>{{ STATUS_LABEL[s] }}</option>{% endfor %}
     </select>
   </label>
+  <label class="field">
+    <span>Достоверность</span>
+    <select name="reliability">
+      <option value="">Любая</option>
+      {% for value, label in reliability_options %}<option value="{{ value }}" {{ 'selected' if f.reliability == value }}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
   <div class="checks">
     <input type="hidden" name="metrics" value="0">
     <label class="check"><input type="checkbox" name="metrics" value="1" {{ 'checked' if f.metrics }}> только с цифрами</label>
@@ -64,6 +71,8 @@
         <th>Главная цифра</th>
         <th data-sort="text">Стадия</th>
         <th data-sort="text">Статус</th>
+        <th data-sort="text" title="Лучшая оценка среди источников кейса">Достоверность</th>
+        <th data-sort="text" title="Когда кейс впервые попал в базу">В базе с</th>
       </tr>
     </thead>
     <tbody>
@@ -79,6 +88,9 @@
         <td class="headline">{{ head }}{% if doubtful %} <span class="warn-mark" title="Цифра не найдена в тексте статьи — проверьте по ссылке">⚠</span>{% endif %}</td>
         <td class="nowrap">{{ c.stage.value }}</td>
         <td><span class="pill pill-{{ STATUS_CLASS[c.confirmation_status] }}">{{ STATUS_LABEL[c.confirmation_status] }}</span></td>
+        {% set rel = best_reliability(c) %}
+        <td data-sort-value="{{ reliability_rank(rel) }}"><span class="pill pill-{{ RELIABILITY_CLASS[rel] }}">{{ RELIABILITY_LABEL[rel] }}</span></td>
+        <td class="nowrap" data-sort-value="{{ c.first_seen.isoformat() }}">{{ c.first_seen.strftime('%d.%m.%Y') }}</td>
       </tr>
     {% endfor %}
     </tbody>

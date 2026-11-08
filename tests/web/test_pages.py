@@ -62,3 +62,15 @@ def test_export_returns_xlsx(client):
     assert r.status_code == 200 and "aidigest_cases_" in r.headers["Content-Disposition"]
     wb = openpyxl.load_workbook(io.BytesIO(r.data))
     assert wb.sheetnames[0] == "Кейсы" and wb["Кейсы"].max_row == 4
+
+
+def test_list_shows_first_seen_and_reliability(client):
+    body = html(client.get("/"))
+    assert "В базе с" in body and "Достоверность" in body
+    assert "01.11.2026" in body and 'data-sort-value="2026-11-01"' in body
+    assert "средняя" in body
+
+
+def test_list_filters_by_reliability(client):
+    assert "Найдено 0 из 3" in html(client.get("/?reliability=высокая"))
+    assert "Найдено 2 из 3" in html(client.get("/?reliability=средняя"))

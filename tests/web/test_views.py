@@ -57,3 +57,36 @@ def test_headline_short_form(make_case, make_metric):
     assert headline(make_case(metrics=[m])) == ("затраты: −20%".replace("−", "-"), False)
     m2 = make_metric(name="план", before=None, after="42%", change=None)
     assert headline(make_case(metrics=[m2]))[0] == "план: 42%"
+
+
+def _src(url, rel):
+    from aidigest.models import Source, SourceType
+    from urllib.parse import urlsplit
+    return Source(url=url, domain=urlsplit(url).hostname, reliability=rel, source_type=SourceType.MEDIA)
+
+
+def test_best_reliability_prefers_high(make_case):
+    from aidigest.models import Reliability
+    from aidigest_web.views import best_reliability
+    c = make_case(sources=[_src("https://a.ru/1", Reliability.MEDIUM), _src("https://b.ru/1", Reliability.HIGH),
+                           _src("https://c.ru/1", Reliability.UNRATED)])
+    assert best_reliability(c) == Reliability.HIGH
+
+
+def test_best_reliability_none_when_only_unrated(make_case):
+    from aidigest.models import Reliability
+    from aidigest_web.views import RELIABILITY_LABEL, best_reliability
+    c = make_case(sources=[_src("https://c.ru/1", Reliability.UNRATED)])
+    assert best_reliability(c) is None and RELIABILITY_LABEL[None] == "нет оценённых"
+    assert best_reliability(make_case(sources=[])) is None
+
+
+def test_reliability_filter(make_case):
+    from aidigest.models import Reliability
+    cases = [make_case(id="hi", sources=[_src("https://a.ru/1", Reliability.HIGH)]),
+             make_case(id="mid", sources=[_src("https://b.ru/1", Reliability.MEDIUM)]),
+             make_case(id="none", sources=[_src("https://c.ru/1", Reliability.UNRATED)])]
+    assert ids(filter_cases(cases, reliability="высокая")) == ["hi"]
+    assert ids(filter_cases(cases, reliability="средняя")) == ["mid"]
+    assert ids(filter_cases(cases, reliability="none")) == ["none"]
+    assert len(filter_cases(cases, reliability="")) == 3

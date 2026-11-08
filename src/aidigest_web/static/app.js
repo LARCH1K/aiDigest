@@ -5,7 +5,10 @@
   // --- сортировка по клику на заголовок с data-sort ---
   function cellText(row, index) {
     var cell = row.children[index];
-    return cell ? cell.textContent.trim() : "";
+    if (!cell) return "";
+    // data-sort-value — ключ сортировки, когда текст ячейки сортируется неверно (даты дд.мм.гггг, ранги)
+    var key = cell.getAttribute("data-sort-value");
+    return key !== null ? key : cell.textContent.trim();
   }
 
   function sortTable(table, index, th) {

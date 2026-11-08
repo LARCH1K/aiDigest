@@ -1,9 +1,30 @@
 """Логика представления: фильтры списка, «главная цифра», пояснения флагов. Без HTTP."""
 from __future__ import annotations
 
-from aidigest.models import Case, ConfirmationStatus, Flag, Level
+from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
+
+# Оценённые уровни достоверности от лучшего к худшему; «не_оценена» в сравнение не входит.
+RELIABILITY_ORDER = [Reliability.HIGH, Reliability.MEDIUM, Reliability.LOW]
+RELIABILITY_LABEL: dict[Reliability | None, str] = {r: r.value for r in RELIABILITY_ORDER}
+RELIABILITY_LABEL[Reliability.UNRATED] = "не оценена"
+RELIABILITY_LABEL[None] = "нет оценённых"
+RELIABILITY_CLASS: dict[Reliability | None, str] = {Reliability.HIGH: "ok", Reliability.MEDIUM: "warn",
+                                                    Reliability.LOW: "bad", Reliability.UNRATED: "muted",
+                                                    None: "muted"}
+NO_RATED = "none"  # значение фильтра «нет оценённых»
+
+
+def best_reliability(c: Case) -> Reliability | None:
+    """Лучшая оценка достоверности среди источников кейса; None — оценённых источников нет."""
+    rated = [s.reliability for s in c.sources if s.reliability in RELIABILITY_ORDER]
+    return min(rated, key=RELIABILITY_ORDER.index) if rated else None
+
+
+def reliability_rank(r: Reliability | None) -> int:
+    """Ранг для сортировки таблиц: 1 — высокая, далее по убыванию; неоценённые в конце."""
+    return RELIABILITY_ORDER.index(r) + 1 if r in RELIABILITY_ORDER else len(RELIABILITY_ORDER) + 1
 
 STATUS_CLASS = {
     ConfirmationStatus.CONFIRMED: "ok",
@@ -49,12 +70,16 @@ def sort_key(c: Case):
 
 
 def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = "",
-                 with_metrics: bool = True, hide_doubtful: bool = False) -> list[Case]:
+                 with_metrics: bool = True, hide_doubtful: bool = False, reliability: str = "") -> list[Case]:
     words = _norm(q).split()
     out = []
     for c in cases:
         if with_metrics and not c.metrics:
             continue
+        if reliability:
+            best = best_reliability(c)
+            if (best.value if best else NO_RATED) != reliability:
+                continue
         if level and c.level.value != level:
             continue
         if status and c.confirmation_status.value != status:

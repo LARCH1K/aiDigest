@@ -14,7 +14,9 @@ from aidigest.export_excel import export_xlsx, metric_line
 from aidigest.models import ConfirmationStatus, Flag, Level
 from aidigest.store import CaseStore
 from aidigest_web.runs import AlreadyRunning, MonthExhausted
-from aidigest_web.views import FLAG_HELP, STATUS_CLASS, STATUS_LABEL, filter_cases, headline
+from aidigest_web.views import (FLAG_HELP, NO_RATED, RELIABILITY_CLASS, RELIABILITY_LABEL, RELIABILITY_ORDER,
+                                STATUS_CLASS, STATUS_LABEL, best_reliability, filter_cases, headline,
+                                reliability_rank)
 
 
 def _store() -> CaseStore:
@@ -45,7 +47,9 @@ def _updated_at() -> datetime | None:
 def init(app: Flask) -> None:
     app.jinja_env.filters["safe_url"] = safe_url
     app.jinja_env.globals.update(STATUS_CLASS=STATUS_CLASS, STATUS_LABEL=STATUS_LABEL, FLAG_HELP=FLAG_HELP,
-                                 metric_line=metric_line, headline=headline, Flag=Flag)
+                                 metric_line=metric_line, headline=headline, Flag=Flag,
+                                 best_reliability=best_reliability, reliability_rank=reliability_rank,
+                                 RELIABILITY_LABEL=RELIABILITY_LABEL, RELIABILITY_CLASS=RELIABILITY_CLASS)
 
     @app.route("/healthz")
     def healthz():
@@ -64,11 +68,14 @@ def init(app: Flask) -> None:
             "status": args.get("status", ""),
             "metrics": args.get("metrics", "1") != "0",
             "doubtful": args.get("doubtful") == "1",
+            "reliability": args.get("reliability", ""),
         }
         shown = filter_cases(all_cases, q=f["q"], level=f["level"], status=f["status"],
-                             with_metrics=f["metrics"], hide_doubtful=f["doubtful"])
+                             with_metrics=f["metrics"], hide_doubtful=f["doubtful"], reliability=f["reliability"])
         return render_template("cases.html", cases=shown, total=len(all_cases), f=f, updated=_updated_at(),
-                               levels=list(Level), statuses=list(ConfirmationStatus))
+                               levels=list(Level), statuses=list(ConfirmationStatus),
+                               reliability_options=[(r.value, r.value) for r in RELIABILITY_ORDER]
+                               + [(NO_RATED, RELIABILITY_LABEL[None])])
 
     @app.route("/case/<case_id>")
     def case(case_id: str):
