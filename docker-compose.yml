@@ -1,0 +1,48 @@
+# Сайт (web) и сборщик (worker) из одного образа. Переменные — в .env (пример: .env.example).
+x-common: &common
+  build: .
+  image: aidigest:latest
+  user: "${AIDIGEST_UID:-1000}:${AIDIGEST_GID:-1000}"
+  volumes:
+    - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}:/data
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  web:
+    <<: *common
+    environment:
+      AIDIGEST_DATA_DIR: /data
+      AIDIGEST_RUN_MODE: queue
+    # Без ключей сайт сам откажется стартовать на 0.0.0.0; required: false — чтобы
+    # docker compose config и тесты в образе работали без секретов.
+    env_file:
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/web.env
+        required: false
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/tavily.env  # для страницы кредитов
+        required: false
+    ports:
+      - "${AIDIGEST_HTTP_PORT:-80}:8000"
+    command: python -m aidigest_web --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    <<: *common
+    environment:
+      AIDIGEST_DATA_DIR: /data
+      AIDIGEST_RUN_MODE: queue
+    env_file:
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/litellm.env
+        required: false
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/tavily.env
+        required: false
+    command: python -m aidigest_web.worker

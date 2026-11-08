@@ -1,0 +1,16 @@
+# Секреты — никогда не попадают в образ
+*.env
+.env
+.env.*
+# Окружение, данные и служебное
+.venv/
+data/
+Вводные данные/
+.git/
+.idea/
+.superpowers/
+.claude/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
