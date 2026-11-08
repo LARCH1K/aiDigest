@@ -226,8 +226,9 @@ class RunManager:
         run_id = started.strftime("%Y%m%d-%H%M%S")
         try:
             if self.mode == "queue":
-                self._enqueue(run_id)
+                # сначала блокировка, потом заявка: worker сверяет заявку с run.lock и пустую сочтёт отменённой
                 os.write(fd, json.dumps({"run_id": run_id, "started": started.isoformat(), "mode": "queue"}).encode())
+                self._enqueue(run_id)
             else:
                 self._spawn(fd, run_id, started)
         except Exception:
