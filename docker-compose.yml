@@ -6,6 +6,8 @@ x-common: &common
   volumes:
     - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}:/data
   restart: unless-stopped
+  # init — маленький процесс-init (tini): передаёт SIGTERM Python-процессу, контейнер останавливается сразу
+  init: true
   logging:
     driver: json-file
     options:

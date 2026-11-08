@@ -61,7 +61,8 @@ def _export(store: CaseStore, report, today: date) -> Path:
 
 
 def cmd_run(args) -> int:
-    """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс)."""
+    """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс).
+    Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан, 3 — уже идёт другой сбор."""
     try:
         settings = load_settings(ROOT / "config" / "settings.yaml")
         if args.days:
@@ -100,6 +101,7 @@ def _run_locked(args, settings) -> int:
     if requested > 0 and total <= 0:
         spent, limit = (actual.used, actual.limit) if actual else (usage.spent(today), settings.monthly_limit)
         print(f"Лимит Tavily исчерпан: потрачено {spent:g} из {limit:g}. Запуск отменён.")
+        print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
         return 2
     if total < requested:
         print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")

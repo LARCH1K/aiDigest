@@ -139,3 +139,4 @@ def test_interrupted_run_shows_reason_instead_of_generic_text(data_dir):
     write_result(data_dir, "20261108-100000", state="interrupted", exit_code=None, reason="Сбор оборвался (тест).")
     body = html(client.get("/run"))
     assert "Сбор оборвался (тест)." in body and "выключили компьютер" not in body
+    assert '<p class="error">Сбор оборвался (тест).</p>' not in body

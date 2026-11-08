@@ -170,7 +170,8 @@ class RunManager:
         with _STATE_LOCK:
             return self._current()
 
-    def _current(self) -> RunInfo | None:
+    def _read_lock(self) -> tuple[str | None, datetime | None, float] | None:
+        """(run_id, started, mtime) из run.lock; None — блокировки нет; run_id None — файл недописан или испорчен."""
         try:
             raw = self.lock.read_text(encoding="utf-8")
             mtime = self.lock.stat().st_mtime
@@ -178,9 +179,16 @@ class RunManager:
             return None
         try:
             data = json.loads(raw or "{}")
-            run_id = data["run_id"]
-            started = datetime.fromisoformat(data["started"])
+            return data["run_id"], datetime.fromisoformat(data["started"]), mtime
         except (ValueError, KeyError, TypeError):
+            return None, None, mtime
+
+    def _current(self) -> RunInfo | None:
+        lock = self._read_lock()
+        if lock is None:
+            return None
+        run_id, started, mtime = lock
+        if run_id is None:
             # блокировку только что создали и ещё не дописали (или файл испорчен); старую — убираем
             if self._clock() - mtime > STALE_EMPTY_LOCK_SECONDS:
                 self.lock.unlink(missing_ok=True)
@@ -195,6 +203,19 @@ class RunManager:
             self.lock.unlink(missing_ok=True)
             return None
         return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
+
+    def is_running(self) -> bool:
+        """Идёт ли запуск — только чтение: ничего не удаляет и не пишет итогов.
+        Для проверок из другого процесса (deploy.sh): снятие блокировки — дело сайта."""
+        lock = self._read_lock()
+        if lock is None:
+            return False
+        run_id, started, mtime = lock
+        if run_id is None:
+            return self._clock() - mtime <= STALE_EMPTY_LOCK_SECONDS
+        if self._result_path(run_id).exists():
+            return False
+        return self._dead_reason(run_id, started, mtime) is None
 
     def _dead_reason(self, run_id: str, started: datetime, lock_mtime: float) -> str | None:
         """Почему запуск считается прерванным; None — ещё жив."""

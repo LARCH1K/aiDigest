@@ -49,7 +49,7 @@
     <h2>Последний запуск</h2>
     <span class="pill pill-{{ {'ok': 'ok', 'limit': 'warn', 'interrupted': 'warn', 'busy': 'warn'}.get(last.state, 'bad') }}">{{ last.label }}</span>
   </div>
-  {% if last.reason %}<p class="error">{{ last.reason }}</p>
+  {% if last.reason %}<p class="{{ 'error' if last.state == 'error' else 'run-note' }}">{{ last.reason }}</p>
   {% elif last.state == 'error' %}<p class="error">Сбор завершился с ошибкой — подробности в логе.</p>
   {% elif last.state == 'interrupted' %}<p>Сбор был прерван (например, выключили компьютер). Новые данные, которые он успел сохранить, уже в базе.</p>
   {% endif %}

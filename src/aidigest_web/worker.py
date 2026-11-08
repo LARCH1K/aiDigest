@@ -3,7 +3,8 @@
 Сайт в режиме очереди (AIDIGEST_RUN_MODE=queue) не запускает сбор сам, а пишет заявку
 <data>/web/requests/<run_id>.json. Worker живёт в отдельном контейнере с той же папкой данных:
   python -m aidigest_web.worker           — бесконечный цикл обработки заявок;
-  python -m aidigest_web.worker --status  — «busy» (код 1), если идёт сбор, иначе «idle» (код 0).
+  python -m aidigest_web.worker --status  — «busy» (код 1), если идёт сбор, иначе «idle» (код 0);
+                                            только читает состояние, блокировку не трогает.
 """
 from __future__ import annotations
 
@@ -129,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(sys.argv[1:] if argv is None else argv)
     data_dir = _data_dir()
     if args.status:
-        busy = RunManager(data_dir, PROJECT_ROOT).current() is not None
+        busy = RunManager(data_dir, PROJECT_ROOT).is_running()
         print("busy" if busy else "idle")
         return 1 if busy else 0
 

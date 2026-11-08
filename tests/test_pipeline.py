@@ -114,11 +114,13 @@ def test_llm_api_error_skips_article_and_run_finishes(tmp_path, registry):
     assert r.articles_failed == 1 and CaseStore(tmp_path / "c.json").load().processed_urls == set()
 
 
-def test_cli_run_refuses_when_month_exhausted(tmp_path, monkeypatch):
+def test_cli_run_refuses_when_month_exhausted(tmp_path, monkeypatch, capsys):
     import json
     (tmp_path / "credits.json").write_text(json.dumps({date.today().strftime("%Y-%m"): 1000}), encoding="utf-8")
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     assert main(["run", "--offline"]) == 2
+    out = capsys.readouterr().out
+    assert out.count("Причина:") == 1 and "Причина: Месячный лимит кредитов Tavily исчерпан" in out
 
 
 def test_cli_run_records_monthly_usage(tmp_path, monkeypatch):
@@ -152,12 +154,13 @@ def test_cli_run_caps_budget_by_tavily_remaining(tmp_path, monkeypatch, capsys):
     assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))[date.today().strftime("%Y-%m")] == 990
 
 
-def test_cli_run_refuses_when_tavily_says_exhausted(tmp_path, monkeypatch):
+def test_cli_run_refuses_when_tavily_says_exhausted(tmp_path, monkeypatch, capsys):
     import aidigest.cli as cli
     from aidigest.usage import TavilyUsage
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=1000, limit=1000, plan="p"))
     assert main(["run", "--offline"]) == 2
+    assert capsys.readouterr().out.count("Причина:") == 1
 
 
 def test_cycle_reports_progress_to_stderr(tmp_path, registry, case_reply, capsys):

@@ -86,6 +86,24 @@ def test_status_busy_and_idle(tmp_path, monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == "busy"
 
 
+def test_status_is_read_only_for_stale_run(tmp_path, monkeypatch, capsys):
+    # deploy.sh спрашивает статус из другого процесса: проверка не должна снимать блокировку
+    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
+    run_id = datetime.now().replace(microsecond=0).strftime("%Y%m%d-%H%M%S")
+    runs = tmp_path / "web" / "runs"
+    runs.mkdir(parents=True)
+    lock = tmp_path / "web" / "run.lock"
+    lock.write_text(json.dumps(
+        {"run_id": run_id, "started": datetime.now().replace(microsecond=0).isoformat(), "mode": "queue"}),
+        encoding="utf-8")
+    old = time.time() - 600
+    os.utime(heartbeat(tmp_path, run_id), (old, old))
+    assert worker.main(["--status"]) == 0
+    assert capsys.readouterr().out.strip() == "idle"
+    assert lock.exists()
+    assert not (runs / f"{run_id}.json").exists()
+
+
 def test_loop_survives_failed_request(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
     calls = []
