@@ -47,7 +47,8 @@ def main(argv: list[str] | None = None) -> int:
               "(иначе каждая перевыкладка разлогинивает пользователей).")
         return 2
     data_dir = Path(os.environ.get("AIDIGEST_DATA_DIR") or PROJECT_ROOT / "data")
-    app = create_app(data_dir, password, env.get("WEB_SECRET_KEY"), run_mode=run_mode)
+    trust_proxy = os.environ.get("AIDIGEST_TRUST_PROXY") == "1"
+    app = create_app(data_dir, password, env.get("WEB_SECRET_KEY"), run_mode=run_mode, trust_proxy=trust_proxy)
     shown = "localhost" if args.host in LOCAL_HOSTS else args.host
     print(f"aiDigest: http://{shown}:{args.port}/" + ("" if password else "  (без пароля, только этот компьютер)"))
     _serve(app, args.host, args.port)

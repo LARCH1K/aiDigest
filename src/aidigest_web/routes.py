@@ -47,6 +47,11 @@ def init(app: Flask) -> None:
     app.jinja_env.globals.update(STATUS_CLASS=STATUS_CLASS, STATUS_LABEL=STATUS_LABEL, FLAG_HELP=FLAG_HELP,
                                  metric_line=metric_line, headline=headline, Flag=Flag)
 
+    @app.route("/healthz")
+    def healthz():
+        """Проверка живости для docker healthcheck и прокси: без входа и без чтения базы."""
+        return Response("ok", mimetype="text/plain")
+
     @app.route("/")
     def cases():
         all_cases, broken = _load_cases()

@@ -101,3 +101,19 @@ def test_runner_binds_child_and_hides_window(tmp_path, monkeypatch):
     if sys.platform == "win32":
         import subprocess
         assert seen["kw"]["creationflags"] & subprocess.CREATE_NO_WINDOW
+
+
+def test_trust_proxy_accepts_https_origin(data_dir):
+    app = create_app(data_dir, password="p", secret_key="t", trust_proxy=True)
+    client = app.test_client()
+    r = client.post("/login", data={"password": "p"},
+                    headers={"X-Forwarded-Proto": "https", "Origin": "https://localhost"})
+    assert r.status_code != 403
+    assert app.config["SESSION_COOKIE_SECURE"] is True
+
+
+def test_without_trust_proxy_forwarded_proto_ignored(data_dir):
+    client = create_app(data_dir, password="p", secret_key="t").test_client()
+    r = client.post("/login", data={"password": "p"},
+                    headers={"X-Forwarded-Proto": "https", "Origin": "https://localhost"})
+    assert r.status_code == 403
