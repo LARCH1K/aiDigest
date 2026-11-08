@@ -1,6 +1,8 @@
 """Запуски сбора с сайта: не больше одного одновременно, итоги и история хранятся в файлах.
 
-<data>/web/run.lock              — идёт запуск: {"run_id", "pid", "started"} (pid — справочно, не проверяется)
+<data>/web/run.lock              — идёт запуск: {"run_id", "pid", "started"} (pid — справочно, не проверяется);
+                                  в режиме очереди {"run_id", "started", "mode": "queue"}
+<data>/web/requests/<id>.json    — режим очереди: заявка на сбор {"run_id"}, её забирает aidigest_web.worker
 <data>/web/runs/<id>.heartbeat   — сборщик жив: обёртка обновляет время изменения файла каждые HEARTBEAT_SECONDS
 <data>/web/runs/<id>.log         — вывод `python -m aidigest run`
 <data>/web/runs/<id>.json        — итог: {"run_id", "started", "finished", "exit_code", "state", "reason"}
@@ -34,6 +36,8 @@ MAX_RUN_AGE = timedelta(hours=3)
 REASON_WORKER_MISSING = "Сборщик не взял заявку — сообщите команде разработки."
 REASON_HEARTBEAT_STALE = "Сбор оборвался (перезапуск или сбой сервера). Кейсы, которые он успел сохранить, уже в базе."
 REASON_TOO_LONG = "Сбор шёл дольше 3 часов и остановлен как зависший. Кейсы, которые он успел сохранить, уже в базе."
+# local — сайт сам запускает сборщик процессом; queue — пишет заявку, сбор запускает worker в другом контейнере.
+RUN_MODES = ("local", "queue")
 # Один веб-сервер, много потоков: проверка и создание блокировки не должны перемежаться.
 _STATE_LOCK = threading.RLock()
 
@@ -83,9 +87,17 @@ def heartbeat_path(runs_dir: Path, run_id: str) -> Path:
     return Path(runs_dir) / f"{run_id}.heartbeat"
 
 
+def requests_dir(data_dir: Path) -> Path:
+    return Path(data_dir) / "web" / "requests"
+
+
 class RunManager:
     def __init__(self, data_dir: Path, project_root: Path, popen=subprocess.Popen,
-                 now: Callable[[], datetime] = datetime.now, clock: Callable[[], float] = time.time):
+                 now: Callable[[], datetime] = datetime.now, clock: Callable[[], float] = time.time,
+                 mode: str = "local"):
+        if mode not in RUN_MODES:
+            raise ValueError(f"Неизвестный режим запуска: {mode}")
+        self.mode = mode
         self.data_dir = Path(data_dir)
         self.project_root = Path(project_root)
         self.web_dir = self.data_dir / "web"
@@ -213,21 +225,36 @@ class RunManager:
         started = self._now().replace(microsecond=0)
         run_id = started.strftime("%Y%m%d-%H%M%S")
         try:
-            kw = dict(cwd=str(self.project_root), env={**os.environ, "AIDIGEST_DATA_DIR": str(self.data_dir)},
-                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if sys.platform == "win32":
-                # без окна консоли и отдельно от сервера: Ctrl+C в окне сервера не оборвёт сбор
-                kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            if self.mode == "queue":
+                self._enqueue(run_id)
+                os.write(fd, json.dumps({"run_id": run_id, "started": started.isoformat(), "mode": "queue"}).encode())
             else:
-                kw["start_new_session"] = True
-            proc = self._popen([sys.executable, "-m", "aidigest_web.runner", run_id], **kw)
-            os.write(fd, json.dumps({"run_id": run_id, "pid": proc.pid, "started": started.isoformat()}).encode())
+                self._spawn(fd, run_id, started)
         except Exception:
             os.close(fd)
             self.lock.unlink(missing_ok=True)
             raise
         os.close(fd)
         return RunInfo(run_id=run_id, started=started, log_path=self._log_path(run_id))
+
+    def _enqueue(self, run_id: str) -> None:
+        """Заявка для worker: пишем во временный файл и переименовываем, чтобы worker не прочёл недописанную."""
+        folder = requests_dir(self.data_dir)
+        folder.mkdir(parents=True, exist_ok=True)
+        tmp = folder / f"{run_id}.json.tmp"
+        tmp.write_text(json.dumps({"run_id": run_id}), encoding="utf-8")
+        os.replace(tmp, folder / f"{run_id}.json")
+
+    def _spawn(self, fd: int, run_id: str, started: datetime) -> None:
+        kw = dict(cwd=str(self.project_root), env={**os.environ, "AIDIGEST_DATA_DIR": str(self.data_dir)},
+                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if sys.platform == "win32":
+            # без окна консоли и отдельно от сервера: Ctrl+C в окне сервера не оборвёт сбор
+            kw["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        else:
+            kw["start_new_session"] = True
+        proc = self._popen([sys.executable, "-m", "aidigest_web.runner", run_id], **kw)
+        os.write(fd, json.dumps({"run_id": run_id, "pid": proc.pid, "started": started.isoformat()}).encode())
 
     def history(self, limit: int = 10) -> list[RunInfo]:
         if not self.runs_dir.exists():

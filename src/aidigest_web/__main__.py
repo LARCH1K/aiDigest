@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from aidigest_web import PROJECT_ROOT, create_app
+from aidigest_web.runs import RUN_MODES
 
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
@@ -31,6 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     args = p.parse_args(argv)
 
+    run_mode = os.environ.get("AIDIGEST_RUN_MODE") or "local"
+    if run_mode not in RUN_MODES:
+        print(f"Неизвестный AIDIGEST_RUN_MODE={run_mode!r}: допустимо local (сайт сам запускает сбор) "
+              "или queue (сбор выполняет aidigest_web.worker).")
+        return 2
     env = _web_env()
     password = env.get("WEB_PASSWORD") or None
     if args.host not in LOCAL_HOSTS and not password:
@@ -41,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
               "(иначе каждая перевыкладка разлогинивает пользователей).")
         return 2
     data_dir = Path(os.environ.get("AIDIGEST_DATA_DIR") or PROJECT_ROOT / "data")
-    app = create_app(data_dir, password, env.get("WEB_SECRET_KEY"))
+    app = create_app(data_dir, password, env.get("WEB_SECRET_KEY"), run_mode=run_mode)
     shown = "localhost" if args.host in LOCAL_HOSTS else args.host
     print(f"aiDigest: http://{shown}:{args.port}/" + ("" if password else "  (без пароля, только этот компьютер)"))
     _serve(app, args.host, args.port)
