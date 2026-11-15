@@ -1,28 +1,17 @@
-"""База кейсов: один JSON-файл, атомарная запись."""
+"""База кейсов: протокол Store, реализация в памяти (тесты) и в Postgres."""
 from __future__ import annotations
 
-import json
-import os
-import time
 from dataclasses import dataclass, field
-from pathlib import Path
+from datetime import datetime
+from typing import Protocol
 
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import Engine
+
+from aidigest.db.schema import cases as cases_table
+from aidigest.db.schema import processed_urls as urls_table
 from aidigest.models import Case
-
-
-REPLACE_ATTEMPTS = 10
-
-
-def replace_with_retry(src: Path, dst: Path) -> None:
-    """os.replace с повторами: в Windows файл может на мгновение держать IDE, индексатор или антивирус."""
-    for attempt in range(1, REPLACE_ATTEMPTS + 1):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            if attempt == REPLACE_ATTEMPTS:
-                raise
-            time.sleep(0.2 * attempt)
 
 
 @dataclass
@@ -31,21 +20,55 @@ class StoreData:
     processed_urls: set[str] = field(default_factory=set)
 
 
-class CaseStore:
-    def __init__(self, path: Path):
-        self.path = Path(path)
+class Store(Protocol):
+    def load(self) -> StoreData: ...
+
+    def save(self, data: StoreData) -> None: ...
+
+
+class MemoryStore:
+    """Хранит глубокую копию, чтобы тесты ловили «забыли save»."""
+
+    def __init__(self, data: StoreData | None = None):
+        self._data = self._copy(data or StoreData())
+
+    @staticmethod
+    def _copy(data: StoreData) -> StoreData:
+        return StoreData([c.model_copy(deep=True) for c in data.cases], set(data.processed_urls))
 
     def load(self) -> StoreData:
-        if not self.path.exists():
-            return StoreData()
-        raw = json.loads(self.path.read_text(encoding="utf-8"))
-        return StoreData([Case.model_validate(c) for c in raw.get("cases", [])],
-                         set(raw.get("processed_urls", [])))
+        return self._copy(self._data)
 
     def save(self, data: StoreData) -> None:
-        payload = {"cases": [c.model_dump(mode="json") for c in data.cases],
-                   "processed_urls": sorted(data.processed_urls)}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        replace_with_retry(tmp, self.path)
+        self._data = self._copy(data)
+
+
+class PgCaseStore:
+    def __init__(self, engine: Engine):
+        self.engine = engine
+
+    def load(self) -> StoreData:
+        with self.engine.connect() as c:
+            rows = c.execute(select(cases_table.c.data).order_by(cases_table.c.first_seen, cases_table.c.id))
+            cases = [Case.model_validate(r[0]) for r in rows]
+            urls = {r[0] for r in c.execute(select(urls_table.c.url))}
+        return StoreData(cases, urls)
+
+    def save(self, data: StoreData) -> None:
+        """Одна транзакция: upsert всех кейсов и добавление новых URL; кейсы не удаляются."""
+        with self.engine.begin() as c:
+            for case in data.cases:
+                dump = case.model_dump(mode="json")
+                row = {"id": case.id, "level": dump["level"], "first_seen": case.first_seen,
+                       "updated": case.updated, "data": dump}
+                stmt = insert(cases_table).values(row)
+                c.execute(stmt.on_conflict_do_update(
+                    index_elements=[cases_table.c.id],
+                    set_={k: stmt.excluded[k] for k in ("level", "first_seen", "updated", "data")}))
+            if data.processed_urls:
+                c.execute(insert(urls_table).on_conflict_do_nothing(),
+                          [{"url": u} for u in sorted(data.processed_urls)])
+
+    def updated_at(self) -> datetime | None:
+        with self.engine.connect() as c:
+            return c.execute(select(func.max(urls_table.c.added))).scalar()

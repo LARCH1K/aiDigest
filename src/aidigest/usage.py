@@ -9,7 +9,7 @@ from pathlib import Path
 
 import requests
 
-from aidigest.store import replace_with_retry
+from aidigest.cache import replace_with_retry
 
 
 TAVILY_USAGE_URL = "https://api.tavily.com/usage"

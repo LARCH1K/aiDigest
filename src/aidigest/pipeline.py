@@ -16,7 +16,7 @@ from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
-from aidigest.store import CaseStore
+from aidigest.store import Store
 from aidigest.urls import normalize_url
 
 
@@ -63,7 +63,7 @@ class Deps:
     search: SearchClient
     llm: LLMClient
     registry: SourceRegistry
-    store: CaseStore
+    store: Store
     queries: list[QuerySpec]
     settings: Settings
     budget: CreditBudget
@@ -146,14 +146,17 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
         try:
             confirm_case(case, deps.search, deps.llm, deps.registry, today, s.confirm_max_results)
             report.confirmations_done += 1
+            deps.store.save(data)
         except BudgetExceeded:
             report.budget_exhausted = True
             report.confirmations_deferred = len(queue) - i
             break
         except (LLMFormatError, OfflineCacheMiss) as e:
             _log(f"Подтверждение не удалось ({case.title}): {e}")
+            deps.store.save(data)
         except Exception as e:
             _log(f"Ошибка поиска подтверждения ({case.title}): {e}")
+            deps.store.save(data)
 
     deps.store.save(data)
     report.credits_spent = deps.budget.spent

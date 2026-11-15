@@ -1,4 +1,4 @@
-"""Консольные команды: run, export (и eval — проверка на эталоне)."""
+"""Консольные команды: run (и eval — проверка на эталоне)."""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +16,7 @@ from aidigest.export_excel import export_xlsx
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
-from aidigest.store import CaseStore
+from aidigest.store import PgCaseStore, Store
 from aidigest.usage import MonthlyUsage, fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,7 +53,14 @@ def _parse_levels(raw: str | None) -> set[Level]:
     return {Level(x.strip()) for x in raw.split(",") if x.strip()}
 
 
-def _export(store: CaseStore, report, today: date) -> Path:
+def _case_store() -> Store:
+    from aidigest.db.engine import make_engine, migrate
+    engine = make_engine()
+    migrate(engine)
+    return PgCaseStore(engine)
+
+
+def _export(store: Store, report, today: date) -> Path:
     out = _data_dir() / "out" / f"cases_{today.isoformat()}.xlsx"
     return export_xlsx(store.load().cases, report, out)
 
@@ -105,7 +112,7 @@ def _run_all(args, settings) -> int:
         search=TavilySearch(tavily.get("TAVILY_TOKEN"), cache, budget, offline=args.offline),
         llm=_llm(settings, cache, args.offline),
         registry=SourceRegistry.load(ROOT / "config" / "sources.yaml"),
-        store=CaseStore(_data_dir() / "cases.json"),
+        store=_case_store(),
         queries=load_queries(ROOT / "config" / "queries.yaml"),
         settings=settings, budget=budget,
     )
@@ -125,11 +132,6 @@ def _run_all(args, settings) -> int:
     if reason is not None:
         print(f"Причина: {reason}")
         return 1
-    return 0
-
-
-def cmd_export(args) -> int:
-    print(f"Excel: {_export(CaseStore(_data_dir() / 'cases.json'), None, date.today())}")
     return 0
 
 
@@ -177,9 +179,6 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--days", type=int, help="окно свежести, дней")
     r.add_argument("--offline", action="store_true", help="только кеш, без внешних вызовов")
     r.set_defaults(func=cmd_run)
-
-    e = sub.add_parser("export", help="Excel из базы без поиска")
-    e.set_defaults(func=cmd_export)
 
     v = sub.add_parser("eval", help="проверка извлечения на эталонных кейсах")
     v.add_argument("--fetch-only", action="store_true", help="только скачать тексты статей (без LLM)")
