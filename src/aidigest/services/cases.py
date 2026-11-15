@@ -1,4 +1,4 @@
-"""Логика представления: фильтры списка, «главная цифра», пояснения флагов. Без HTTP."""
+"""Логика представления кейсов: фильтры списка, «главная цифра», пояснения флагов. Без HTTP."""
 from __future__ import annotations
 
 from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability

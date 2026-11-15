@@ -1,7 +1,8 @@
+"""Логика представления кейсов: фильтры, главная цифра, достоверность."""
 from aidigest.models import ConfirmationStatus, Flag, Level
-from aidigest_web.views import FLAG_HELP, STATUS_CLASS, filter_cases, headline
+from aidigest.services.cases import FLAG_HELP, STATUS_CLASS, filter_cases, headline
 
-from webdata import sample_cases
+from casedata import sample_cases
 
 
 def ids(cases):
@@ -67,7 +68,7 @@ def _src(url, rel):
 
 def test_best_reliability_prefers_high(make_case):
     from aidigest.models import Reliability
-    from aidigest_web.views import best_reliability
+    from aidigest.services.cases import best_reliability
     c = make_case(sources=[_src("https://a.ru/1", Reliability.MEDIUM), _src("https://b.ru/1", Reliability.HIGH),
                            _src("https://c.ru/1", Reliability.UNRATED)])
     assert best_reliability(c) == Reliability.HIGH
@@ -75,7 +76,7 @@ def test_best_reliability_prefers_high(make_case):
 
 def test_best_reliability_none_when_only_unrated(make_case):
     from aidigest.models import Reliability
-    from aidigest_web.views import RELIABILITY_LABEL, best_reliability
+    from aidigest.services.cases import RELIABILITY_LABEL, best_reliability
     c = make_case(sources=[_src("https://c.ru/1", Reliability.UNRATED)])
     assert best_reliability(c) is None and RELIABILITY_LABEL[None] == "нет оценённых"
     assert best_reliability(make_case(sources=[])) is None

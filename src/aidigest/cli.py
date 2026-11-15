@@ -16,12 +16,10 @@ from aidigest.export_excel import export_xlsx
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
-from aidigest.runlock import RunLocked, run_lock
 from aidigest.store import CaseStore
 from aidigest.usage import MonthlyUsage, fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
-EXIT_LOCKED = 3  # код выхода: уже идёт другой сбор
 
 
 def _data_dir() -> Path:
@@ -62,16 +60,12 @@ def _export(store: CaseStore, report, today: date) -> Path:
 
 def cmd_run(args) -> int:
     """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс).
-    Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан, 3 — уже идёт другой сбор."""
+    Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан."""
     try:
         settings = load_settings(ROOT / "config" / "settings.yaml")
         if args.days:
             settings.freshness_days = args.days
-        with run_lock(_data_dir()):
-            return _run_locked(args, settings)
-    except RunLocked:
-        print("Причина: уже идёт другой сбор — дождитесь его окончания.")
-        return EXIT_LOCKED
+        return _run_all(args, settings)
     except MissingCreds as e:
         print(f"Причина: {e}")
         return 1
@@ -81,8 +75,8 @@ def cmd_run(args) -> int:
         return 1
 
 
-def _run_locked(args, settings) -> int:
-    """Сбор целиком (включая сверку кредитов с Tavily) — под блокировкой run_lock."""
+def _run_all(args, settings) -> int:
+    """Сбор целиком (включая сверку кредитов с Tavily)."""
     from aidigest.pipeline import Deps, run_cycle
     from aidigest.search import TavilySearch
 

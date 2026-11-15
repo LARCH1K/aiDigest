@@ -19,13 +19,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
-web = ["flask", "waitress"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-aidigest_web = ["templates/*.html", "static/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
