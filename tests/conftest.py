@@ -94,3 +94,11 @@ def case_store(monkeypatch):
     st = MemoryStore()
     monkeypatch.setattr("aidigest.cli._case_store", lambda: st)
     return st
+
+
+@pytest.fixture
+def usage_says(monkeypatch):
+    """Задаёт ответ Tavily GET /usage для команды run: usage_says(TavilyUsage(...)) или usage_says(None)."""
+    def _set(usage):
+        monkeypatch.setattr("aidigest.cli.fetch_tavily_usage", lambda token, timeout=10: usage)
+    return _set

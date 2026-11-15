@@ -12,12 +12,11 @@ from aidigest.budget import CreditBudget
 from aidigest.cache import DiskCache
 from aidigest.config import load_queries, load_settings
 from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
-from aidigest.export_excel import export_xlsx
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
 from aidigest.store import PgCaseStore, Store
-from aidigest.usage import MonthlyUsage, fetch_tavily_usage
+from aidigest.usage import fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -60,11 +59,6 @@ def _case_store() -> Store:
     return PgCaseStore(engine)
 
 
-def _export(store: Store, report, today: date) -> Path:
-    out = _data_dir() / "out" / f"cases_{today.isoformat()}.xlsx"
-    return export_xlsx(store.load().cases, report, out)
-
-
 def cmd_run(args) -> int:
     """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс).
     Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан."""
@@ -87,47 +81,44 @@ def _run_all(args, settings) -> int:
     from aidigest.pipeline import Deps, run_cycle
     from aidigest.search import TavilySearch
 
-    requested = args.budget if args.budget is not None else (
-        settings.first_run_budget if args.first_run else settings.run_budget)
     today = date.today()
-    usage = MonthlyUsage(_data_dir() / "credits.json", settings.monthly_limit, settings.monthly_warn_share)
+    store = _case_store()
+    if args.budget is not None:
+        requested = args.budget
+    elif args.first_run or not store.load().cases:  # пустая база — бюджет первого запуска
+        requested = settings.first_run_budget
+    else:
+        requested = settings.run_budget
     tavily = _creds("tavily.env", args.offline)
+    # Единственный источник правды о расходе — сам Tavily (GET /usage).
     actual = fetch_tavily_usage(tavily.get("TAVILY_TOKEN"))
-    total = usage.cap(today, requested)
-    if actual is not None:
-        # Фактический расход по данным Tavily — главный: наш учёт мог что-то пропустить.
+    if actual is None:
+        print(f"Расход кредитов Tavily неизвестен (сервис не ответил) — бюджет запуска {requested:g}.")
+        total = requested
+    else:
         print(f"Кредиты по данным Tavily: {actual.used:g} из {actual.limit:g}.")
-        usage.sync(today, actual.used)
-        total = min(total, actual.remaining)
-    if requested > 0 and total <= 0:
-        spent, limit = (actual.used, actual.limit) if actual else (usage.spent(today), settings.monthly_limit)
-        print(f"Лимит Tavily исчерпан: потрачено {spent:g} из {limit:g}. Запуск отменён.")
-        print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
-        return 2
-    if total < requested:
-        print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
+        if requested > 0 and actual.remaining <= 0:
+            print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
+            return 2
+        total = min(requested, actual.remaining)
+        if total < requested:
+            print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
+        if actual.used > actual.limit * settings.monthly_warn_share:
+            print(f"Внимание: в этом месяце потрачено {actual.used:g} кредитов Tavily из {actual.limit:g} "
+                  f"(осталось {actual.remaining:g}).")
     budget = CreditBudget(total, settings.confirm_share)
     cache = DiskCache(_data_dir() / "cache")
     deps = Deps(
         search=TavilySearch(tavily.get("TAVILY_TOKEN"), cache, budget, offline=args.offline),
         llm=_llm(settings, cache, args.offline),
         registry=SourceRegistry.load(ROOT / "config" / "sources.yaml"),
-        store=_case_store(),
+        store=store,
         queries=load_queries(ROOT / "config" / "queries.yaml"),
         settings=settings, budget=budget,
     )
-    try:
-        report = run_cycle(deps, _parse_levels(args.levels), today)
-    finally:
-        usage.record(today, budget.spent)  # учитываем расход, даже если запуск упал
-    rows = report.as_rows()
-    rows["Кредитов Tavily за месяц"] = f"{usage.spent(today):g} из {settings.monthly_limit:g}"
-    warning = usage.warning(today)
-    if warning:
-        print(warning)
-    for k, v in rows.items():
+    report = run_cycle(deps, _parse_levels(args.levels), today)
+    for k, v in report.as_rows().items():
         print(f"{k}: {v}")
-    print(f"Excel: {_export(deps.store, rows, today)}")
     reason = failure_reason(report)
     if reason is not None:
         print(f"Причина: {reason}")

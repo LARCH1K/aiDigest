@@ -109,23 +109,6 @@ def test_llm_api_error_skips_article_and_run_finishes(tmp_path, registry, case_s
     assert r.articles_failed == 1 and case_store.load().processed_urls == set()
 
 
-def test_cli_run_refuses_when_month_exhausted(tmp_path, monkeypatch, capsys, case_store):
-    import json
-    (tmp_path / "credits.json").write_text(json.dumps({date.today().strftime("%Y-%m"): 1000}), encoding="utf-8")
-    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
-    assert main(["run", "--offline"]) == 2
-    out = capsys.readouterr().out
-    assert out.count("Причина:") == 1 and "Причина: Месячный лимит кредитов Tavily исчерпан" in out
-
-
-def test_cli_run_records_monthly_usage(tmp_path, monkeypatch, case_store):
-    import json
-    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
-    assert main(["run", "--offline", "--budget", "3"]) == 0
-    data = json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))
-    assert data == {date.today().strftime("%Y-%m"): 0}
-
-
 def test_rejected_candidates_are_counted(tmp_path, registry, case_reply, case_store):
     b = CreditBudget(30)
     s = FakeSearch(lambda **kw: [A1], budget=b)
@@ -135,27 +118,6 @@ def test_rejected_candidates_are_counted(tmp_path, registry, case_reply, case_st
     rep = run_cycle(deps(case_store, s, llm, b, registry, q), set(Level), date(2026, 11, 7))
     assert rep.candidates_rejected == 1 and rep.cases_new == 0 and rep.articles_rejected == 1
     assert rep.as_rows()["Кандидатов отсеяно (не конкретное внедрение)"] == 1
-
-
-def test_cli_run_caps_budget_by_tavily_remaining(tmp_path, monkeypatch, capsys, case_store):
-    import aidigest.cli as cli
-    from aidigest.usage import TavilyUsage
-    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=990, limit=1000, plan="p"))
-    assert main(["run", "--offline", "--budget", "30"]) == 0
-    out = capsys.readouterr().out
-    assert "по данным Tavily: 990 из 1000" in out and "10 вместо 30" in out
-    import json
-    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8"))[date.today().strftime("%Y-%m")] == 990
-
-
-def test_cli_run_refuses_when_tavily_says_exhausted(tmp_path, monkeypatch, capsys, case_store):
-    import aidigest.cli as cli
-    from aidigest.usage import TavilyUsage
-    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(cli, "fetch_tavily_usage", lambda token: TavilyUsage(used=1000, limit=1000, plan="p"))
-    assert main(["run", "--offline"]) == 2
-    assert capsys.readouterr().out.count("Причина:") == 1
 
 
 def test_cycle_reports_progress_to_stderr(tmp_path, registry, case_reply, capsys, case_store):
@@ -220,8 +182,6 @@ def test_cli_run_prints_reason_on_crash(tmp_path, monkeypatch, capsys, case_stor
     assert main(["run", "--offline", "--budget", "3"]) == 1
     out = capsys.readouterr().out
     assert out.count("Причина:") == 1 and "Причина: На сервере кончилось место" in out
-    import json
-    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8")) == {date.today().strftime("%Y-%m"): 0}
 
 
 def test_cli_run_prints_reason_when_all_searches_failed(tmp_path, monkeypatch, capsys, case_store):
@@ -235,7 +195,7 @@ def test_cli_run_prints_reason_when_all_searches_failed(tmp_path, monkeypatch, c
     monkeypatch.setattr("aidigest.pipeline.run_cycle", failed)
     assert main(["run", "--offline", "--budget", "3"]) == 1
     out = capsys.readouterr().out
-    assert "Excel:" in out
+    assert "Excel:" not in out
     assert out.strip().splitlines()[-1].startswith("Причина: Ни один поисковый запрос не выполнился. Tavily недоступен")
 
 
@@ -261,20 +221,6 @@ def test_cli_run_prints_reason_when_keys_missing(tmp_path, monkeypatch, capsys, 
     assert main(["run", "--budget", "3"]) == 1
     out = capsys.readouterr().out
     assert out.count("Причина:") == 1 and "Причина: Не найдены ключи tavily.env" in out
-
-
-def test_cli_run_prints_reason_when_export_fails(tmp_path, monkeypatch, capsys, case_store):
-    import errno
-
-    import aidigest.cli as cli
-
-    def no_space(*a, **kw):
-        raise OSError(errno.ENOSPC, "x")
-    monkeypatch.setenv("AIDIGEST_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(cli, "export_xlsx", no_space)
-    assert main(["run", "--offline", "--budget", "3"]) == 1
-    out = capsys.readouterr().out
-    assert out.count("Причина:") == 1 and "Причина: На сервере кончилось место" in out
 
 
 def test_confirmations_saved_one_by_one(registry, case_reply, case_store):

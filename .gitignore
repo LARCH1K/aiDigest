@@ -23,7 +23,6 @@ data/cache/
 data/out/
 # База живёт на сервере (/srv/aidigest/data), локально — своя копия
 data/cases.json
-data/credits.json
 *.egg-info/
 .superpowers/
 data/web/
