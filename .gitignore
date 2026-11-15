@@ -27,3 +27,5 @@ data/cases.json
 .superpowers/
 data/web/
 web.env
+# Старые файлы данных — удаляются в конце переезда
+data/credits.json
