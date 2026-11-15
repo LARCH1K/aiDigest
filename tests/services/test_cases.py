@@ -1,6 +1,7 @@
 """Логика представления кейсов: фильтры, главная цифра, достоверность."""
 from aidigest.models import ConfirmationStatus, Flag, Level
-from aidigest.services.cases import FLAG_HELP, STATUS_CLASS, filter_cases, headline
+from aidigest.services.cases import FLAG_HELP, STATUS_CLASS, CaseFilter, CaseService, filter_cases, headline
+from aidigest.store import MemoryStore, StoreData
 
 from casedata import sample_cases
 
@@ -91,3 +92,33 @@ def test_reliability_filter(make_case):
     assert ids(filter_cases(cases, reliability="средняя")) == ["mid"]
     assert ids(filter_cases(cases, reliability="none")) == ["none"]
     assert len(filter_cases(cases, reliability="")) == 3
+
+
+def test_case_service_filters_and_counts(make_case):
+    st = MemoryStore()
+    st.save(StoreData([make_case(id="a"), make_case(id="b", metrics=[])], set()))
+    shown, total = CaseService(st).list(CaseFilter())
+    assert [c.id for c in shown] == ["a"] and total == 2
+    shown, _ = CaseService(st).list(CaseFilter(with_metrics=False))
+    assert {c.id for c in shown} == {"a", "b"}
+
+
+def test_get_returns_case_or_none(make_case):
+    st = MemoryStore(StoreData([make_case(id="a")], set()))
+    assert CaseService(st).get("a").id == "a"
+    assert CaseService(st).get("x") is None
+
+
+def test_export_returns_xlsx_bytes_and_leaves_no_files(make_case, tmp_path, monkeypatch):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("TEMP", str(tmp_path))
+    monkeypatch.setenv("TMP", str(tmp_path))
+    import tempfile
+    monkeypatch.setattr(tempfile, "tempdir", None)
+    data = CaseService(MemoryStore(StoreData([make_case(id="a")], set()))).export_xlsx()
+    assert data[:2] == b"PK"
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_updated_at_none_without_support():
+    assert CaseService(MemoryStore()).updated_at() is None

@@ -4,7 +4,7 @@ from pathlib import Path
 from aidigest.config import load_queries
 from aidigest.models import Level, Reliability
 from aidigest.registry import SourceRegistry
-from aidigest.services.catalog import ANY_RF_LABEL, ANY_RF_LEVEL, filter_sources, group_queries, level_label
+from aidigest.services.catalog import CatalogService, ANY_RF_LABEL, ANY_RF_LEVEL, filter_sources, group_queries, level_label
 
 CONFIG = Path(__file__).resolve().parents[2] / "config"
 
@@ -46,3 +46,25 @@ def test_filter_sources_any_rf_level():
 def test_level_label():
     assert level_label(None) == ANY_RF_LABEL
     assert level_label(Level.WORLD) == Level.WORLD.value
+
+
+def test_catalog_broken_yaml_returns_error(tmp_path):
+    (tmp_path / "queries.yaml").write_text("queries: [", encoding="utf-8")
+    groups, total, days, error = CatalogService(tmp_path).queries()
+    assert groups == [] and total == 0 and days > 0
+    assert error.startswith("Не удалось прочитать queries.yaml")
+
+
+def test_catalog_missing_sources_returns_error(tmp_path):
+    items, total, error = CatalogService(tmp_path).sources()
+    assert items == [] and total == 0 and error.startswith("Не удалось прочитать sources.yaml")
+
+
+def test_catalog_real_configs():
+    svc = CatalogService(CONFIG)
+    groups, total, days, error = svc.queries()
+    assert total > 0 and error is None and days > 0
+    all_sources, all_total, error = svc.sources()
+    assert all_total > 0 and error is None
+    some, total2, _ = svc.sources(reliability=Reliability.HIGH.value)
+    assert total2 == all_total and 0 < len(some) < all_total

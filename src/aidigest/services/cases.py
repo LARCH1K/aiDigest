@@ -1,7 +1,14 @@
 """Логика представления кейсов: фильтры списка, «главная цифра», пояснения флагов. Без HTTP."""
 from __future__ import annotations
 
+import tempfile
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+from aidigest.export_excel import export_xlsx
 from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability
+from aidigest.store import Store
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
 
@@ -110,3 +117,38 @@ def headline(c: Case) -> tuple[str, bool]:
     if c.metrics:
         return short_line(c.metrics[0]), True
     return "—", False
+
+
+@dataclass
+class CaseFilter:
+    q: str = ""
+    level: str = ""
+    status: str = ""
+    with_metrics: bool = True
+    hide_doubtful: bool = False
+    reliability: str = ""
+
+
+class CaseService:
+    def __init__(self, store: Store):
+        self.store = store
+
+    def list(self, f: CaseFilter) -> tuple[list[Case], int]:
+        """Отфильтрованные кейсы и общее число кейсов в базе."""
+        cases = self.store.load().cases
+        shown = filter_cases(cases, q=f.q, level=f.level, status=f.status, with_metrics=f.with_metrics,
+                             hide_doubtful=f.hide_doubtful, reliability=f.reliability)
+        return shown, len(cases)
+
+    def get(self, case_id: str) -> Case | None:
+        return next((c for c in self.store.load().cases if c.id == case_id), None)
+
+    def export_xlsx(self) -> bytes:
+        """Excel со всеми кейсами; файл пишется во временную папку и удаляется."""
+        cases = self.store.load().cases
+        with tempfile.TemporaryDirectory() as tmp:
+            return export_xlsx(cases, None, Path(tmp) / "cases.xlsx").read_bytes()
+
+    def updated_at(self) -> datetime | None:
+        fn = getattr(self.store, "updated_at", None)
+        return fn() if fn else None
