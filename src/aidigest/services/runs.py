@@ -1,6 +1,7 @@
 """Разбор вывода `aidigest run` и запуск сбора: строки отчёта, причина неудачи, таблица runs, подпроцесс."""
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
@@ -30,6 +31,10 @@ REASON_SPAWN_FAILED = "Не удалось запустить сбор — со�
 RUNS_KEEP = 100
 LOG_TAIL_LINES = 30
 USAGE_TTL = 60.0  # секунд кеша ответа Tavily
+FINISH_RETRIES = 3  # попыток закрыть запись при сбое БД
+FINISH_PAUSE = 0.5  # секунд между попытками
+
+log = logging.getLogger(__name__)
 
 
 def parse_report(log_text: str) -> dict[str, str]:
@@ -243,19 +248,23 @@ class RunService:
             n += 1
             run_id = f"{base}-{n}"
         self.store.create(run_id, started, params.as_dict())
-        self._logs_dir.mkdir(parents=True, exist_ok=True)
         log_path = self._logs_dir / f"{run_id}.log"
-        env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8",
-               "AIDIGEST_DATA_DIR": str(self.data_dir)}
-        kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
         try:
-            with open(log_path, "wb") as log:  # дескриптор родителя закрывается сразу после popen
+            self._logs_dir.mkdir(parents=True, exist_ok=True)
+            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8",
+                   "AIDIGEST_DATA_DIR": str(self.data_dir)}
+            kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+            with open(log_path, "wb") as logf:  # дескриптор родителя закрывается сразу после popen
                 proc = self._popen([sys.executable, "-m", "aidigest", "run", *params.to_argv()],
-                                   cwd=self.project_root, stdout=log, stderr=subprocess.STDOUT,
+                                   cwd=self.project_root, stdout=logf, stderr=subprocess.STDOUT,
                                    env=env, **kwargs)
         except Exception:
-            self.store.finish(run_id, "error", None, REASON_SPAWN_FAILED, {}, self._now())
+            try:
+                self.store.finish(run_id, "error", None, REASON_SPAWN_FAILED, {}, self._now())
+            except Exception:
+                log.exception("не удалось закрыть запись %s после сбоя запуска", run_id)
             raise
+        self._watchers = [w for w in self._watchers if w.is_alive()]
         t = threading.Thread(target=self._watch, args=(run_id, proc, log_path), daemon=True,
                              name=f"run-{run_id}")
         self._watchers.append(t)
@@ -263,13 +272,27 @@ class RunService:
         return run_id
 
     def _watch(self, run_id: str, proc, log_path: Path) -> None:
-        code = proc.wait()
-        text = _read(log_path) or ""
-        reason = last_reason(text) or (REASON_CRASHED if code not in (0, 2) else None)
-        self.store.finish(run_id, STATE_BY_CODE.get(code, "error"), code, reason, parse_report(text),
-                          self._now())
-        for rid in self.store.prune(RUNS_KEEP):
-            (self._logs_dir / f"{rid}.log").unlink(missing_ok=True)
+        try:
+            code = proc.wait()
+            text = _read(log_path) or ""
+            reason = last_reason(text) or (REASON_CRASHED if code not in (0, 2) else None)
+            state, report = STATE_BY_CODE.get(code, "error"), parse_report(text)
+        except Exception:
+            log.exception("наблюдатель запуска %s не смог разобрать итог", run_id)
+            code, state, reason, report = None, "error", REASON_CRASHED, {}
+        for attempt in range(FINISH_RETRIES):
+            try:
+                self.store.finish(run_id, state, code, reason, report, self._now())
+                break
+            except Exception:
+                log.exception("не удалось закрыть запись %s (попытка %d)", run_id, attempt + 1)
+                if attempt + 1 < FINISH_RETRIES:
+                    time.sleep(FINISH_PAUSE)
+        try:  # уборка не должна скрывать итог запуска
+            for rid in self.store.prune(RUNS_KEEP):
+                (self._logs_dir / f"{rid}.log").unlink(missing_ok=True)
+        except Exception:
+            log.exception("уборка старых запусков не удалась")
 
     def current(self) -> tuple[RunRecord, list[str]] | None:
         rec = self.store.current()

@@ -1,4 +1,5 @@
 import threading
+from types import SimpleNamespace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -214,7 +215,7 @@ def test_credits_cached_including_none(make_svc):
 def test_credits_cache_expires(make_svc, monkeypatch):
     calls = []
     clock = [1000.0]
-    monkeypatch.setattr(runs_mod.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(runs_mod, "time", SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: None))
     svc = make_svc(fetch=lambda t: calls.append(t))
     svc.credits()
     clock[0] += 61
@@ -261,3 +262,37 @@ def test_store_roundtrip_times_and_minutes(pg):
 def test_run_params_argv_empty_and_days():
     assert RunParams().to_argv() == [] and RunParams().as_dict() == {}
     assert RunParams(days=3, budget=2.5).to_argv() == ["--budget", "2.5", "--days", "3"]
+
+
+def test_watcher_retries_finish_after_db_error(svc_child, monkeypatch):
+    monkeypatch.setattr(runs_mod, "FINISH_PAUSE", 0)
+    svc = svc_child(code=0, output="Кейсов новых: 2\n")
+    real, calls = svc.store.finish, []
+
+    def flaky(*a, **kw):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("обрыв соединения")
+        return real(*a, **kw)
+    monkeypatch.setattr(svc.store, "finish", flaky)
+    rid = svc.start()
+    svc.join_watchers()
+    assert len(calls) == 2
+    assert svc.store.get(rid).state == "ok" and svc.store.current() is None
+
+
+def test_watcher_cleanup_error_keeps_result(svc_child, monkeypatch):
+    svc = svc_child(code=0)
+    monkeypatch.setattr(svc.store, "prune", lambda keep: (_ for _ in ()).throw(RuntimeError("x")))
+    rid = svc.start()
+    svc.join_watchers()
+    assert svc.store.get(rid).state == "ok"
+
+
+def test_mkdir_failure_leaves_no_running_record(svc_child, monkeypatch):
+    svc = svc_child(code=0)
+    monkeypatch.setattr(Path, "mkdir", lambda self, **kw: (_ for _ in ()).throw(OSError("диск")))
+    with pytest.raises(OSError):
+        svc.start()
+    assert svc.store.current() is None
+    assert svc.store.history(1)[0].reason == REASON_SPAWN_FAILED
