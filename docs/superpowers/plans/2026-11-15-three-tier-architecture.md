@@ -4,7 +4,7 @@
 
 **Goal:** Перевести aiDigest на три приложения — SPA на React+TS (nginx), бэкенд FastAPI с фоновым сбором, PostgreSQL — с образами в GHCR и выкладкой `docker compose pull && up -d`.
 
-**Architecture:** Пайплайн `src/aidigest/` остаётся, но хранит кейсы, учёт кредитов и запуски в Postgres через тонкие репозитории с in-memory двойниками для тестов. Сервисный слой (`aidigest/services/`) содержит всю логику продукта; FastAPI (`aidigest_api`) — тонкие обработчики над ним. Сбор — подпроцесс `python -m aidigest run --run-id …`, который бэкенд запускает внутри своего контейнера; «один сбор» держит advisory lock Postgres + частичный уникальный индекс.
+**Architecture:** Пайплайн `src/aidigest/` остаётся, но хранит кейсы, учёт кредитов и запуски в Postgres через тонкие репозитории с in-memory двойниками для тестов. Сервисный слой (`aidigest/services/`) содержит всю логику продукта; FastAPI (`aidigest_api`) — тонкие обработчики над ним. Сбор запускает **только бэкенд** — подпроцессом `python -m aidigest run --run-id …` (внутренняя команда, не для человека) внутри своего контейнера; «один сбор» держит частичный уникальный индекс в Postgres.
 
 **Tech Stack:** Python 3.13, FastAPI, uvicorn, SQLAlchemy 2 (Core), psycopg 3, Alembic, itsdangerous; React 18 + TypeScript + Vite, react-router-dom, Vitest + Testing Library; nginx:alpine; postgres:17; GitHub Actions + GHCR.
 
@@ -15,6 +15,7 @@
 - Вся работа — в ветке `feature/three-tier-architecture`; в `master` — целиком после проверки (Task 15–16).
 - Образы: `ghcr.io/larch1k/aidigest-backend`, `ghcr.io/larch1k/aidigest-frontend`; теги `latest` и короткий SHA; публикация только с `master`, через `GITHUB_TOKEN`. Образ БД — официальный `postgres:17`, в GHCR не публикуется.
 - Бэкенд — **один контейнер**; при выкладке никаких проверок «идёт ли сбор».
+- **Консольного запуска сбора нет.** Сбор стартует только через `RunService.start()` (кнопка или `POST /api/runs`). `python -m aidigest run --run-id ID` — внутренняя команда для подпроцесса; без `--run-id` она отказывается работать. `aidigest export` удаляется; `aidigest eval` остаётся.
 - Вход — одна пара `WEB_USERNAME` + `WEB_PASSWORD` (+ `WEB_SECRET_KEY`) из `web.env`.
 - `*.env` никогда не читать, не выводить, не коммитить; в образ и CI не попадают.
 - Кредиты Tavily на всю работу по плану — **не больше 250**; перед каждым реальным сбором сверить расход (`GET https://api.tavily.com/usage` через `aidigest.usage.fetch_tavily_usage`) с отметкой на старте работы и записать в журнал задачи.
@@ -28,10 +29,10 @@
 ## Review Focus
 
 1. **Вход по `http://<IP>` без HTTPS** — cookie сессии не должна быть `Secure`, пока не задан `AIDIGEST_TRUST_PROXY=1`, иначе вход молча не работает. Тест — Task 7.
-2. **Бэкенд перезапустили, пока идёт консольный `aidigest run` против той же БД** — консольный запуск не помечается «прервано». Тест — Task 4.
+2. **Подпроцесс сбора упал или убит, не закрыв запись** — запись не висит «идёт» и кнопка не блокируется: наблюдатель помечает запуск ошибкой. Тест — Task 6.
 3. **Свежая установка: пустая база, нет ключа Tavily** — все страницы и эндпоинты отвечают пустыми состояниями, страница запуска показывает учёт кредитов «по нашему учёту», без 500. Тест — Task 7 и Task 10.
 4. **Повторный старт контейнера на уже мигрированной БД** — миграции при старте идемпотентны, приложение поднимается. Тест — Task 1.
-5. **Подпроцесс сбора упал до взятия блокировки или убит** — запись запуска не висит «идёт» навсегда: помечается ошибкой после завершения процесса или «прервано» после grace-периода. Тест — Task 6.
+5. **Отладочные параметры в `POST /api/runs` с мусором** (`budget: -1`, неизвестный уровень, `days: 0`) — 422 с понятным текстом, сбор не стартует и запись запуска не создаётся. Тест — Task 7.
 
 ---
 
@@ -53,7 +54,7 @@ src/aidigest/usage.py         # CreditsRepo, MemoryCreditsRepo, PgCreditsRepo, M
 src/aidigest/runstore.py      # RunRecord, RunStore (Pg), MemoryRunStore, parse_report, LogTee
 src/aidigest/storage.py       # Storage(cases, credits, runs), open_storage(url)
 src/aidigest/backup.py        # backup_db() через pg_dump
-src/aidigest/cli.py           # run/export/eval на Storage
+src/aidigest/cli.py           # run --run-id (внутренняя, для подпроцесса) и eval
 src/aidigest/services/__init__.py
 src/aidigest/services/cases.py    # фильтры, headline, ярлыки (из aidigest_web/views.py)
 src/aidigest/services/catalog.py  # запросы и источники (из aidigest_web/config_pages.py)
@@ -90,7 +91,7 @@ tools/compare_bases.py            # сравнение старой и ново�
     - `cases(id text PK, level text NOT NULL, first_seen date NOT NULL, updated date NOT NULL, data jsonb NOT NULL)`
     - `processed_urls(url text PK, added timestamptz NOT NULL DEFAULT now())`
     - `credits(month text PK, spent double precision NOT NULL)`
-    - `runs(id text PK, source text NOT NULL CHECK (source IN ('web','cli')), state text NOT NULL, started timestamptz NOT NULL, finished timestamptz, exit_code int, reason text, log text NOT NULL DEFAULT '')`
+    - `runs(id text PK, state text NOT NULL, started timestamptz NOT NULL, finished timestamptz, exit_code int, reason text, params jsonb NOT NULL DEFAULT '{}', log text NOT NULL DEFAULT '')` — `params`: отладочные параметры запуска (пусто — обычный сбор)
     - частичный уникальный индекс `runs_one_running ON runs ((true)) WHERE state = 'running'`.
   - Фикстура `pg_engine` (scope session): берёт `AIDIGEST_TEST_DATABASE_URL`, при отсутствии — `pytest.skip("нет AIDIGEST_TEST_DATABASE_URL")`; пересоздаёт схему `public` и вызывает `migrate`. Фикстура `pg` (function): `TRUNCATE cases, processed_urls, credits, runs` и отдаёт engine.
 
@@ -119,7 +120,7 @@ def test_migrate_is_idempotent(pg):
     migrate(pg); migrate(pg)   # второй старт контейнера не падает
 
 def test_only_one_running_run(pg):
-    ins = text("INSERT INTO runs (id, source, state, started) VALUES (:id, 'web', 'running', now())")
+    ins = text("INSERT INTO runs (id, state, started) VALUES (:id, 'running', now())")
     with pg.begin() as c:
         c.execute(ins, {"id": "a"})
     with pytest.raises(Exception):
@@ -219,7 +220,7 @@ def test_confirmations_saved_one_by_one(registry, case_reply):
 
 ---
 
-### Task 4: Запуски в Postgres: блокировка, история, лог
+### Task 4: Запуски в Postgres: история и лог
 
 **Files:**
 - Create: `src/aidigest/runstore.py`
@@ -227,17 +228,15 @@ def test_confirmations_saved_one_by_one(registry, case_reply):
 
 **Interfaces:**
 - Produces (`aidigest.runstore`):
-  - Константы (перенос из `aidigest_web/runs.py`): `STATE_LABEL`, `STATE_BY_CODE = {0: "ok", 2: "limit", 3: "busy"}`, `REPORT_PREFIXES`, `REASON_INTERRUPTED = "Сбор прерван перезапуском сервера. Кейсы, которые он успел сохранить, уже в базе."`, `REASON_CRASHED = "Сборщик завершился аварийно — сообщите команде разработки."`, `START_GRACE_SECONDS = 120`, `RUN_LOCK_KEY = 42420001`.
+  - Константы (перенос из `aidigest_web/runs.py`): `STATE_LABEL`, `STATE_BY_CODE = {0: "ok", 2: "limit"}`, `REPORT_PREFIXES`, `REASON_INTERRUPTED = "Сбор прерван перезапуском сервера. Кейсы, которые он успел сохранить, уже в базе."`, `REASON_CRASHED = "Сборщик завершился аварийно — сообщите команде разработки."`.
   - `parse_report(log_text: str) -> dict[str, str]` — перенос как есть.
-  - `@dataclass RunRecord(run_id: str, source: str, state: str, started: datetime, finished: datetime | None, exit_code: int | None, reason: str | None, log: str)`; свойства `label`, `minutes`, `report` (= `parse_report(log)`), метод `tail(lines: int = 30) -> list[str]`.
+  - `@dataclass RunRecord(run_id: str, state: str, started: datetime, finished: datetime | None, exit_code: int | None, reason: str | None, params: dict, log: str)`; свойства `label`, `minutes`, `report` (= `parse_report(log)`), метод `tail(lines: int = 30) -> list[str]`.
   - `class AlreadyRunning(Exception)`.
   - `class RunStore` (Postgres, `RunStore(engine)`) и `class MemoryRunStore` с одинаковыми методами:
-    - `try_lock() -> RunLock | None` — Postgres: отдельное соединение, `pg_try_advisory_lock(RUN_LOCK_KEY)`; `RunLock.release()` закрывает соединение. Блокировка снимается сама, когда процесс умирает.
-    - `lock_is_free() -> bool` — `pg_try_advisory_lock` + немедленный `pg_advisory_unlock` на коротком соединении.
-    - `create(run_id: str, source: str, started: datetime) -> None` — state `running`; нарушение `runs_one_running` → `AlreadyRunning`.
+    - `create(run_id: str, started: datetime, params: dict | None = None) -> None` — state `running`; нарушение `runs_one_running` → `AlreadyRunning`.
     - `append_log(run_id: str, chunk: str) -> None` — `log = log || :chunk`.
-    - `finish(run_id: str, state: str, exit_code: int | None, reason: str | None, finished: datetime) -> None` — только если запись ещё `running`.
-    - `reap_stale(now: datetime, *, grace_seconds: int = START_GRACE_SECONDS, holding_lock: bool = False) -> int` — если `holding_lock` или `lock_is_free()`: все `running`, начатые раньше `now - grace`, → `interrupted` с `REASON_INTERRUPTED`; иначе ничего. Возвращает число помеченных.
+    - `finish(run_id: str, state: str, exit_code: int | None, reason: str | None, finished: datetime) -> bool` — только если запись ещё `running`; `True`, если запись закрыта этим вызовом.
+    - `interrupt_running(now: datetime) -> int` — все `running` → `interrupted` с `REASON_INTERRUPTED`; число помеченных.
     - `current() -> RunRecord | None`, `get(run_id) -> RunRecord | None`, `history(limit: int = 10) -> list[RunRecord]` (по `started` убыв., включая текущий), `prune(keep: int = 100) -> int`.
   - `class LogTee(runs, run_id, flush_seconds: float = 2.0)` — контекстный менеджер: подменяет `sys.stdout`/`sys.stderr` обёртками, которые пишут в исходный поток и копят текст; фоновый поток каждые `flush_seconds` и при выходе вызывает `append_log`. Ошибка записи в БД печатается в исходный stderr один раз и не роняет сбор. Возвращает объект с `last_reason() -> str | None` (последняя строка `Причина: …` без префикса).
 
@@ -245,36 +244,29 @@ def test_confirmations_saved_one_by_one(registry, case_reply):
 
 ```python
 def test_second_create_while_running_fails(runs):
-    runs.create("r1", "web", NOW)
+    runs.create("r1", NOW)
     with pytest.raises(AlreadyRunning):
-        runs.create("r2", "cli", NOW)
+        runs.create("r2", NOW)
 
-def test_reap_marks_running_when_lock_free(runs):
-    runs.create("r1", "web", NOW - timedelta(minutes=5))
-    assert runs.reap_stale(NOW) == 1
+def test_interrupt_running(runs):
+    runs.create("r1", NOW)
+    assert runs.interrupt_running(NOW) == 1
     r = runs.get("r1"); assert r.state == "interrupted" and r.reason == REASON_INTERRUPTED
+    runs.create("r2", NOW)          # после прерывания новый запуск возможен
 
-def test_reap_spares_run_holding_lock(runs):       # Review Focus 2
-    lock = runs.try_lock(); runs.create("r1", "cli", NOW - timedelta(hours=1))
-    assert runs.reap_stale(NOW, grace_seconds=0) == 0
-    assert runs.get("r1").state == "running"; lock.release()
+def test_finish_only_running(runs):
+    runs.create("r1", NOW)
+    assert runs.finish("r1", "ok", 0, None, NOW) is True
+    assert runs.finish("r1", "error", 1, "x", NOW) is False and runs.get("r1").state == "ok"
 
-def test_reap_respects_start_grace(runs):
-    runs.create("r1", "web", NOW - timedelta(seconds=30))
-    assert runs.reap_stale(NOW) == 0
-
-def test_lock_is_exclusive(runs):
-    a = runs.try_lock(); assert a is not None and runs.try_lock() is None
-    a.release(); assert runs.try_lock() is not None
-
-def test_log_report_tail(runs):
-    runs.create("r1", "web", NOW)
+def test_log_report_tail_params(runs):
+    runs.create("r1", NOW, {"budget": 5})
     runs.append_log("r1", "Кейсов новых: 3\n"); runs.append_log("r1", "строка\n")
-    runs.finish("r1", "ok", 0, None, NOW)
-    r = runs.get("r1"); assert r.report == {"Кейсов новых": "3"} and r.tail(1) == ["строка"]
+    r = runs.get("r1")
+    assert r.report == {"Кейсов новых": "3"} and r.tail(1) == ["строка"] and r.params == {"budget": 5}
 
 def test_logtee_copies_output_and_reason(runs, capsys):
-    runs.create("r1", "cli", NOW)
+    runs.create("r1", NOW)
     with LogTee(runs, "r1", flush_seconds=0.05) as tee:
         print("привет"); print("Причина: нет ключей", file=sys.stderr)
     assert "привет" in runs.get("r1").log and tee.last_reason() == "нет ключей"
@@ -284,60 +276,56 @@ def test_logtee_copies_output_and_reason(runs, capsys):
 Плюс `test_parse_report_*` — перенести тесты `parse_report` из `tests/web/test_runs.py`.
 
 - [ ] **Step 2: FAIL** — `pytest tests/test_runstore.py tests/db/test_pg_runstore.py -q`.
-- [ ] **Step 3: Реализовать** `runstore.py` по Interfaces. `MemoryRunStore` держит флаг блокировки в `threading.Lock`.
+- [ ] **Step 3: Реализовать** `runstore.py` по Interfaces.
 - [ ] **Step 4: PASS** (с и без `AIDIGEST_TEST_DATABASE_URL`).
-- [ ] **Step 5: Commit** — `feat(runs): запуски, блокировка и лог в Postgres`
+- [ ] **Step 5: Commit** — `feat(runs): запуски и лог в Postgres`
 
 ---
 
-### Task 5: CLI на новом хранилище, резервная копия перед сбором
+### Task 5: Внутренняя команда сбора на новом хранилище, резервная копия
 
 **Files:**
 - Create: `src/aidigest/storage.py`, `src/aidigest/backup.py`
 - Modify: `src/aidigest/cli.py`, `src/aidigest/housekeeping.py` (убрать `backup_cases`; `prune_cache`, `keep_newest`, `BACKUPS_KEEP` остаются)
+- Delete: `src/aidigest/runlock.py`, `tests/test_runlock.py`
 - Modify: `tests/test_pipeline.py` (тесты `cmd_*`), `tests/conftest.py`, `tests/fakes.py`
-- Test: `tests/test_cli_storage.py`, `tests/test_backup.py`
+- Test: `tests/test_cli_run.py`, `tests/test_backup.py`
 
 **Interfaces:**
 - Consumes: `PgCaseStore`, `PgCreditsRepo`, `RunStore`, `LogTee` (Tasks 2–4).
 - Produces:
   - `@dataclass Storage(cases: Store, credits: CreditsRepo, runs: RunStore | MemoryRunStore, database_url: str | None)`; `open_storage(url: str | None = None) -> Storage` (Postgres, вызывает `migrate`); `memory_storage() -> Storage` (в `tests/fakes.py`).
-  - В `cli.py`: модульная функция `_storage() -> Storage` (по умолчанию `open_storage()`); тесты подменяют её `monkeypatch.setattr("aidigest.cli._storage", lambda: st)`. Фикстура `storage` в `tests/conftest.py` делает это автоматически для тестов, которые её просят.
-  - `aidigest run` получает флаг `--run-id ID` (запуск, созданный бэкендом). Поток `cmd_run`:
-    1. `lock = st.runs.try_lock()`; `None` → печать `Причина: уже идёт другой сбор — дождитесь его окончания.`, если `--run-id` — `finish(run_id, "busy", 3, …)`; выход 3.
-    2. Без `--run-id`: `reap_stale(now, grace_seconds=0, holding_lock=True)`, `run_id = new_run_id(now)` (формат `%Y%m%d-%H%M%S`), `create(run_id, "cli", now)`.
-    3. `with LogTee(st.runs, run_id) as tee:` — `prune_cache(data_dir)`, `backup_db(...)`, затем прежняя логика `_run_locked` (учёт кредитов — `MonthlyUsage(st.credits, …)`, `Deps.store = st.cases`).
-    4. `finish(run_id, STATE_BY_CODE.get(code, "error"), code, tee.last_reason(), now)`; `st.runs.prune()`; `lock.release()` в `finally`.
-    Коды выхода и строки «Причина: …» — как сейчас. Если не заданы ни `--budget`, ни `--first-run`, а в базе нет ни одного кейса, бюджет — `first_run_budget` (так первый сбор с сайта на свежей установке получает 100 кредитов); тест `test_cli_run_uses_first_run_budget_on_empty_base`.
-  - `cmd_export` — из `st.cases`; файл в `<data>/out/` как сейчас.
+  - В `cli.py`: модульная функция `_storage() -> Storage` (по умолчанию `open_storage()`); фикстура `storage` в `tests/conftest.py` подменяет её `monkeypatch.setattr("aidigest.cli._storage", lambda: st)`.
+  - `aidigest run --run-id ID [--budget N] [--levels …] [--days N] [--offline] [--first-run]` — **внутренняя команда**: запись запуска `ID` уже создана бэкендом. Без `--run-id` — печать `Причина: сбор запускается с сайта (кнопка «Запустить сбор») или через POST /api/runs.` и выход 1, без записи в базу. Поток:
+    1. `with LogTee(st.runs, run_id) as tee:` — `prune_cache(data_dir)`, `backup_db(...)`, затем прежняя логика `_run_locked` (без `run_lock`; учёт кредитов — `MonthlyUsage(st.credits, …)`, `Deps.store = st.cases`).
+    2. `st.runs.finish(run_id, STATE_BY_CODE.get(code, "error"), code, tee.last_reason(), now)`; `st.runs.prune()`.
+    Коды выхода 0/1/2 и строки «Причина: …» — как сейчас (код 3 «уже идёт» больше не нужен — это проверяет бэкенд). Если не заданы ни `--budget`, ни `--first-run`, а в базе нет ни одного кейса, бюджет — `first_run_budget` (первый сбор на свежей установке получает 100 кредитов).
+  - Команда `export` удаляется; `eval` — без изменений.
   - `backup_db(database_url: str, backups_dir: Path, now: datetime, keep: int = BACKUPS_KEEP, run=subprocess.run) -> Path | None` — `pg_dump -Fc -f <backups>/aidigest_<ГГГГ-ММ-ДД_ЧЧММСС>.dump`; URL переводится в libpq-вид (без `+psycopg`), пароль — через `PGPASSWORD` в env, не в аргументах; нет `pg_dump` в PATH → печать «Резервная копия пропущена: нет pg_dump» и `None`; хранит `keep` последних.
-  - Удаляются из `cli.py`: `run_lock`/`RunLocked`, `CaseStore`, `JsonCreditsRepo`.
 
-- [ ] **Step 1: Перевести тесты `cmd_*` в `tests/test_pipeline.py` на фикстуру `storage`** (утверждения прежние: коды выхода, строки «Причина», учёт кредитов — теперь `storage.credits.get(month)`), заменить `test_cli_run_refuses_when_locked` на версию с `storage.runs.try_lock()`. Добавить:
+- [ ] **Step 1: Перевести тесты `cmd_*` в `tests/test_pipeline.py` на фикстуру `storage`** и `--run-id` (утверждения прежние: коды выхода, строки «Причина», учёт кредитов — теперь `storage.credits.get(month)`); удалить `test_cli_run_refuses_when_locked` и `test_cli_export_offline`. Добавить в `tests/test_cli_run.py`:
 
 ```python
-def test_cli_run_creates_history_record(storage, monkeypatch, capsys):   # офлайн-запуск с budget 0
-    assert main(["run", "--offline", "--budget", "0"]) == 0
-    r = storage.runs.history(1)[0]
-    assert r.source == "cli" and r.state == "ok" and "Кейсов новых" in r.report
+def test_run_without_run_id_refuses(storage, capsys):
+    assert main(["run", "--offline", "--budget", "0"]) == 1
+    assert "Причина: сбор запускается с сайта" in capsys.readouterr().out
+    assert storage.runs.history() == []
 
-def test_cli_run_with_run_id_finishes_given_record(storage):
-    storage.runs.create("web-1", "web", NOW)
-    main(["run", "--offline", "--budget", "0", "--run-id", "web-1"])
-    assert storage.runs.get("web-1").state == "ok"
+def test_run_finishes_given_record_with_report(storage):
+    storage.runs.create("web-1", NOW)
+    assert main(["run", "--offline", "--budget", "0", "--run-id", "web-1"]) == 0
+    r = storage.runs.get("web-1"); assert r.state == "ok" and "Кейсов новых" in r.report
 
-def test_cli_run_reaps_stale_record(storage):
-    storage.runs.create("old", "web", NOW - timedelta(hours=1))
-    main(["run", "--offline", "--budget", "0"])
-    assert storage.runs.get("old").state == "interrupted"
+def test_run_uses_first_run_budget_on_empty_base(storage, capsys): ...   # в выводе бюджет 100
+def test_run_error_closes_record_with_reason(storage, monkeypatch): ...  # run_cycle бросает → state "error", reason из «Причина: …»
 ```
 
 `tests/test_backup.py`: команда содержит `-Fc` и путь в `backups_dir`, пароль только в `env["PGPASSWORD"]` и не в аргументах; при `FileNotFoundError` — `None`; остаётся `keep` файлов.
 
-- [ ] **Step 2: FAIL** — `pytest tests/test_pipeline.py tests/test_backup.py -q`.
-- [ ] **Step 3: Реализовать** `storage.py`, `backup.py`, новый `cmd_run`/`cmd_export`, `--run-id`.
-- [ ] **Step 4: PASS** — весь набор; ручная проверка против dev-БД: `$env:DATABASE_URL="postgresql+psycopg://aidigest:aidigest@localhost:5433/aidigest"; .venv/Scripts/python -m aidigest run --offline --budget 0` → код 0, в выводе отчёт; `.venv/Scripts/python -m aidigest export` → путь к Excel.
-- [ ] **Step 5: Commit** — `feat(cli): сбор и выгрузка на Postgres, запись запуска, pg_dump перед сбором`
+- [ ] **Step 2: FAIL** — `pytest tests/test_pipeline.py tests/test_cli_run.py tests/test_backup.py -q`.
+- [ ] **Step 3: Реализовать** `storage.py`, `backup.py`, новый `cmd_run`; удалить `cmd_export`, `runlock.py`.
+- [ ] **Step 4: PASS** — весь набор; ручная проверка против dev-БД: создать запись (`python -c "…RunStore(make_engine()).create('t1', datetime.now())"`), затем `$env:DATABASE_URL="postgresql+psycopg://aidigest:aidigest@localhost:5433/aidigest"; .venv/Scripts/python -m aidigest run --run-id t1 --offline --budget 0` → код 0, запись `t1` в состоянии `ok` с логом.
+- [ ] **Step 5: Commit** — `feat(cli): внутренняя команда сбора на Postgres, pg_dump перед сбором`
 
 ---
 
@@ -356,18 +344,23 @@ def test_cli_run_reaps_stale_record(storage):
   - `services.catalog`: `ANY_RF_LEVEL`, `ANY_RF_LABEL`, `level_label`, `group_queries`, `filter_sources` (перенос), `class CatalogService(config_dir: Path)`: `queries() -> tuple[list[tuple[Level, list[QuerySpec]]], int, int, str | None]` (группы, всего, `freshness_days`, ошибка), `sources(level: str = "", reliability: str = "") -> tuple[list[SourceInfo], int, str | None]`. Ошибки чтения YAML — текст ошибки, не исключение.
   - `services.runs`:
     - `class MonthExhausted(Exception)`; `AlreadyRunning` — из `aidigest.runstore`.
+    - `@dataclass RunParams(budget: float | None = None, levels: list[Level] | None = None, days: int | None = None, offline: bool = False)`; `to_argv() -> list[str]` (`--budget`, `--levels` через запятую, `--days`, `--offline`); `as_dict() -> dict` (только заданные поля, для `runs.params`).
     - `class RunService(storage: Storage, project_root: Path, settings_path: Path, tavily_token: str | None, popen=subprocess.Popen, now=datetime.now)`:
       - `credits() -> dict` — `{"spent", "limit", "remaining", "source": "tavily"|"local", "run_budget"}`; Tavily-ответ кешируется 60 с (перенос `RunManager.credits/_tavily/_local`).
-      - `start() -> str` — `credits()["remaining"] <= 0` → `MonthExhausted`; `reap_stale(now)`; `create(run_id, "web", now)` (→ `AlreadyRunning`); `popen([sys.executable, "-m", "aidigest", "run", "--run-id", run_id], env={…, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"})`; поток-наблюдатель ждёт процесс и, если запись после выхода всё ещё `running`, делает `finish(run_id, "error", code, REASON_CRASHED)`. Возвращает `run_id`.
-      - `current() -> RunRecord | None` (перед ответом — `reap_stale(now)`), `history(limit=10)`, `log(run_id) -> str | None`.
-      - `on_startup() -> int` — `reap_stale(now, grace_seconds=0)` (бэкенд только что стартовал — своих подпроцессов нет; консольный запуск защищён блокировкой).
+      - `start(params: RunParams | None = None) -> str` — `credits()["remaining"] <= 0` и не `offline` → `MonthExhausted`; `run_id = now().strftime("%Y%m%d-%H%M%S")`; `create(run_id, now, params.as_dict())` (→ `AlreadyRunning`); `popen([sys.executable, "-m", "aidigest", "run", "--run-id", run_id, *params.to_argv()], cwd=project_root, env={…, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"})`; если `popen` бросил — `finish(run_id, "error", None, "Не удалось запустить сбор.")` и исключение дальше. Поток-наблюдатель ждёт процесс; если после выхода запись всё ещё `running` — `finish(run_id, "error", code, REASON_CRASHED)`. Возвращает `run_id`.
+      - `current() -> RunRecord | None`, `history(limit=10)`, `log(run_id) -> str | None`.
+      - `on_startup() -> int` — `interrupt_running(now)`: бэкенд только что стартовал, других источников сбора нет — всё «идущее» оборвано перезапуском.
+      - `join_watchers(timeout: float = 5) -> None` — для тестов.
 
 - [ ] **Step 1: Падающие тесты** (на `memory_storage()` и фейковом `popen`)
 
 ```python
-def test_start_spawns_cli_with_run_id(svc, popen_calls):
-    rid = svc.start()
-    assert popen_calls[0][-2:] == ["--run-id", rid] and svc.current().run_id == rid
+def test_start_spawns_cli_with_run_id_and_params(svc, popen_calls):
+    rid = svc.start(RunParams(budget=5, levels=[Level.SVERDLOVSK], offline=True))
+    argv = popen_calls[0]
+    assert argv[3:6] == ["run", "--run-id", rid]
+    assert ["--budget", "5"] == argv[argv.index("--budget"):argv.index("--budget") + 2]
+    assert "--offline" in argv and svc.current().params == {"budget": 5, "levels": ["Свердловская область"], "offline": True}
 
 def test_start_twice_raises(svc):
     svc.start()
@@ -376,15 +369,20 @@ def test_start_twice_raises(svc):
 def test_start_refuses_when_month_exhausted(svc_exhausted):
     with pytest.raises(MonthExhausted): svc_exhausted.start()
 
-def test_crashed_child_marks_error(svc, fake_proc_exit_code_1):    # Review Focus 5
-    rid = svc.start(); svc.join_watchers()
-    r = svc.storage.runs.get(rid); assert r.state == "error" and r.reason == REASON_CRASHED
+def test_crashed_child_marks_error(svc_child_exits_1):                 # Review Focus 2
+    rid = svc_child_exits_1.start(); svc_child_exits_1.join_watchers()
+    r = svc_child_exits_1.storage.runs.get(rid); assert r.state == "error" and r.reason == REASON_CRASHED
+    svc_child_exits_1.start()                                          # кнопка снова доступна
+
+def test_popen_failure_closes_record(svc_popen_raises):
+    with pytest.raises(OSError): svc_popen_raises.start()
+    assert svc_popen_raises.current() is None
 
 def test_on_startup_interrupts_left_running(svc):
-    svc.storage.runs.create("old", "web", NOW)
+    svc.storage.runs.create("old", NOW)
     assert svc.on_startup() == 1 and svc.storage.runs.get("old").state == "interrupted"
 
-def test_credits_local_when_no_tavily(svc):                         # Review Focus 3
+def test_credits_local_when_no_tavily(svc):                             # Review Focus 3
     c = svc.credits(); assert c["source"] == "local" and c["spent"] == 0 and c["limit"] == 1000
 
 def test_case_service_filters_and_counts(make_case):
@@ -395,8 +393,6 @@ def test_case_service_filters_and_counts(make_case):
 def test_export_returns_xlsx_bytes(make_case):
     ... assert CaseService(st).export_xlsx()[:2] == b"PK"
 ```
-
-(`join_watchers()` — тестовый помощник `RunService`, ждущий потоки-наблюдатели.)
 
 - [ ] **Step 2: FAIL** — `pytest tests/services -q`.
 - [ ] **Step 3: Реализовать**; `aidigest_web/views.py` и `config_pages.py` импортируют перенесённое из сервисов.
@@ -435,8 +431,8 @@ def test_export_returns_xlsx_bytes(make_case):
     | `GET /api/export.xlsx` | файл `aidigest_cases_<ГГГГ-ММ-ДД>.xlsx` |
     | `GET /api/credits` | `RunService.credits()` |
     | `GET /api/runs/current` | `{"running": false}` или `{"running": true, "run_id", "started", "minutes", "tail": [...]}` |
-    | `POST /api/runs` | 202 `{"run_id"}`; 409 `{"detail": "Сбор уже идёт — дождитесь, пока он закончится."}`; 409 `{"detail": "Лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения лимита."}` |
-    | `GET /api/runs?limit=10` | `[{"run_id","source","state","label","started","finished","minutes","exit_code","reason","report"}]` |
+    | `POST /api/runs` (тело необязательно: `{"budget"?: число > 0, "levels"?: [уровень], "days"?: целое ≥ 1, "offline"?: bool}` → `RunParams`) | 202 `{"run_id"}`; 422 при неверных полях (запуск не создаётся); 409 `{"detail": "Сбор уже идёт — дождитесь, пока он закончится."}`; 409 `{"detail": "Лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения лимита."}` |
+    | `GET /api/runs?limit=10` | `[{"run_id","state","label","started","finished","minutes","exit_code","reason","report","params"}]` |
     | `GET /api/runs/{id}/log` | text/plain; 404 |
     | `GET /api/queries` | `{"groups": [{"level", "queries": [...]}], "total", "freshness_days", "error"}` |
     | `GET /api/sources?level&reliability` | `{"sources": [...], "total", "error", "level_options", "reliability_options"}` |
@@ -481,6 +477,12 @@ def test_empty_base_everything_answers(authed):                      # Review Fo
 
 def test_case_list_filters_and_detail(authed_with_cases): ...       # metrics=0 показывает кейс без цифр; 404 на неизвестный id
 def test_start_run_and_conflict(authed): ...                         # 202, затем 409 с текстом «Сбор уже идёт…»
+def test_start_run_passes_debug_params(authed, popen_calls): ...      # {"budget": 5, "levels": ["Свердловская область"], "offline": true} → в argv подпроцесса
+
+@pytest.mark.parametrize("body", [{"budget": -1}, {"levels": ["марс"]}, {"days": 0}])
+def test_start_run_rejects_bad_params(authed, body):                 # Review Focus 5
+    assert authed.post("/api/runs", json=body).status_code == 422
+    assert authed.get("/api/runs").json() == []
 def test_queries_and_sources(authed): ...                            # реальные config/*.yaml: total > 0, error is None
 def test_foreign_host_rejected_without_password(open_client):
     assert open_client.get("/api/cases", headers={"Host": "evil.test"}).status_code == 400
@@ -597,7 +599,7 @@ it("неизвестный кейс — страница «Кейс не най�
 
 **Interfaces:**
 - Consumes: `/api/credits`, `/api/runs/current`, `POST /api/runs`, `/api/runs`, `/api/runs/{id}/log`, `/api/queries`, `/api/sources`.
-- Produces: маршруты `/run`, `/queries`, `/sources`, `/help`. Тексты и пояснения — из `run.html`, `queries.html`, `sources.html`, `help.html` (смысл без изменений; упоминания «heartbeat», «3 часов» и «сборщик не взял заявку» убрать — их больше нет). На `/run`, пока идёт сбор, `/api/runs/current` опрашивается каждые 5 с (как `static/app.js`); после окончания история перечитывается. Кнопка «Запустить сбор» блокируется, пока идёт сбор или остаток кредитов 0; ответ 409 показывается текстом `detail`. Источник учёта кредитов подписан («по данным Tavily» / «по нашему учёту»). Ссылка «полный лог» — `/api/runs/{id}/log`. В истории — пометка «из консоли» для `source === "cli"`.
+- Produces: маршруты `/run`, `/queries`, `/sources`, `/help`. Тексты и пояснения — из `run.html`, `queries.html`, `sources.html`, `help.html` (смысл без изменений; упоминания «heartbeat», «3 часов» и «сборщик не взял заявку» убрать — их больше нет). На `/run`, пока идёт сбор, `/api/runs/current` опрашивается каждые 5 с (как `static/app.js`); после окончания история перечитывается. Кнопка «Запустить сбор» блокируется, пока идёт сбор или остаток кредитов 0; ответ 409 показывается текстом `detail`. Источник учёта кредитов подписан («по данным Tavily» / «по нашему учёту»). Ссылка «полный лог» — `/api/runs/{id}/log`. В истории у запусков с непустыми `params` — пометка «отладочный» с параметрами.
 
 - [ ] **Step 1: Падающие тесты**
 
@@ -605,7 +607,7 @@ it("неизвестный кейс — страница «Кейс не най�
 it("идёт сбор — минуты и хвост лога, кнопка заблокирована, опрос каждые 5 с", ...)   // fake timers
 it("409 при запуске показывает текст сервера", ...)
 it("остаток кредитов 0 — кнопка заблокирована", ...)
-it("история: прерванный запуск показывает причину, консольный — пометку «из консоли»", ...)
+it("история: прерванный запуск показывает причину, отладочный — пометку с параметрами", ...)
 it("источники: фильтр уровня и достоверности уходит в запрос", ...)
 ```
 
@@ -662,7 +664,7 @@ it("источники: фильтр уровня и достоверности 
 **Interfaces:**
 - Produces:
   - `docs/deploy.md`: первая установка с нуля на Ubuntu/Debian (Docker, папки `/srv/aidigest/{data,secrets}`, права UID 1000, `docker-compose.yml` и `.env` — скачать из репозитория `curl -O https://raw.githubusercontent.com/LARCH1K/aiDigest/master/docker-compose.yml` и `.env.example`, секреты `web.env` с `WEB_USERNAME/WEB_PASSWORD/WEB_SECRET_KEY`, `tavily.env`, `litellm.env`; `docker login ghcr.io` — если пакеты приватные, токен только с `read:packages`); выкладка `docker compose pull && docker compose up -d`; откат через `AIDIGEST_VERSION=sha-xxxxxxx`; «если сайт не работает» (`docker compose ps`, `docker compose logs backend`); резервные копии (`data/backend/backups/*.dump`, восстановление `pg_restore`); копия базы себе (`docker compose exec db pg_dump …` → `scp`), обратно не заливать; HTTPS через Caddy перед `frontend` с `AIDIGEST_TRUST_PROXY=1` и нужным `X-Forwarded-For`; предупреждение: перезапуск во время сбора прерывает его, запуск помечается «прервано».
-  - `README.md`, `CLAUDE.md`: раздел про пайплайн, веб и сервер — под новую архитектуру (команды разработки: `docker compose -f docker-compose.dev.yml up -d`, `DATABASE_URL`, `python -m aidigest run|export|eval`, `python -m aidigest_api`, `cd frontend; npm run dev`, тесты бэкенда с `AIDIGEST_TEST_DATABASE_URL`, тесты фронтенда); база — Postgres, а не `data/cases.json`; убрать `AIDIGEST_RUN_MODE`, `aidigest_web.worker`, `deploy.sh`.
+  - `README.md`, `CLAUDE.md`: раздел про пайплайн, веб и сервер — под новую архитектуру (команды разработки: `docker compose -f docker-compose.dev.yml up -d`, `DATABASE_URL`, `python -m aidigest_api`, отладочный сбор `curl -X POST localhost:8000/api/runs -H "Content-Type: application/json" -d '{"budget":5,"levels":["Свердловская область"]}'`, `python -m aidigest eval`, `cd frontend; npm run dev`, тесты бэкенда с `AIDIGEST_TEST_DATABASE_URL`, тесты фронтенда); база — Postgres, а не `data/cases.json`; убрать `AIDIGEST_RUN_MODE`, `aidigest_web.worker`, `deploy.sh`.
   - `.claude/launch.json`: конфигурации `aidigest-api` (`.venv/Scripts/python.exe -m aidigest_api --port 8000`) и `aidigest-frontend` (`npm --prefix frontend run dev`, порт 5173).
   - `docs/pipeline-process.md`: шаги 0, 7, 8 — Postgres вместо `cases.json`/`credits.json`, сохранение подтверждений по одному.
 
@@ -684,7 +686,7 @@ it("источники: фильтр уровня и достоверности 
 
 - [ ] **Step 1: Эталон** — `.venv/Scripts/python -m aidigest eval --offline` на старой версии (до изменений — `git stash`/чекаут `master` в отдельной папке) и на новой; Expected: результат совпадает (eval не зависит от хранилища).
 - [ ] **Step 2: Первый сбор через сайт локального стека** — на `/run` «Запустить сбор» (база пуста → бюджет `first_run_budget: 100`, см. Task 5). Наблюдать ход на странице. Expected: запуск завершён `ok`, в истории есть отчёт.
-- [ ] **Step 3: Проверка обрыва** — запустить сбор с бюджетом 5 (`docker compose exec -d backend python -m aidigest run --budget 5`), через минуту `docker compose restart backend`; Expected: консольный запуск убит вместе с контейнером, после старта бэкенда в истории — «прервано» с `REASON_INTERRUPTED`, кнопка запуска доступна.
+- [ ] **Step 3: Проверка обрыва** — запустить отладочный сбор с бюджетом 5 (на локальном стеке вход по паролю, поэтому — из консоли браузера на открытом сайте: `fetch("/api/runs", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({budget: 5})})`), через минуту `docker compose restart backend`; Expected: сбор убит вместе с контейнером, после старта бэкенда в истории — «прервано» с `REASON_INTERRUPTED`, кнопка запуска доступна.
 - [ ] **Step 4: Сравнение** — `docker compose exec backend python tools/compare_bases.py /data/old_cases.json` (старый `data/cases.json` скопировать в `data/stack/backend/old_cases.json`). Оценить самому: доли «с показателями», «подтверждено», «цитата проверена» не ниже прежних больше чем на 10 процентных пунктов (с учётом разного бюджета: старая база собрана за несколько запусков); распределение по уровням без пустого уровня. При существенном падении — разобраться (`superpowers:systematic-debugging`) и исправить до Task 16. Записать итог и расход кредитов в сообщение коммита.
 - [ ] **Step 5: Commit** — `chore: сравнение старой и новой базы, проверка качества сбора`
 
@@ -693,7 +695,7 @@ it("источники: фильтр уровня и достоверности 
 ### Task 16: Удаление старой архитектуры и слияние
 
 **Files:**
-- Delete: `src/aidigest_web/` целиком, `tests/web/`, `src/aidigest/runlock.py`, `tests/test_runlock.py`, `test_litellm.py`
+- Delete: `src/aidigest_web/` целиком, `tests/web/`, `test_litellm.py`
 - Modify: `src/aidigest/store.py` (убрать JSON `CaseStore`, `replace_with_retry` перенести в `cache.py`), `src/aidigest/usage.py` (убрать `JsonCreditsRepo`), `src/aidigest/housekeeping.py`, `tests/test_store.py`, `tests/test_housekeeping.py`, `pyproject.toml` (убрать extra `web`, `package-data` для `aidigest_web`), `requirements.lock`, `.gitignore` (убрать `data/cases.json`, `data/credits.json`, `data/web/`, `data/run.cli.lock`; добавить `data/stack/`, `frontend/node_modules/`, `frontend/dist/`)
 - Delete (локальные данные, не в git): `data/cases.json`, `data/credits.json`, `data/web/`, `data/run.cli.lock` — `data/cache/` и `data/out/` не трогать
 
