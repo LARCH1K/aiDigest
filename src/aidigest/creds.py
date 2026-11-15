@@ -7,7 +7,7 @@ from pathlib import Path
 
 LITELLM_KEYS = ("LITELLM_API_KEY", "LITELLM_BASE_URL", "LITELLM_MODEL")
 TAVILY_KEYS = ("TAVILY_TOKEN",)
-WEB_KEYS = ("WEB_PASSWORD", "WEB_SECRET_KEY")
+WEB_KEYS = ("WEB_USERNAME", "WEB_PASSWORD", "WEB_SECRET_KEY")
 
 
 def load_env_file(path: Path) -> dict[str, str]:

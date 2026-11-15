@@ -10,6 +10,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 from sqlalchemy import Engine, delete, select, update
 from sqlalchemy.exc import IntegrityError
@@ -33,6 +34,7 @@ LOG_TAIL_LINES = 30
 USAGE_TTL = 60.0  # секунд кеша ответа Tavily
 FINISH_RETRIES = 3  # попыток закрыть запись при сбое БД
 FINISH_PAUSE = 0.5  # секунд между попытками
+STOP_TIMEOUT = 3  # секунд ожидания после каждого сигнала завершения
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +65,10 @@ class AlreadyRunning(Exception):
 
 class MonthExhausted(Exception):
     """Месячный лимит кредитов Tavily исчерпан."""
+
+
+class RunServiceStopping(Exception):
+    """Сервис завершает работу."""
 
 
 def _to_local(dt: datetime | None) -> datetime | None:
@@ -213,6 +219,9 @@ class RunService:
         self._fetch_usage = fetch_usage
         self._usage_cache: tuple[float, object] | None = None
         self._watchers: list[threading.Thread] = []
+        self._run_lock = threading.Lock()
+        self._stopping = False
+        self._child: tuple[str, subprocess.Popen, threading.Thread] | None = None
 
     @property
     def _logs_dir(self) -> Path:
@@ -241,12 +250,14 @@ class RunService:
         cr = self.credits()
         if cr["known"] and cr["remaining"] <= 0 and not params.offline:
             raise MonthExhausted
+        with self._run_lock:
+            if self._stopping:
+                raise RunServiceStopping
+            return self._start_child(params)
+
+    def _start_child(self, params: RunParams) -> str:
         started = self._now()
-        base = started.strftime("%Y%m%d-%H%M%S")
-        run_id, n = base, 1
-        while self.store.get(run_id):  # два запуска в одну секунду
-            n += 1
-            run_id = f"{base}-{n}"
+        run_id = f"{started:%Y%m%d-%H%M%S}-{uuid4().hex}"
         self.store.create(run_id, started, params.as_dict())
         log_path = self._logs_dir / f"{run_id}.log"
         try:
@@ -267,6 +278,7 @@ class RunService:
         self._watchers = [w for w in self._watchers if w.is_alive()]
         t = threading.Thread(target=self._watch, args=(run_id, proc, log_path), daemon=True,
                              name=f"run-{run_id}")
+        self._child = (run_id, proc, t)
         self._watchers.append(t)
         t.start()
         return run_id
@@ -280,6 +292,19 @@ class RunService:
         except Exception:
             log.exception("наблюдатель запуска %s не смог разобрать итог", run_id)
             code, state, reason, report = None, "error", REASON_CRASHED, {}
+        with self._run_lock:
+            # on_shutdown забирает активный подпроцесс вместе с правом записать итог.
+            if self._child is not None and self._child[0] == run_id:
+                self._finish(run_id, state, code, reason, report)
+                self._child = None
+        try:  # уборка не должна скрывать итог запуска
+            for rid in self.store.prune(RUNS_KEEP):
+                (self._logs_dir / f"{rid}.log").unlink(missing_ok=True)
+        except Exception:
+            log.exception("уборка старых запусков не удалась")
+
+    def _finish(self, run_id: str, state: str, code: int | None, reason: str | None,
+                report: dict[str, str]) -> None:
         for attempt in range(FINISH_RETRIES):
             try:
                 self.store.finish(run_id, state, code, reason, report, self._now())
@@ -288,11 +313,6 @@ class RunService:
                 log.exception("не удалось закрыть запись %s (попытка %d)", run_id, attempt + 1)
                 if attempt + 1 < FINISH_RETRIES:
                     time.sleep(FINISH_PAUSE)
-        try:  # уборка не должна скрывать итог запуска
-            for rid in self.store.prune(RUNS_KEEP):
-                (self._logs_dir / f"{rid}.log").unlink(missing_ok=True)
-        except Exception:
-            log.exception("уборка старых запусков не удалась")
 
     def current(self) -> tuple[RunRecord, list[str]] | None:
         rec = self.store.current()
@@ -310,7 +330,33 @@ class RunService:
         return _read(self._logs_dir / f"{run_id}.log")
 
     def on_startup(self) -> int:
-        return self.store.interrupt_running(self._now())
+        with self._run_lock:
+            interrupted = self.store.interrupt_running(self._now())
+            self._stopping = False
+            return interrupted
+
+    def on_shutdown(self) -> None:
+        with self._run_lock:
+            self._stopping = True
+            if self._child is None:
+                return
+            run_id, proc, watcher = self._child
+            interrupted = proc.poll() is None
+            if interrupted:
+                self._child = None
+        if not interrupted:
+            watcher.join(STOP_TIMEOUT)
+            return
+        try:
+            proc.terminate()
+            try:
+                proc.wait(timeout=STOP_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=STOP_TIMEOUT)
+        finally:
+            self._finish(run_id, "interrupted", None, REASON_INTERRUPTED, {})
+            watcher.join(STOP_TIMEOUT)
 
     def join_watchers(self, timeout: float = 5) -> None:
         for t in self._watchers:
