@@ -1,3 +1,5 @@
+pytest_plugins = ["pgfixtures"]
+
 from datetime import date
 
 import pytest
