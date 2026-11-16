@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, apiGet } from "../api";
+import { formatDate } from "../formatDate";
 import type { CaseList, CaseRow, Level, Meta, Option } from "../types";
 
 const selectFilters = [
   { name: "level", label: "Уровень", empty: "Все уровни" },
   { name: "status", label: "Подтверждение", empty: "Любое" },
   { name: "reliability", label: "Достоверность", empty: "Любая" },
+  { name: "criterion", label: "Тип эффекта", empty: "Любой тип эффекта" },
+  { name: "kpi", label: "KPI Стратегии", empty: "Любой KPI" },
 ] as const;
 type FilterOptions = Record<(typeof selectFilters)[number]["name"], Option[]>;
 type Sort = { index: number; direction: "ascending" | "descending" };
@@ -28,7 +31,7 @@ const columns: {
   { label: "Уровень", value: (row) => row.level },
   { label: "Регион", value: (row) => row.region || row.country },
   { label: "Кейс", value: (row) => row.title, secondary: (row) => row.organization ?? "" },
-  { label: "Главная цифра" },
+  { label: "Показатели" },
   { label: "Стадия", value: (row) => row.stage },
   { label: "Статус", value: (row) => row.status_label },
   {
@@ -37,7 +40,7 @@ const columns: {
       ? reliabilityRanks.indexOf(row.reliability ?? "") : reliabilityRanks.length),
     title: "Лучшая оценка среди источников кейса",
   },
-  { label: "В базе с", value: (row) => row.first_seen, title: "Когда кейс впервые попал в базу" },
+  { label: "Обновлён", value: (row) => row.updated.slice(0, 10), title: "Дата обновления кейса" },
 ];
 const collator = new Intl.Collator("ru", { numeric: true, sensitivity: "base" });
 
@@ -47,13 +50,16 @@ function queryFromAddress(search: URLSearchParams) {
     const value = search.get(key);
     if (value) query.set(key, value);
   }
-  query.set("metrics", search.get("metrics") === "0" ? "0" : "1");
+  const metrics = search.get("metrics");
+  if (metrics === "0" || metrics === "1") query.set("metrics", metrics);
   if (search.get("doubtful") === "1") query.set("doubtful", "1");
   return query;
 }
 
 function CasesFilters({ query, options }: { query: URLSearchParams; options: FilterOptions }) {
   const [, setSearch] = useSearchParams();
+  const [kpi, setKpi] = useState(query.get("kpi") ?? "");
+  const [metrics, setMetrics] = useState(query.get("metrics"));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,13 +69,16 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
       const value = String(data.get(key) ?? "");
       if (value) search.set(key, value);
     }
-    search.set("metrics", data.has("metrics") ? "1" : "0");
+    if (metrics !== null) search.set("metrics", metrics);
     if (data.has("doubtful")) search.set("doubtful", "1");
     setSearch(search);
   }
 
   return (
-    <form className="filters card" method="get" action="/" onSubmit={submit}>
+    <form className="filters card" method="get" action="/" onSubmit={submit} onReset={() => {
+      setKpi(query.get("kpi") ?? "");
+      setMetrics(query.get("metrics"));
+    }}>
       <label className="field field-grow">
         <span>Поиск</span>
         <input type="search" name="q" defaultValue={query.get("q") ?? ""}
@@ -80,7 +89,10 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
         return (
           <label className="field" key={name}>
             <span>{label}</span>
-            <select name={name} defaultValue={current}>
+            <select name={name} className={name === "kpi" ? "kpi-select" : undefined}
+              {...(name === "kpi"
+                ? { value: kpi, onChange: (event) => setKpi(event.currentTarget.value) }
+                : { defaultValue: current })}>
               <option value="">{empty}</option>
               {current && !options[name].some(({ value }) => value === current) && (
                 <option value={current}>{current} (устаревшее значение)</option>
@@ -92,7 +104,8 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
       })}
       <div className="checks">
         <label className="check">
-          <input type="checkbox" name="metrics" value="1" defaultChecked={query.get("metrics") === "1"} />
+          <input type="checkbox" name="metrics" value="1" checked={metrics === null ? !kpi : metrics === "1"}
+            onChange={(event) => setMetrics(event.currentTarget.checked ? "1" : "0")} />
           {" "}только с цифрами
         </label>
         <label className="check">
@@ -110,7 +123,41 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
   );
 }
 
-function CasesTable({ rows }: { rows: CaseRow[] }) {
+function MetricsCell({ row, kpis }: { row: CaseRow; kpis: Option[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const metrics = row.metrics.map(({ name, before, after, change, quote_verified }, index) => {
+    const value = before && after ? `${before} → ${after}` : change || after || before;
+    return (
+      <li key={index}>
+        {name}{value && ` · ${value}`}
+        {value && !quote_verified && <> <span className="warn-mark" title={warning}>⚠</span></>}
+      </li>
+    );
+  });
+  const kpiIds = new Set(row.strategy_links.map(({ kpi_id }) => kpi_id));
+  const links = [...kpiIds].map((id) => (
+    <li className="case-kpi" key={id}>
+      <span className="tag">KPI</span> {kpis.find(({ value }) => value === id)?.label ?? id}
+    </li>
+  ));
+  const lines = [...metrics, ...links];
+  const remaining = lines.length - 3;
+  return (
+    <td className="case-metrics">
+      {lines.length > 0
+        ? <ul>{expanded ? lines : lines.slice(0, 3)}</ul>
+        : "—"}
+      {remaining > 0 && (
+        <button type="button" className="metrics-toggle" aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}>
+          {expanded ? "Свернуть" : `Ещё ${remaining}`}
+        </button>
+      )}
+    </td>
+  );
+}
+
+function CasesTable({ rows, kpis }: { rows: CaseRow[]; kpis: Option[] }) {
   const { pathname, search, hash, state } = useLocation();
   const navigate = useNavigate();
   const sorts: Sort[] = state?.casesSorts ?? [];
@@ -169,14 +216,11 @@ function CasesTable({ rows }: { rows: CaseRow[] }) {
                   <Link to={`/case/${encodeURIComponent(row.id)}`} state={{ casesSearch: search }}>{row.title}</Link>
                   {row.organization && <small>{row.organization}</small>}
                 </td>
-                <td className="headline">
-                  {row.headline}
-                  {row.headline_unverified && <> <span className="warn-mark" title={warning}>⚠</span></>}
-                </td>
+                <MetricsCell row={row} kpis={kpis} />
                 <td className="nowrap">{row.stage}</td>
                 <td><span className={`pill pill-${row.status_class}`}>{row.status_label}</span></td>
                 <td><span className={`pill pill-${row.reliability_class}`}>{row.reliability_label}</span></td>
-                <td className="nowrap">{row.first_seen.split("-").reverse().join(".")}</td>
+                <td className="nowrap"><time dateTime={row.updated}>{formatDate(row.updated)}</time></td>
               </tr>
             ))}
           </tbody>
@@ -196,10 +240,11 @@ function NoMatches() {
   );
 }
 
-function CasesResults({ query, unmatched, validateOnServer }: {
+function CasesResults({ query, unmatched, validateOnServer, kpis }: {
   query: string;
   unmatched: boolean;
   validateOnServer: boolean;
+  kpis: Option[];
 }) {
   const [data, setData] = useState<CaseList>();
   const [failure, setFailure] = useState<"unmatched" | "error">();
@@ -229,7 +274,7 @@ function CasesResults({ query, unmatched, validateOnServer }: {
         <b>Найдено {cases.length} из {total}</b>
         {updated && <>
           <span className="dot">·</span> база обновлена{" "}
-          {updated.slice(0, 10).split("-").reverse().join(".")} {updated.slice(11, 16)}
+          {formatDate(updated)} {updated.slice(11, 16)}
         </>}
       </p>
       {total === 0 ? (
@@ -239,7 +284,7 @@ function CasesResults({ query, unmatched, validateOnServer }: {
         </div>
       ) : cases.length === 0 ? (
         <NoMatches />
-      ) : <CasesTable rows={cases} />}
+      ) : <CasesTable rows={cases} kpis={kpis} />}
     </>
   );
 }
@@ -254,13 +299,22 @@ export function Cases() {
     level: meta.levels.map((level) => ({ value: level, label: level })),
     status: meta.statuses,
     reliability: meta.reliability,
+    criterion: meta.criteria,
+    kpi: meta.strategy_kpis,
   };
   const needsOptions = selectFilters.some(({ name }) => query.has(name));
   const apiQuery = new URLSearchParams(query);
+  apiQuery.delete("doubtful");
+  apiQuery.set("metrics", query.get("metrics") ?? (query.has("kpi") ? "0" : "1"));
+  if (query.has("doubtful")) apiQuery.set("doubtful", "1");
+  let unmatched = false;
   if (options) {
     for (const { name } of selectFilters) {
       const current = query.get(name);
-      if (current && !options[name].some(({ value }) => value === current)) apiQuery.delete(name);
+      if (current && !options[name].some(({ value }) => value === current)) {
+        apiQuery.delete(name);
+        unmatched = true;
+      }
     }
   }
   const requestQuery = apiQuery.toString();
@@ -289,8 +343,9 @@ export function Cases() {
         <CasesResults
           key={`results:${requestQuery}`}
           query={requestQuery}
-          unmatched={requestQuery !== query.toString()}
+          unmatched={unmatched}
           validateOnServer={metaFailed && needsOptions}
+          kpis={meta?.strategy_kpis ?? []}
         />
       ) : <p className="muted" role="status">Загрузка кейсов…</p>}
     </>

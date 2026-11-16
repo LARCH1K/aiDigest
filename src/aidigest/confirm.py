@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from aidigest.llm import LLMClient, LLMFormatError
 from aidigest.models import Case, ConfirmationStatus
 from aidigest.models import Article
+from aidigest.publication import case_update, merge_source
 from aidigest.quotes import extract_numbers, normalize_text, quote_in_text
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
@@ -123,20 +124,30 @@ def _case_for_prompt(case: Case) -> str:
 
 
 def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: SourceRegistry,
-                 today: date, max_results: int) -> None:
+                 today: date, max_results: int) -> list[Article]:
+    with case_update(case, today):
+        return _confirm_case(case, search, llm, registry, today, max_results)
+
+
+def _confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: SourceRegistry,
+                  today: date, max_results: int) -> list[Article]:
     own = {domain_of(s.url) for s in case.sources} | {domain_of(m.source_url) for m in case.metrics}
     # Повторная попытка ищет только материалы, вышедшие после прошлой (и не берёт старый ответ из кеша).
     since = case.last_confirmation_attempt if case.confirmation_attempts > 0 else None
     # BudgetExceeded пробрасывается до любых изменений кейса.
     found = search.search(confirmation_query(case), pool="confirm", exclude_domains=sorted(own),
                           start_date=since, max_results=max_results)
+    known = {normalize_url(source.url) for source in case.sources}
+    for article in found:
+        if normalize_url(article.url) in known:
+            merge_source(case, registry.to_source(article))
     case.confirmation_attempts += 1
     case.last_confirmation_attempt = today
     # Независимость источника проверяем сами, не полагаясь на exclude_domains поисковика.
     articles = [a for a in found if domain_of(a.url) not in own]
     if not articles:
         case.recompute_status()
-        return
+        return []
 
     by_url = {normalize_url(a.url): a for a in articles}
     user = _case_for_prompt(case) + "\n\nСтатьи:\n" + "\n\n".join(
@@ -147,7 +158,6 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
         reply = {"matches": []}  # проверка по числам ниже всё равно отработает
     matches = reply.get("matches", []) if isinstance(reply, dict) else []
 
-    known = {normalize_url(s.url) for s in case.sources}
     for m in matches:
         if not isinstance(m, dict):
             continue
@@ -176,15 +186,13 @@ def confirm_case(case: Case, search: SearchClient, llm: LLMClient, registry: Sou
             if _unit_kind(value) != _unit_kind(mine):
                 continue  # «74 региона» против «70%» — разные показатели, а не противоречие
             metric.conflicting_values.append(f"{value} ({url})")
-        if url not in known:
-            case.sources.append(registry.to_source(article))
-            known.add(url)
+        merge_source(case, registry.to_source(article))
     # Детерминированные совпадения по числам — дополнение к осторожному LLM.
     for i, url, _sentence in find_number_confirmations(case, articles):
         metric = case.metrics[i]
         if url not in metric.confirmed_by:
             metric.confirmed_by.append(url)
-        if url not in known:
-            case.sources.append(registry.to_source(by_url[url]))
-            known.add(url)
+        merge_source(case, registry.to_source(by_url[url]))
     case.recompute_status()
+    linked_urls = {normalize_url(source.url) for source in case.sources}
+    return [article for url, article in by_url.items() if url in linked_urls]

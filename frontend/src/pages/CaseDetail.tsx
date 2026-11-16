@@ -3,12 +3,9 @@ import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ApiError, apiGet } from "../api";
 import { Flags } from "../components/Flags";
+import { formatDate } from "../formatDate";
 import { safeUrl } from "../safeUrl";
-import type { CaseDetail, Metric, Source } from "../types";
-
-function caseDate(date: string) {
-  return date.split("-").reverse().join(".");
-}
+import type { CaseDetail, Meta, Metric, Source, StrategyKpi, StrategyLink } from "../types";
 
 function CaseHeader({ data }: { data: CaseDetail }) {
   const place = [data.region || data.country, data.municipality].filter(Boolean).join(", ");
@@ -27,6 +24,7 @@ function CaseHeader({ data }: { data: CaseDetail }) {
         {data.ai_technology && <div><dt>Технология</dt><dd>{data.ai_technology}</dd></div>}
         <div><dt>Стадия</dt><dd>{data.stage}</dd></div>
         <div><dt>Методика</dt><dd>{data.methodology}</dd></div>
+        <div><dt>Обновлён</dt><dd><time dateTime={data.updated}>{formatDate(data.updated)}</time></dd></div>
       </dl>
       {data.summary && <p className="summary-box">{data.summary}</p>}
     </section>
@@ -72,7 +70,41 @@ function MetricRow({ metric }: { metric: Metric }) {
   );
 }
 
-function Metrics({ metrics }: { metrics: Metric[] }) {
+function StrategyLinks({ links, kpis }: { links: StrategyLink[]; kpis: StrategyKpi[] }) {
+  const byKpi = new Map<string, StrategyLink[]>();
+  for (const link of links) {
+    const evidence = byKpi.get(link.kpi_id);
+    if (evidence) evidence.push(link);
+    else byKpi.set(link.kpi_id, [link]);
+  }
+  return (
+    <section className="strategy-links">
+      <h3>KPI Стратегии</h3>
+      {[...byKpi].map(([id, evidence]) => {
+        const kpi = kpis.find(({ value }) => value === id);
+        return (
+          <div className="strategy-item" key={id}>
+            <h4>{kpi?.label ?? id}</h4>
+            {kpi && <a className="src" href={safeUrl(kpi.url)} target="_blank" rel="noopener noreferrer">
+              Пункт {kpi.clause} Стратегии
+            </a>}
+            <ul>
+              {evidence.map(({ explanation, quote, source_url }) => (
+                <li key={source_url} className="quote">
+                  <p>{explanation}</p>
+                  <blockquote>«{quote}»</blockquote>
+                  <a className="src" href={safeUrl(source_url)} target="_blank" rel="noopener noreferrer">Публикация</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function Metrics({ metrics, links, kpis }: { metrics: Metric[]; links: StrategyLink[]; kpis: StrategyKpi[] }) {
   return (
     <section className="card">
       <h2>Показатели</h2>
@@ -96,6 +128,7 @@ function Metrics({ metrics }: { metrics: Metric[] }) {
           </table>
         </div>
       )}
+      {links.length > 0 && <StrategyLinks links={links} kpis={kpis} />}
     </section>
   );
 }
@@ -107,10 +140,14 @@ function Sources({ sources }: { sources: Source[] }) {
       <ul className="sources">
         {sources.map((source, index) => {
           const tag = source.reliability === "высокая" ? "ok" : source.reliability === "средняя" ? "warn" : "muted";
+          const published = formatDate(source.published_at);
           return (
             <li key={index}>
               <a href={safeUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.title || source.domain}</a>
               <span className="muted">{source.domain}</span>
+              {published
+                ? <time className="muted" dateTime={source.published_at?.slice(0, 10)}>{published}</time>
+                : <span className="muted">Дата публикации не указана</span>}
               <span className={`tag tag-${tag}`}>достоверность: {source.reliability.replace("_", " ")}</span>
             </li>
           );
@@ -139,6 +176,9 @@ function CaseListLink({ children, className }: { children: ReactNode; className?
 function CaseContent({ id }: { id: string }) {
   const [data, setData] = useState<CaseDetail>();
   const [failure, setFailure] = useState<"missing" | "error">();
+  const [meta, setMeta] = useState<Meta>();
+  const [metaFailed, setMetaFailed] = useState(false);
+  const needsMeta = Boolean(data && (data.flags.length || data.strategy_links.length));
 
   useEffect(() => {
     let active = true;
@@ -150,6 +190,16 @@ function CaseContent({ id }: { id: string }) {
     );
     return () => { active = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!needsMeta) return;
+    let active = true;
+    apiGet<Meta>("/api/meta").then(
+      (result) => { if (active) setMeta(result); },
+      () => { if (active) setMetaFailed(true); },
+    );
+    return () => { active = false; };
+  }, [needsMeta]);
 
   if (failure === "missing") {
     return (
@@ -165,12 +215,12 @@ function CaseContent({ id }: { id: string }) {
   return (
     <>
       <CaseHeader data={data} />
-      <Metrics metrics={data.metrics} />
+      <Metrics metrics={data.metrics} links={data.strategy_links} kpis={meta?.strategy_kpis ?? []} />
       <div className="grid-2">
         <Sources sources={data.sources} />
-        <Flags flags={data.flags} />
+        <Flags flags={data.flags} help={meta?.flag_help} failed={metaFailed} />
       </div>
-      <p className="hint">Найден {caseDate(data.first_seen)}, обновлён {caseDate(data.updated)}.</p>
+      <p className="hint">В базе с <time dateTime={data.first_seen}>{formatDate(data.first_seen)}</time>.</p>
     </>
   );
 }

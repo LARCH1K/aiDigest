@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,15 @@ class DiskCache:
         if not p.exists():
             return None
         return json.loads(p.read_text(encoding="utf-8"))
+
+    def values(self, namespace: str) -> Iterator[Any]:
+        """Читает доступные записи независимо от исходных ключей запросов."""
+        for path in sorted((self.root / namespace).glob("*.json")):
+            try:
+                value = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            yield value
 
     def put(self, namespace: str, key: Any, value: Any) -> None:
         p = self._path(namespace, key)

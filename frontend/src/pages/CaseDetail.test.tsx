@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { App } from "../App";
 import type { CaseDetail, CaseRow } from "../types";
 
 const unsafeUrl = "javascript:alert(1)";
+const decree = "https://publication.pravo.gov.ru/document/0001202402150063";
 const detail: CaseDetail = {
   id: "water", title: "Контроль воды", level: "мир", country: "Япония", region: null,
   municipality: "Токио", organization: "Водоканал", industry: "ЖКХ", sector: "госсектор",
@@ -19,6 +20,7 @@ const detail: CaseDetail = {
     kind: "план", unit: "мин", quote: "Проверка займёт 4 минуты.", source_url: unsafeUrl,
     quote_verified: true, confirmed_by: [unsafeUrl, "https://report.example/detail"], conflicting_values: ["6 мин"],
   }],
+  strategy_links: [],
   sources: [{
     url: unsafeUrl, domain: "example.test", title: "Первый источник", published_at: null,
     reliability: "низкая", source_type: "СМИ",
@@ -46,14 +48,16 @@ function HistoryControls() {
 }
 
 function setup(path: string, cases: (url: string) => Promise<Response> = async () => Response.json(detail)) {
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+  const fetch = vi.fn(async (url: string) => {
     if (url === "/api/me") return Response.json({ authenticated: true, login_required: false });
     if (url === "/api/meta") return Response.json({
-      levels: ["мир"], statuses: [], reliability: [],
+      levels: ["мир"], statuses: [], reliability: [], criteria: [],
+      strategy_kpis: [{ value: "ai_skills", label: "Навыки работы с ИИ", clause: "28.1 «е»", url: decree }],
       flag_help: { один_источник: ["Только один источник.", "Найдите второй источник."] },
     });
     return cases(url);
-  }));
+  });
+  vi.stubGlobal("fetch", fetch);
   render(
     <MemoryRouter initialEntries={["/history-start", path]}>
       <Link to="/case/new">Другой кейс</Link>
@@ -61,7 +65,7 @@ function setup(path: string, cases: (url: string) => Promise<Response> = async (
       <App />
     </MemoryRouter>,
   );
-  return userEvent.setup();
+  return Object.assign(userEvent.setup(), { fetch });
 }
 
 it("ссылки источников и показателей проходят через safeUrl", async () => {
@@ -85,6 +89,52 @@ it("флаги показывают пояснение из meta.flag_help", asy
   setup("/case/water");
   expect(await screen.findByText("Только один источник.")).toBeVisible();
   expect(screen.getByText("Найдите второй источник.")).toBeVisible();
+});
+
+it("в основных сведениях есть дата обновления, у публикаций — свои даты", async () => {
+  setup("/case/water", async () => Response.json({
+    ...detail,
+    updated: "2026-11-06T09:10:00Z",
+    sources: [
+      { ...detail.sources[0], published_at: "2026-11-03" },
+      { ...detail.sources[1], published_at: "2026-11-04T09:10:00Z" },
+      { ...detail.sources[1], title: "Старая запись", published_at: "2026-02-31" },
+      { ...detail.sources[1], title: "Без даты", published_at: null },
+    ],
+  }));
+  expect(await screen.findByText("Обновлён")).toBeVisible();
+  expect(screen.getByText("06.11.2026")).toBeVisible();
+  expect(screen.getByText(/05\.11\.2026/)).toBeVisible();
+  const dates = screen.getAllByRole("listitem").filter((item) => within(item).queryByRole("link"));
+  expect(dates[0]).toHaveTextContent("03.11.2026");
+  expect(dates[1]).toHaveTextContent("04.11.2026");
+  expect(dates[2]).toHaveTextContent("Дата публикации не указана");
+  expect(dates[3]).toHaveTextContent("Дата публикации не указана");
+});
+
+it("свидетельства одного KPI сгруппированы с подпунктом и безопасными ссылками", async () => {
+  const { fetch } = setup("/case/water", async () => Response.json({
+    ...detail,
+    metrics: [],
+    strategy_links: [{
+      kpi_id: "ai_skills", explanation: "Публикация описывает обучение работников.",
+      source_url: "https://news.example/story", quote: "Работники прошли обучение.",
+    }, {
+      kpi_id: "ai_skills", explanation: "Вторая публикация подтверждает обучение.",
+      source_url: unsafeUrl, quote: "Обучение завершено.",
+    }],
+  }));
+  expect(await screen.findByRole("heading", { name: "Навыки работы с ИИ" })).toBeVisible();
+  expect(screen.getAllByRole("heading", { name: "Навыки работы с ИИ" })).toHaveLength(1);
+  expect(screen.getByRole("link", { name: /28\.1 «е»/ })).toHaveAttribute("href", decree);
+  expect(screen.getByText("Публикация описывает обучение работников.")).toBeVisible();
+  expect(screen.getByText("«Работники прошли обучение.»")).toBeVisible();
+  const evidence = screen.getAllByRole("link", { name: "Публикация" });
+  expect(evidence[0]).toHaveAttribute("href", "https://news.example/story");
+  expect(evidence[1]).toHaveAttribute("href", "#");
+  expect(evidence[1]).toHaveAttribute("rel", "noopener noreferrer");
+  expect(screen.getByText("Только один источник.")).toBeVisible();
+  expect(fetch.mock.calls.filter(([url]) => url === "/api/meta")).toHaveLength(1);
 });
 
 it("неизвестный кейс — страница «Кейс не найден»", async () => {

@@ -116,6 +116,7 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
 /* ---------- фильтры ---------- */
 .filters { display: flex; flex-wrap: wrap; gap: 14px 16px; align-items: flex-end; }
 .field-grow { flex: 1 1 280px; }
+.kpi-select { max-width: min(100%, 260px); }
 .checks { display: flex; flex-direction: column; gap: 6px; padding-bottom: 2px; }
 .filter-actions { display: flex; gap: 8px; margin-left: auto; }
 .summary { color: var(--muted); margin: 0 4px 12px; }
@@ -144,7 +145,15 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
 .case-title a:hover { color: var(--accent); }
 .case-title small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .case-title { width: 38%; min-width: 260px; }
-.headline { color: #2b3550; width: 30%; min-width: 200px; }
+.case-metrics { color: #2b3550; width: 30%; min-width: 220px; }
+.case-metrics ul { list-style: none; padding: 0; margin: 0; }
+.case-metrics li + li { margin-top: 4px; }
+.case-metrics .tag { margin-left: 0; }
+.metrics-toggle {
+  background: none; border: 0; padding: 4px 0 0;
+  font: inherit; color: var(--accent); cursor: pointer;
+}
+.metrics-toggle:hover { text-decoration: underline; }
 .col-region { max-width: 180px; color: #3a4560; }
 .warn-mark { color: var(--warn); cursor: help; }
 
@@ -179,6 +188,13 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
                border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 15.5px; }
 .metrics .value { white-space: nowrap; font-weight: 650; }
 .metrics .change { color: var(--accent); font-size: 13px; }
+.card .table-wrap:has(+ .strategy-links) { margin-bottom: 0; }
+.strategy-links { margin-top: 18px; }
+.strategy-links h4 { margin: 0 0 4px; }
+.strategy-item + .strategy-item { margin-top: 14px; }
+.strategy-item ul { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
+.strategy-item li + li { margin-top: 10px; }
+.strategy-item p { margin: 0 0 4px; }
 .quote blockquote { margin: 0 0 4px; color: #2b3550; font-style: italic; }
 .quote .src { font-size: 12.5px; }
 .checks-cell { font-size: 13px; min-width: 190px; }

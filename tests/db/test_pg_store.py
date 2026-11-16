@@ -39,6 +39,22 @@ def test_save_does_not_delete_cases(pg, make_case):
     assert {c.id for c in s.load().cases} == {"c1", "c2"}
 
 
+def test_writer_lock_excludes_another_connection_and_is_released_after_error(pg, make_case):
+    from aidigest.store import WriterBusy
+
+    first = PgCaseStore(pg)
+    second = PgCaseStore(pg)
+    with pytest.raises(ValueError, match="прервано"):
+        with first.write_lock() as writer:
+            writer.save(StoreData([make_case(id="c1")]))
+            assert second.load().cases[0].id == "c1"
+            with pytest.raises(WriterBusy), second.write_lock():
+                pytest.fail("Два процесса одновременно захватили блокировку записи")
+            raise ValueError("прервано")
+    with second.write_lock() as writer:
+        assert writer.load().cases[0].id == "c1"
+
+
 def test_schema_py_matches_migrated_db(pg):
     """schema.py и миграции не должны расходиться по колонкам."""
     insp = inspect(pg)

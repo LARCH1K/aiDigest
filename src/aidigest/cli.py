@@ -1,4 +1,4 @@
-"""Консольные команды: run (и eval — проверка на эталоне)."""
+"""Консольные команды сбора, проверки и дозаполнения кейсов."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,7 @@ from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
-from aidigest.store import PgCaseStore, Store
+from aidigest.store import PgCaseStore, Store, WriterBusy
 from aidigest.usage import fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +26,7 @@ def _data_dir() -> Path:
 
 
 _CRED_KEYS = {"litellm.env": LITELLM_KEYS, "tavily.env": TAVILY_KEYS}
+_WRITER_BUSY = "Причина: Сбор или дозаполнение уже выполняется. Повторите после завершения."
 
 
 class MissingCreds(SystemExit):
@@ -53,10 +54,8 @@ def _parse_levels(raw: str | None) -> set[Level]:
 
 
 def _case_store() -> Store:
-    from aidigest.db.engine import make_engine, migrate
-    engine = make_engine()
-    migrate(engine)
-    return PgCaseStore(engine)
+    from aidigest.db.engine import make_engine
+    return PgCaseStore(make_engine())
 
 
 def cmd_run(args) -> int:
@@ -66,7 +65,11 @@ def cmd_run(args) -> int:
         settings = load_settings(ROOT / "config" / "settings.yaml")
         if args.days:
             settings.freshness_days = args.days
-        return _run_all(args, settings)
+        with _case_store().write_lock() as store:
+            return _run_all(args, settings, store)
+    except WriterBusy:
+        print(_WRITER_BUSY)
+        return 1
     except MissingCreds as e:
         print(f"Причина: {e}")
         return 1
@@ -76,13 +79,12 @@ def cmd_run(args) -> int:
         return 1
 
 
-def _run_all(args, settings) -> int:
+def _run_all(args, settings, store: Store) -> int:
     """Сбор целиком (включая сверку кредитов с Tavily)."""
     from aidigest.pipeline import Deps, run_cycle
     from aidigest.search import TavilySearch
 
     today = date.today()
-    store = _case_store()
     if args.budget is not None:
         requested = args.budget
     elif args.first_run or not store.load().cases:  # пустая база — бюджет первого запуска
@@ -124,6 +126,36 @@ def _run_all(args, settings) -> int:
         print(f"Причина: {reason}")
         return 1
     return 0
+
+
+def cmd_enrich(args) -> int:
+    from aidigest.enrichment import enrich_archive
+
+    try:
+        with _case_store().write_lock() as store:
+            settings = load_settings(ROOT / "config" / "settings.yaml")
+            cache = DiskCache(_data_dir() / "cache")
+            llm = _llm(settings, cache, args.offline)
+            report = enrich_archive(store, cache, llm, args.limit, date.today())
+    except WriterBusy:
+        print(_WRITER_BUSY)
+        return 1
+    except MissingCreds as e:
+        print(f"Причина: {e}")
+        return 1
+    print(f"Кейсов обработано: {report.processed}")
+    print(f"Кейсов сохранено: {report.saved}")
+    print(f"Нет ответа в кеше LiteLLM: {report.cache_misses}")
+    print(f"Кейсов с ошибкой LiteLLM: {report.failed}")
+    print(f"Вызовов LLM: {llm.calls}")
+    return int(report.failed > 0)
+
+
+def _positive_int(raw: str) -> int:
+    value = int(raw)
+    if value < 1:
+        raise argparse.ArgumentTypeError("лимит должен быть не меньше 1")
+    return value
 
 
 def cmd_eval(args) -> int:
@@ -170,6 +202,11 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--days", type=int, help="окно свежести, дней")
     r.add_argument("--offline", action="store_true", help="только кеш, без внешних вызовов")
     r.set_defaults(func=cmd_run)
+
+    e = sub.add_parser("enrich", help="дозаполнение архивных кейсов по сохранённым материалам")
+    e.add_argument("--limit", type=_positive_int, required=True, help="максимум кейсов за запуск")
+    e.add_argument("--offline", action="store_true", help="LLM только из кеша")
+    e.set_defaults(func=cmd_enrich)
 
     v = sub.add_parser("eval", help="проверка извлечения на эталонных кейсах")
     v.add_argument("--fetch-only", action="store_true", help="только скачать тексты статей (без LLM)")

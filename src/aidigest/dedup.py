@@ -10,6 +10,7 @@ from datetime import date
 
 from aidigest.llm import LLMClient
 from aidigest.models import Case, Level
+from aidigest.publication import case_update, merge_source
 from aidigest.quotes import extract_numbers, normalize_text
 from aidigest.urls import domain_of, normalize_url
 
@@ -58,24 +59,21 @@ def _numbers(m) -> tuple[float, ...]:
 
 
 def merge_into(target: Case, new: Case, today: date) -> None:
-    known = {normalize_url(s.url) for s in target.sources}
-    for s in new.sources:
-        if normalize_url(s.url) not in known:
-            target.sources.append(s)
-            known.add(normalize_url(s.url))
+    with case_update(target, today):
+        for source in new.sources:
+            merge_source(target, source)
 
-    for nm in new.metrics:
-        same = next((tm for tm in target.metrics
-                     if tm.criterion == nm.criterion and _numbers(tm) == _numbers(nm) and _numbers(nm)), None)
-        if same is None:
-            target.metrics.append(nm)
-            continue
-        seen_domains = {domain_of(same.source_url)} | {domain_of(u) for u in same.confirmed_by}
-        if domain_of(nm.source_url) not in seen_domains and nm.quote_verified:
-            same.confirmed_by.append(nm.source_url)
+        for nm in new.metrics:
+            same = next((tm for tm in target.metrics
+                         if tm.criterion == nm.criterion and _numbers(tm) == _numbers(nm) and _numbers(nm)), None)
+            if same is None:
+                target.metrics.append(nm)
+                continue
+            seen_domains = {domain_of(same.source_url)} | {domain_of(u) for u in same.confirmed_by}
+            if domain_of(nm.source_url) not in seen_domains and nm.quote_verified:
+                same.confirmed_by.append(nm.source_url)
 
-    stages = list(type(target.stage))
-    if stages.index(new.stage) > stages.index(target.stage):
-        target.stage = new.stage
-    target.updated = today
-    target.recompute_status()
+        stages = list(type(target.stage))
+        if stages.index(new.stage) > stages.index(target.stage):
+            target.stage = new.stage
+        target.recompute_status()

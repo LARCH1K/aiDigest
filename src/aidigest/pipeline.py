@@ -13,10 +13,12 @@ from aidigest.confirm import confirm_case, plan_confirmation_queue
 from aidigest.dedup import find_duplicate, merge_into
 from aidigest.extract import extract_cases
 from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss
-from aidigest.models import Level
+from aidigest.models import Article, Case, Level
+from aidigest.publication import case_update, merge_source
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
-from aidigest.store import Store
+from aidigest.store import Store, StoreData
+from aidigest.strategy import classify_strategy
 from aidigest.urls import normalize_url
 
 
@@ -73,6 +75,45 @@ def _log(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
+def _classify(case: Case, deps: Deps, articles: list[Article], today: date) -> None:
+    try:
+        with case_update(case, today):
+            classify_strategy(case, deps.llm, articles)
+    except (LLMFormatError, OfflineCacheMiss) as exc:
+        case.strategy_input = None
+        _log(f"Связь с KPI отложена ({case.id}): {exc}")
+    except Exception as exc:
+        case.strategy_input = None
+        _log(f"Связь с KPI отложена ({case.id}): {type(exc).__name__}")
+
+
+def _refresh_known_cases(data: StoreData, articles: list[Article], deps: Deps, today: date) -> int:
+    by_url = {normalize_url(article.url): article for article in articles}
+    sources = {url: deps.registry.to_source(article) for url, article in by_url.items()}
+    changed = 0
+    save = False
+    for case in data.cases:
+        case_urls = {normalize_url(source.url) for source in case.sources}
+        found = sorted(case_urls & by_url.keys())
+        if not found:
+            continue
+        missing = [sources[url] for source in case.sources if not source.published_at
+                   and (url := normalize_url(source.url)) in sources and sources[url].published_at]
+        old_links = case.strategy_links
+        if missing:
+            with case_update(case, today):
+                for source in missing:
+                    merge_source(case, source)
+        if case.strategy_input is None:
+            _classify(case, deps, [by_url[url] for url in found], today)
+            save |= case.strategy_input is not None
+        if missing or case.strategy_links != old_links:
+            changed += 1
+    if changed or save:
+        deps.store.save(data)
+    return changed
+
+
 def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
     s, report = deps.settings, RunReport()
     data = deps.store.load()
@@ -97,6 +138,9 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             continue
         report.searches_ok += 1
 
+        repeated = [article for article in articles if normalize_url(article.url) in data.processed_urls]
+        if repeated:
+            report.cases_updated += _refresh_known_cases(data, repeated, deps, today)
         fresh = [a for a in articles
                  if normalize_url(a.url) not in data.processed_urls and normalize_url(a.url) not in seen_now]
         _log(f"Поиск {qi}/{len(queries)} [{q.level.value}]: «{q.text}» — статей: {len(articles)}, новых: {len(fresh)}")
@@ -130,8 +174,10 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
                     dup = None
                 if dup is not None:
                     merge_into(dup, case, today)
+                    _classify(dup, deps, [article], today)
                     report.cases_updated += 1
                 else:
+                    _classify(case, deps, [article], today)
                     data.cases.append(case)
                     new_ids.add(case.id)
                     report.cases_new += 1
@@ -144,7 +190,9 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
     for i, case in enumerate(queue):
         _log(f"  Подтверждение {i + 1}/{len(queue)}: {case.title[:90]}")
         try:
-            confirm_case(case, deps.search, deps.llm, deps.registry, today, s.confirm_max_results)
+            articles = confirm_case(case, deps.search, deps.llm, deps.registry, today, s.confirm_max_results)
+            if articles:
+                _classify(case, deps, articles, today)
             report.confirmations_done += 1
             deps.store.save(data)
         except BudgetExceeded:

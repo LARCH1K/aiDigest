@@ -2,14 +2,15 @@
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 from typing_extensions import NotRequired, TypedDict
 
 from aidigest.config import QuerySpec
-from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability, Stage
+from aidigest.models import Case, ConfirmationStatus, Flag, Level, Metric, Reliability, Stage, StrategyLink
 from aidigest.registry import SourceInfo
-from aidigest.services.cases import NO_RATED
+from aidigest.services.cases import EFFECT_CRITERIA, NO_RATED
 from aidigest.services.catalog import ANY_RF_LEVEL
+from aidigest.strategy import STRATEGY_KPIS
 
 
 class RequestModel(BaseModel):
@@ -34,9 +35,25 @@ class CaseQuery(RequestModel):
     q: str = ""
     level: Level | Literal[""] = ""
     status: ConfirmationStatus | Literal[""] = ""
-    metrics: Literal["0", "1"] = "1"
+    metrics: Literal["0", "1"] | None = None
     doubtful: Literal["0", "1"] = "0"
     reliability: Reliability | Literal[NO_RATED, ""] = ""
+    criterion: str = ""
+    kpi: str = ""
+
+    @field_validator("criterion")
+    @classmethod
+    def known_criterion(cls, value: str) -> str:
+        if value and value not in EFFECT_CRITERIA:
+            raise ValueError("Неизвестный критерий эффекта")
+        return value
+
+    @field_validator("kpi")
+    @classmethod
+    def known_kpi(cls, value: str) -> str:
+        if value and value not in STRATEGY_KPIS:
+            raise ValueError("Неизвестный KPI Стратегии")
+        return value
 
 
 class SourceQuery(RequestModel):
@@ -68,10 +85,17 @@ class StatusOption(Option):
     css_class: str = Field(serialization_alias="class")
 
 
+class StrategyKpiOption(Option):
+    clause: str
+    url: str
+
+
 class Meta(BaseModel):
     levels: list[Level]
     statuses: list[StatusOption]
     reliability: list[Option]
+    criteria: list[Option]
+    strategy_kpis: list[StrategyKpiOption]
     flag_help: dict[Flag, tuple[str, str]]
 
 
@@ -85,6 +109,9 @@ class CaseRow(BaseModel):
     industry: str
     stage: Stage
     first_seen: date
+    updated: date
+    metrics: list[Metric]
+    strategy_links: list[StrategyLink]
     status: ConfirmationStatus
     status_label: str
     status_class: str
@@ -103,6 +130,7 @@ class CaseList(BaseModel):
 
 
 class CaseDetail(Case):
+    strategy_input: str | None = Field(default=None, exclude=True)
     status_label: str
     status_class: str
     reliability_label: str

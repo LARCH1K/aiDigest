@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field, field_validator
+
+from aidigest.publication import publication_date
 
 
 class Level(StrEnum):
@@ -93,6 +95,11 @@ class Source(BaseModel):
     reliability: Reliability = Reliability.UNRATED
     source_type: SourceType = SourceType.UNKNOWN
 
+    @field_validator("published_at")
+    @classmethod
+    def normalize_publication_date(cls, value: str | None) -> str | None:
+        return publication_date(value)
+
 
 class Article(BaseModel):
     url: str
@@ -100,6 +107,13 @@ class Article(BaseModel):
     title: str
     text: str
     published_at: str | None = None
+
+
+class StrategyLink(BaseModel):
+    kpi_id: str
+    explanation: str
+    source_url: str
+    quote: str
 
 
 class Case(BaseModel):
@@ -123,6 +137,8 @@ class Case(BaseModel):
     confirmation_status: ConfirmationStatus = ConfirmationStatus.SINGLE
     confirmation_attempts: int = 0
     last_confirmation_attempt: date | None = None
+    strategy_links: list[StrategyLink] = Field(default_factory=list)
+    strategy_input: str | None = None
 
     @computed_field
     @property

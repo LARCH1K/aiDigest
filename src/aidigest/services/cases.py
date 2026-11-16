@@ -7,10 +7,12 @@ from datetime import datetime
 from pathlib import Path
 
 from aidigest.export_excel import export_xlsx
+from aidigest.methodology import CRITERIA, OTHER_CRITERION
 from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability
 from aidigest.store import Store
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
+EFFECT_CRITERIA = (*dict.fromkeys(item for criteria in CRITERIA.values() for item in criteria), OTHER_CRITERION)
 
 # Оценённые уровни достоверности от лучшего к худшему; «не_оценена» в сравнение не входит.
 RELIABILITY_ORDER = [Reliability.HIGH, Reliability.MEDIUM, Reliability.LOW]
@@ -77,11 +79,17 @@ def sort_key(c: Case):
 
 
 def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = "",
-                 with_metrics: bool = True, hide_doubtful: bool = False, reliability: str = "") -> list[Case]:
+                 with_metrics: bool | None = None, hide_doubtful: bool = False, reliability: str = "",
+                 criterion: str = "", kpi: str = "") -> list[Case]:
     words = _norm(q).split()
+    metrics_required = with_metrics if with_metrics is not None else not kpi
     out = []
     for c in cases:
-        if with_metrics and not c.metrics:
+        if metrics_required and not c.metrics:
+            continue
+        if criterion and not any(metric.criterion == criterion for metric in c.metrics):
+            continue
+        if kpi and not any(link.kpi_id == kpi for link in c.strategy_links):
             continue
         if reliability:
             best = best_reliability(c)
@@ -124,9 +132,11 @@ class CaseFilter:
     q: str = ""
     level: str = ""
     status: str = ""
-    with_metrics: bool = True
+    with_metrics: bool | None = None
     hide_doubtful: bool = False
     reliability: str = ""
+    criterion: str = ""
+    kpi: str = ""
 
 
 class CaseService:
@@ -137,7 +147,8 @@ class CaseService:
         """Отфильтрованные кейсы и общее число кейсов в базе."""
         cases = self.store.load().cases
         shown = filter_cases(cases, q=f.q, level=f.level, status=f.status, with_metrics=f.with_metrics,
-                             hide_doubtful=f.hide_doubtful, reliability=f.reliability)
+                             hide_doubtful=f.hide_doubtful, reliability=f.reliability,
+                             criterion=f.criterion, kpi=f.kpi)
         return shown, len(cases)
 
     def get(self, case_id: str) -> Case | None:

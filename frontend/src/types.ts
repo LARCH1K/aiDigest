@@ -23,10 +23,17 @@ export interface Option {
   label: string;
 }
 
+export interface StrategyKpi extends Option {
+  clause: string;
+  url: string;
+}
+
 export interface Meta {
   levels: Level[];
   statuses: (Option & { class: StatusClass })[];
   reliability: Option[];
+  criteria: Option[];
+  strategy_kpis: StrategyKpi[];
   flag_help: Record<Flag, [string, string]>;
 }
 
@@ -40,6 +47,9 @@ interface CaseSummary {
   industry: string;
   stage: Stage;
   first_seen: string;
+  updated: string;
+  metrics: Metric[];
+  strategy_links: StrategyLink[];
   status_label: string;
   status_class: StatusClass;
   reliability_label: string;
@@ -75,6 +85,13 @@ export interface Metric {
   conflicting_values: string[];
 }
 
+export interface StrategyLink {
+  kpi_id: string;
+  explanation: string;
+  source_url: string;
+  quote: string;
+}
+
 export interface Source {
   url: string;
   domain: string;
@@ -85,13 +102,11 @@ export interface Source {
 }
 
 export interface CaseDetail extends CaseSummary {
-  updated: string;
   municipality: string | null;
   sector: "госсектор" | "бизнес";
   ai_technology: string;
   summary: string;
   methodology: "М-1" | "Р-1" | "бизнес-метрики";
-  metrics: Metric[];
   sources: Source[];
   confirmation_status: ConfirmationStatus;
   confirmation_attempts: number;
