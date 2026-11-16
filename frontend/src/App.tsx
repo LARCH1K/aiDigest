@@ -3,17 +3,12 @@ import { AuthProvider, RequireAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { CaseDetailPage } from "./pages/CaseDetail";
 import { Cases } from "./pages/Cases";
+import { Help } from "./pages/Help";
 import { Login } from "./pages/Login";
 import { NotFound } from "./pages/NotFound";
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <section className="card empty">
-      <h1>{title}</h1>
-      <p className="muted">Раздел в разработке.</p>
-    </section>
-  );
-}
+import { Queries } from "./pages/Queries";
+import { Run } from "./pages/Run";
+import { Sources } from "./pages/Sources";
 
 export function App() {
   return (
@@ -26,10 +21,10 @@ export function App() {
           <Route element={<Layout />}>
             <Route index element={<Cases />} />
             <Route path="/case/:id" element={<CaseDetailPage />} />
-            <Route path="/run" element={<Placeholder title="Запуск" />} />
-            <Route path="/queries" element={<Placeholder title="Запросы" />} />
-            <Route path="/sources" element={<Placeholder title="Источники" />} />
-            <Route path="/help" element={<Placeholder title="Справка" />} />
+            <Route path="/run" element={<Run />} />
+            <Route path="/queries" element={<Queries />} />
+            <Route path="/sources" element={<Sources />} />
+            <Route path="/help" element={<Help />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
