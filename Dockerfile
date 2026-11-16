@@ -1,4 +1,4 @@
-# Образ aidigest: веб-интерфейс и сборщик (worker) из одного образа.
+# Образ API и встроенного сборщика aiDigest.
 FROM python:3.13-slim
 
 RUN apt-get update \
@@ -8,7 +8,8 @@ RUN apt-get update \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONPATH=/app/src \
-    TZ=Asia/Yekaterinburg
+    TZ=Asia/Yekaterinburg \
+    AIDIGEST_DATA_DIR=/data
 
 WORKDIR /app
 
@@ -16,7 +17,12 @@ WORKDIR /app
 COPY requirements.lock .
 RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.lock
 
-# Код в /app/src, конфиги в /app/config: ROOT = parents[2] указывает на /app
-COPY . .
+# Код, миграции и ресурсы для запуска API и тестов.
+COPY src/ src/
+COPY config/ config/
+COPY eval/ eval/
+COPY tests/ tests/
+COPY alembic.ini pyproject.toml ./
 
-CMD ["python", "-m", "aidigest_web", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000
+CMD ["python", "-m", "aidigest_api", "--host", "0.0.0.0", "--port", "8000"]
