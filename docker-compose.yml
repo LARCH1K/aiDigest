@@ -25,7 +25,7 @@ services:
 
   backend:
     <<: *common
-    image: ghcr.io/larch1k/aidigest-backend:${AIDIGEST_VERSION:-latest}
+    image: ghcr.io/larch1k/aidigest-backend:${AIDIGEST_VERSION:?задайте AIDIGEST_VERSION в .env}
     build: .
     user: "${AIDIGEST_UID:-1000}:${AIDIGEST_GID:-1000}"
     init: true
@@ -54,7 +54,7 @@ services:
 
   frontend:
     <<: *common
-    image: ghcr.io/larch1k/aidigest-frontend:${AIDIGEST_VERSION:-latest}
+    image: ghcr.io/larch1k/aidigest-frontend:${AIDIGEST_VERSION:?задайте AIDIGEST_VERSION в .env}
     build: ./frontend
     ports:
       - "${AIDIGEST_HTTP_PORT:-80}:80"

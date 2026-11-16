@@ -24,7 +24,7 @@
 
 1. Три приложения с чёткими границами: фронтенд только показывает и ходит в API; бэкенд владеет логикой, пайплайном и данными; БД только хранит.
 2. Между контейнерами нет общих файлов: фронтенд ↔ бэкенд — HTTP API, бэкенд ↔ БД — SQL.
-3. Выкладка на сервере — `docker compose pull && docker compose up -d`, без `git clone`/`git pull`, без сборки на сервере.
+3. Выкладка на сервере — `docker compose pull && docker compose up -d --no-build`, без `git clone`/`git pull`, без сборки на сервере.
 4. Образы собирает и публикует GitHub Actions только при зелёных тестах.
 5. Функциональность сайта не меньше текущей (см. «Функции фронтенда»).
 6. Два сбора одновременно невозможны.
@@ -146,17 +146,17 @@
 - GitHub Actions на push в `master`: тесты бэкенда (с Postgres как service-контейнер), сборка и проверка типов фронтенда, затем сборка и публикация двух образов:
   - `ghcr.io/larch1k/aidigest-backend`
   - `ghcr.io/larch1k/aidigest-frontend`
-- Теги: `latest` и короткий SHA коммита. Публикация — встроенным `GITHUB_TOKEN` (`packages: write`), без личных токенов.
+- Оба образа публикуются с одним тегом `sha-<первые 7 символов SHA коммита>`. Для выкладки берут тег из успешного прогона `CI` в `master` с завершившейся задачей `publish`. Публикация использует встроенный `GITHUB_TOKEN` (`packages: write`).
 - Если пакеты приватные, на сервере один раз выполняется `docker login ghcr.io` с токеном только на чтение пакетов (описать в `docs/deploy.md`).
 
 ## Выкладка на сервере
 
 - На сервере в `/srv/aidigest/` лежат только: `docker-compose.yml`, `.env` (порт, тег образов, пути, UID/GID, пароль БД), `secrets/*.env`, `data/` (тома).
-- Выкладка: `docker compose pull && docker compose up -d`. Откат: `AIDIGEST_VERSION=<sha>` в `.env` и то же самое.
+- Выкладка и откат используют выбранный тег `AIDIGEST_VERSION=sha-<7 символов>` в `.env` и команду `docker compose pull && docker compose up -d --no-build`.
 - `deploy.sh` удаляется.
-- **Один файл `docker-compose.yml`** и для сервера, и для локальной проверки (решение пользователя): у `backend` и `frontend` указаны и `image:` (GHCR), и `build:`; на сервере `pull` + `up -d` берут готовые образы, локально `docker compose up -d --build` собирает их из исходников.
+- **Один файл `docker-compose.yml`** и для сервера, и для локальной проверки. `backend` и `frontend` используют обязательный тег `AIDIGEST_VERSION` в `image:` и имеют секцию `build:`. Локально задают `AIDIGEST_VERSION=dev` и собирают образы командой `docker compose up -d --build`.
 - Сервисы: `frontend` (публикует порт), `backend`, `db` — все `restart: unless-stopped`, ограниченные логи, healthcheck у `backend` и `db`; `backend` стартует после готовности `db`.
-- `docker-compose.yml` и `.env.example` на сервер скачиваются из репозитория (raw-ссылки) — описать в `docs/deploy.md`.
+- При первой установке `docker-compose.yml` и `.env.example` скачиваются по raw-ссылкам с полным SHA того же успешного прогона, из которого взят тег образов. Полный SHA и тег доступны в сводке прогона.
 
 ## Локальная разработка (Windows)
 

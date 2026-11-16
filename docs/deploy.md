@@ -4,21 +4,25 @@
 
 ## Первая установка
 
-Понадобится Linux-сервер с Docker Engine и плагином Docker Compose. Установите их по инструкции Docker для [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) или [Debian](https://docs.docker.com/engine/install/debian/). Перед первой установкой проверьте, что релиз уже опубликован в GitHub Packages из ветки `master`. Команды ниже запускаются от пользователя с доступом к Docker.
+Понадобится Linux-сервер с Docker Engine и плагином Docker Compose. Установите их по инструкции Docker для [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) или [Debian](https://docs.docker.com/engine/install/debian/). Команды ниже запускаются от пользователя с доступом к Docker.
+
+В GitHub Actions откройте успешный прогон `CI`, запущенный push в `master` и завершивший задачу `publish`. Из сводки прогона возьмите полный SHA коммита для скачивания файлов и строку `AIDIGEST_VERSION=sha-…` для `.env`.
 
 ```bash
 sudo install -d -o "$(id -u)" -g "$(id -g)" /srv/aidigest
 cd /srv/aidigest
 install -d -m 700 secrets
 sudo install -d -o 1000 -g 1000 -m 750 data/backend
-curl -fsSLO https://raw.githubusercontent.com/LARCH1K/aiDigest/master/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/LARCH1K/aiDigest/master/.env.example
-install -m 600 .env.example .env
+release_commit=FULL_COMMIT_SHA  # подставьте полный SHA из сводки
+release_url="https://raw.githubusercontent.com/LARCH1K/aiDigest/$release_commit"
+curl -fsSLO "$release_url/docker-compose.yml" &&
+  curl -fsSLO "$release_url/.env.example" &&
+  install -m 600 .env.example .env
 ```
 
 Docker создаст каталог `data/postgres` при первой установке. Контейнер PostgreSQL сам назначит владельца. Если в `.env` настроены другие `AIDIGEST_UID` и `AIDIGEST_GID`, укажите те же числа в команде создания `data/backend`. Бэкенд пишет туда кеш и логи сборов.
 
-В `.env` заполните `POSTGRES_PASSWORD` случайным значением из `openssl rand -hex 24`. По умолчанию сайт доступен на порту 80, а оба приложения загружаются с тегом `latest`. Порт меняется через `AIDIGEST_HTTP_PORT`.
+В `.env` заполните `POSTGRES_PASSWORD` случайным значением из `openssl rand -hex 24` и укажите `AIDIGEST_VERSION` из сводки того же прогона. По умолчанию сайт доступен на порту 80. Порт меняется через `AIDIGEST_HTTP_PORT`.
 
 Создайте в `/srv/aidigest/secrets` три файла с правами `0600`.
 
@@ -38,17 +42,25 @@ docker login ghcr.io -u YOUR_GITHUB_USERNAME
 
 ## Выкладка и откат
 
-Из каталога `/srv/aidigest` выполните:
+В GitHub Actions откройте успешный прогон workflow `CI`, запущенный push в `master` и завершивший задачу `publish`. В сводке прогона скопируйте значение `AIDIGEST_VERSION=sha-1234567` в `.env`. Семь символов после `sha-` — первые семь символов SHA коммита этого прогона. Compose использует этот тег для обоих приложений. Если более новый прогон завершился ошибкой, используйте тег из предыдущего успешного прогона.
+
+Из каталога `/srv/aidigest` выполните команды. К обновлению контейнеров переходите после успешной загрузки образов.
 
 ```bash
-docker compose pull
-docker compose up -d --no-build
-docker compose ps
+docker compose pull && docker compose up -d --no-build && docker compose ps
 ```
 
 Откройте `http://IP_СЕРВЕРА` и войдите парой из `web.env`. При нестандартном порте добавьте его к адресу. Обновление бэкенда во время сбора прерывает запуск. Уже сохранённые кейсы останутся в базе, а запуск получит статус «прервано».
 
-Чтобы развернуть конкретный проверенный релиз, задайте в `.env` общий тег `AIDIGEST_VERSION=sha-1234567` из успешного прогона GitHub Actions. Для отката укажите тег предыдущего релиза и повторите выкладку. Если новая версия уже применила несовместимую миграцию, восстановите совместимую копию БД.
+Для отката укажите в `.env` тег предыдущего успешного релиза и повторите выкладку. Если новая версия уже применила несовместимую миграцию, восстановите совместимую копию БД.
+
+## Локальная сборка стека
+
+Для сборки из исходников скопируйте `.env.example` в `.env` в корне репозитория. Задайте `AIDIGEST_VERSION=dev` и `POSTGRES_PASSWORD`, укажите локальные пути `AIDIGEST_DATA_HOST` и `AIDIGEST_SECRETS`. Создайте подкаталог `backend` в каталоге данных с правами записи для `AIDIGEST_UID:AIDIGEST_GID`.
+
+```bash
+docker compose up -d --build
+```
 
 ## Резервные копии
 

@@ -281,6 +281,58 @@ def test_watcher_retries_finish_after_db_error(svc_child, monkeypatch):
     assert svc.store.get(rid).state == "ok" and svc.store.current() is None
 
 
+@pytest.mark.parametrize("activity", ["start", "current", "history", "log"])
+def test_run_recovers_after_all_finish_retries_fail(svc_child, monkeypatch, activity):
+    monkeypatch.setattr(runs_mod, "FINISH_PAUSE", 0)
+    monkeypatch.setattr(runs_mod, "RUNS_KEEP", 2)
+    output = "Кейсов новых: 2\nПричина: Месячный лимит исчерпан\n"
+    svc = svc_child(code=2, output=output)
+    old = svc.start()
+    svc.join_watchers()
+    svc.start()
+    svc.join_watchers()
+    finish = svc.store.finish
+    available, attempts = False, []
+
+    def finish_with_outage(*args):
+        attempts.append(args)
+        if not available:
+            raise ConnectionError("БД недоступна")
+        return finish(*args)
+
+    monkeypatch.setattr(svc.store, "finish", finish_with_outage)
+    rid = svc.start()
+    svc.join_watchers()
+    assert len(attempts) == 3
+    assert svc.store.get(rid).state == "running"
+    if activity == "start":
+        with pytest.raises(ConnectionError):
+            svc.start()
+        assert svc.store.get(rid).state == "running"
+    available = True
+
+    if activity == "start":
+        next_id = svc.start()
+    elif activity == "log":
+        assert svc.log(rid) == output
+    elif activity == "current":
+        assert svc.current() is None
+    elif activity == "history":
+        assert svc.history()[0].state == "limit"
+
+    rec = svc.store.get(rid)
+    assert rec.state == "limit" and rec.exit_code == 2
+    assert rec.reason == "Месячный лимит исчерпан"
+    assert rec.report == {"Кейсов новых": "2"}
+    assert rec.finished == attempts[0][-1]
+    assert svc.store.get(old) is None
+    assert not (svc.data_dir / "runs" / f"{old}.log").exists()
+    if activity != "start":
+        next_id = svc.start()
+    svc.join_watchers()
+    assert svc.store.get(next_id).state == "limit"
+
+
 def test_watcher_cleanup_error_keeps_result(svc_child, monkeypatch):
     svc = svc_child(code=0)
     monkeypatch.setattr(svc.store, "prune", lambda keep: (_ for _ in ()).throw(RuntimeError("x")))

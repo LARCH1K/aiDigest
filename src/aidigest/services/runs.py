@@ -203,6 +203,16 @@ def _read(path: Path) -> str | None:
         return None
 
 
+@dataclass(frozen=True)
+class _RunOutcome:
+    run_id: str
+    state: str
+    code: int | None
+    reason: str | None
+    report: dict[str, str]
+    finished: datetime
+
+
 class RunService:
     """Запуск сбора подпроцессом `python -m aidigest run`; учёт в таблице runs, вывод — в файл лога."""
 
@@ -222,6 +232,7 @@ class RunService:
         self._run_lock = threading.Lock()
         self._stopping = False
         self._child: tuple[str, subprocess.Popen, threading.Thread] | None = None
+        self._pending_finish: _RunOutcome | None = None
 
     @property
     def _logs_dir(self) -> Path:
@@ -248,11 +259,12 @@ class RunService:
     def start(self, params: RunParams | None = None) -> str:
         params = params or RunParams()
         cr = self.credits()
-        if cr["known"] and cr["remaining"] <= 0 and not params.offline:
-            raise MonthExhausted
         with self._run_lock:
             if self._stopping:
                 raise RunServiceStopping
+            self._flush_finish()
+            if cr["known"] and cr["remaining"] <= 0 and not params.offline:
+                raise MonthExhausted
             return self._start_child(params)
 
     def _start_child(self, params: RunParams) -> str:
@@ -270,10 +282,7 @@ class RunService:
                                    cwd=self.project_root, stdout=logf, stderr=subprocess.STDOUT,
                                    env=env, **kwargs)
         except Exception:
-            try:
-                self.store.finish(run_id, "error", None, REASON_SPAWN_FAILED, {}, self._now())
-            except Exception:
-                log.exception("не удалось закрыть запись %s после сбоя запуска", run_id)
+            self._finish(run_id, "error", None, REASON_SPAWN_FAILED, {})
             raise
         self._watchers = [w for w in self._watchers if w.is_alive()]
         t = threading.Thread(target=self._watch, args=(run_id, proc, log_path), daemon=True,
@@ -297,24 +306,40 @@ class RunService:
             if self._child is not None and self._child[0] == run_id:
                 self._finish(run_id, state, code, reason, report)
                 self._child = None
+
+    def _finish(self, run_id: str, state: str, code: int | None, reason: str | None,
+                report: dict[str, str]) -> None:
+        # Под _run_lock. Следующий сбор допускается только после сохранения этого итога.
+        self._pending_finish = _RunOutcome(run_id, state, code, reason, report, self._now())
+        for attempt in range(FINISH_RETRIES):
+            try:
+                self._flush_finish()
+                return
+            except Exception:
+                log.exception("не удалось закрыть запись %s (попытка %d)", run_id, attempt + 1)
+                if attempt + 1 < FINISH_RETRIES:
+                    time.sleep(FINISH_PAUSE)
+
+    def _flush_finish(self) -> None:
+        """Под _run_lock: сохраняет итог одной попыткой, при ошибке оставляет его в памяти."""
+        outcome = self._pending_finish
+        if outcome is None:
+            return
+        self.store.finish(outcome.run_id, outcome.state, outcome.code, outcome.reason,
+                          outcome.report, outcome.finished)
+        self._pending_finish = None  # отсутствие running также означает, что повтор больше не нужен
         try:  # уборка не должна скрывать итог запуска
             for rid in self.store.prune(RUNS_KEEP):
                 (self._logs_dir / f"{rid}.log").unlink(missing_ok=True)
         except Exception:
             log.exception("уборка старых запусков не удалась")
 
-    def _finish(self, run_id: str, state: str, code: int | None, reason: str | None,
-                report: dict[str, str]) -> None:
-        for attempt in range(FINISH_RETRIES):
-            try:
-                self.store.finish(run_id, state, code, reason, report, self._now())
-                break
-            except Exception:
-                log.exception("не удалось закрыть запись %s (попытка %d)", run_id, attempt + 1)
-                if attempt + 1 < FINISH_RETRIES:
-                    time.sleep(FINISH_PAUSE)
+    def _reconcile_finish(self) -> None:
+        with self._run_lock:
+            self._flush_finish()
 
     def current(self) -> tuple[RunRecord, list[str]] | None:
+        self._reconcile_finish()
         rec = self.store.current()
         if rec is None:
             return None
@@ -322,9 +347,11 @@ class RunService:
         return rec, text.splitlines()[-LOG_TAIL_LINES:]
 
     def history(self, limit: int = 10) -> list[RunRecord]:
+        self._reconcile_finish()
         return self.store.history(limit)
 
     def log(self, run_id: str) -> str | None:
+        self._reconcile_finish()
         if self.store.get(run_id) is None:
             return None
         return _read(self._logs_dir / f"{run_id}.log")
@@ -332,6 +359,7 @@ class RunService:
     def on_startup(self) -> int:
         with self._run_lock:
             interrupted = self.store.interrupt_running(self._now())
+            self._pending_finish = None
             self._stopping = False
             return interrupted
 
@@ -355,7 +383,8 @@ class RunService:
                 proc.kill()
                 proc.wait(timeout=STOP_TIMEOUT)
         finally:
-            self._finish(run_id, "interrupted", None, REASON_INTERRUPTED, {})
+            with self._run_lock:
+                self._finish(run_id, "interrupted", None, REASON_INTERRUPTED, {})
             watcher.join(STOP_TIMEOUT)
 
     def join_watchers(self, timeout: float = 5) -> None:
