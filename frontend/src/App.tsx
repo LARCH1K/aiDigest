@@ -1,6 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "./auth";
 import { Layout } from "./components/Layout";
+import { CaseDetailPage } from "./pages/CaseDetail";
+import { Cases } from "./pages/Cases";
 import { Login } from "./pages/Login";
 import { NotFound } from "./pages/NotFound";
 
@@ -22,8 +24,8 @@ export function App() {
         </Route>
         <Route element={<RequireAuth />}>
           <Route element={<Layout />}>
-            <Route index element={<Placeholder title="Кейсы" />} />
-            <Route path="/case/:id" element={<Placeholder title="Кейс" />} />
+            <Route index element={<Cases />} />
+            <Route path="/case/:id" element={<CaseDetailPage />} />
             <Route path="/run" element={<Placeholder title="Запуск" />} />
             <Route path="/queries" element={<Placeholder title="Запросы" />} />
             <Route path="/sources" element={<Placeholder title="Источники" />} />
