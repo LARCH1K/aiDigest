@@ -1,4 +1,4 @@
-"""Консольные команды: run, export (и eval — проверка на эталоне)."""
+"""Консольные команды: run (и eval — проверка на эталоне)."""
 from __future__ import annotations
 
 import argparse
@@ -12,16 +12,13 @@ from aidigest.budget import CreditBudget
 from aidigest.cache import DiskCache
 from aidigest.config import load_queries, load_settings
 from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
-from aidigest.export_excel import export_xlsx
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
-from aidigest.runlock import RunLocked, run_lock
-from aidigest.store import CaseStore
-from aidigest.usage import MonthlyUsage, fetch_tavily_usage
+from aidigest.store import PgCaseStore, Store
+from aidigest.usage import fetch_tavily_usage
 
 ROOT = Path(__file__).resolve().parents[2]
-EXIT_LOCKED = 3  # код выхода: уже идёт другой сбор
 
 
 def _data_dir() -> Path:
@@ -55,23 +52,21 @@ def _parse_levels(raw: str | None) -> set[Level]:
     return {Level(x.strip()) for x in raw.split(",") if x.strip()}
 
 
-def _export(store: CaseStore, report, today: date) -> Path:
-    out = _data_dir() / "out" / f"cases_{today.isoformat()}.xlsx"
-    return export_xlsx(store.load().cases, report, out)
+def _case_store() -> Store:
+    from aidigest.db.engine import make_engine, migrate
+    engine = make_engine()
+    migrate(engine)
+    return PgCaseStore(engine)
 
 
 def cmd_run(args) -> int:
     """Любой неудачный запуск печатает ровно одну строку «Причина: …» (её показывает веб-интерфейс).
-    Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан, 3 — уже идёт другой сбор."""
+    Коды выхода: 0 — успех, 1 — ошибка, 2 — месячный лимит кредитов исчерпан."""
     try:
         settings = load_settings(ROOT / "config" / "settings.yaml")
         if args.days:
             settings.freshness_days = args.days
-        with run_lock(_data_dir()):
-            return _run_locked(args, settings)
-    except RunLocked:
-        print("Причина: уже идёт другой сбор — дождитесь его окончания.")
-        return EXIT_LOCKED
+        return _run_all(args, settings)
     except MissingCreds as e:
         print(f"Причина: {e}")
         return 1
@@ -81,61 +76,53 @@ def cmd_run(args) -> int:
         return 1
 
 
-def _run_locked(args, settings) -> int:
-    """Сбор целиком (включая сверку кредитов с Tavily) — под блокировкой run_lock."""
+def _run_all(args, settings) -> int:
+    """Сбор целиком (включая сверку кредитов с Tavily)."""
     from aidigest.pipeline import Deps, run_cycle
     from aidigest.search import TavilySearch
 
-    requested = args.budget if args.budget is not None else (
-        settings.first_run_budget if args.first_run else settings.run_budget)
     today = date.today()
-    usage = MonthlyUsage(_data_dir() / "credits.json", settings.monthly_limit, settings.monthly_warn_share)
+    store = _case_store()
+    if args.budget is not None:
+        requested = args.budget
+    elif args.first_run or not store.load().cases:  # пустая база — бюджет первого запуска
+        requested = settings.first_run_budget
+    else:
+        requested = settings.run_budget
     tavily = _creds("tavily.env", args.offline)
+    # Единственный источник правды о расходе — сам Tavily (GET /usage).
     actual = fetch_tavily_usage(tavily.get("TAVILY_TOKEN"))
-    total = usage.cap(today, requested)
-    if actual is not None:
-        # Фактический расход по данным Tavily — главный: наш учёт мог что-то пропустить.
+    if actual is None:
+        print(f"Расход кредитов Tavily неизвестен (сервис не ответил) — бюджет запуска {requested:g}.")
+        total = requested
+    else:
         print(f"Кредиты по данным Tavily: {actual.used:g} из {actual.limit:g}.")
-        usage.sync(today, actual.used)
-        total = min(total, actual.remaining)
-    if requested > 0 and total <= 0:
-        spent, limit = (actual.used, actual.limit) if actual else (usage.spent(today), settings.monthly_limit)
-        print(f"Лимит Tavily исчерпан: потрачено {spent:g} из {limit:g}. Запуск отменён.")
-        print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
-        return 2
-    if total < requested:
-        print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
+        if requested > 0 and actual.remaining <= 0:
+            print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
+            return 2
+        total = min(requested, actual.remaining)
+        if total < requested:
+            print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
+        if actual.used > actual.limit * settings.monthly_warn_share:
+            print(f"Внимание: в этом месяце потрачено {actual.used:g} кредитов Tavily из {actual.limit:g} "
+                  f"(осталось {actual.remaining:g}).")
     budget = CreditBudget(total, settings.confirm_share)
     cache = DiskCache(_data_dir() / "cache")
     deps = Deps(
         search=TavilySearch(tavily.get("TAVILY_TOKEN"), cache, budget, offline=args.offline),
         llm=_llm(settings, cache, args.offline),
         registry=SourceRegistry.load(ROOT / "config" / "sources.yaml"),
-        store=CaseStore(_data_dir() / "cases.json"),
+        store=store,
         queries=load_queries(ROOT / "config" / "queries.yaml"),
         settings=settings, budget=budget,
     )
-    try:
-        report = run_cycle(deps, _parse_levels(args.levels), today)
-    finally:
-        usage.record(today, budget.spent)  # учитываем расход, даже если запуск упал
-    rows = report.as_rows()
-    rows["Кредитов Tavily за месяц"] = f"{usage.spent(today):g} из {settings.monthly_limit:g}"
-    warning = usage.warning(today)
-    if warning:
-        print(warning)
-    for k, v in rows.items():
+    report = run_cycle(deps, _parse_levels(args.levels), today)
+    for k, v in report.as_rows().items():
         print(f"{k}: {v}")
-    print(f"Excel: {_export(deps.store, rows, today)}")
     reason = failure_reason(report)
     if reason is not None:
         print(f"Причина: {reason}")
         return 1
-    return 0
-
-
-def cmd_export(args) -> int:
-    print(f"Excel: {_export(CaseStore(_data_dir() / 'cases.json'), None, date.today())}")
     return 0
 
 
@@ -183,9 +170,6 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--days", type=int, help="окно свежести, дней")
     r.add_argument("--offline", action="store_true", help="только кеш, без внешних вызовов")
     r.set_defaults(func=cmd_run)
-
-    e = sub.add_parser("export", help="Excel из базы без поиска")
-    e.set_defaults(func=cmd_export)
 
     v = sub.add_parser("eval", help="проверка извлечения на эталонных кейсах")
     v.add_argument("--fetch-only", action="store_true", help="только скачать тексты статей (без LLM)")

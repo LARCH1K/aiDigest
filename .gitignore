@@ -21,11 +21,11 @@ venv/
 # Данные пайплайна
 data/cache/
 data/out/
-# База живёт на сервере (/srv/aidigest/data), локально — своя копия
-data/cases.json
-data/credits.json
+/data/stack/
 *.egg-info/
 .superpowers/
-data/web/
-data/run.cli.lock
 web.env
+
+# Фронтенд
+frontend/node_modules/
+frontend/dist/

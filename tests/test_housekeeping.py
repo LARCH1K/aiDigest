@@ -1,6 +1,5 @@
 import os
 import time
-from datetime import datetime, timedelta
 
 from aidigest import housekeeping as hk
 
@@ -37,20 +36,3 @@ def test_keep_newest(tmp_path):
     assert len(left) == 30
     assert left[0] == "cases_2026-10-06.xlsx"
     assert (tmp_path / "note.txt").exists()
-
-
-def test_backup_cases_keeps_30(tmp_path):
-    (tmp_path / "cases.json").write_text('{"cases": []}', encoding="utf-8")
-    start = datetime(2026, 11, 8, 12, 0, 0)
-    for i in range(32):
-        last = hk.backup_cases(tmp_path, start + timedelta(minutes=i))
-    backups = sorted(p.name for p in (tmp_path / "backups").iterdir())
-    assert len(backups) == 30
-    assert backups[-1] == "cases_2026-11-08_123100.json"
-    assert last == tmp_path / "backups" / "cases_2026-11-08_123100.json"
-    assert last.read_text(encoding="utf-8") == '{"cases": []}'
-
-
-def test_backup_without_base_returns_none(tmp_path):
-    assert hk.backup_cases(tmp_path, datetime(2026, 11, 8)) is None
-    assert not (tmp_path / "backups").exists()

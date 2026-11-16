@@ -15,18 +15,19 @@ dependencies = [
     "tavily-python",
     "requests",
     "trafilatura",
+    "sqlalchemy>=2",
+    "psycopg[binary]>=3.2",
+    "alembic",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest"]
-web = ["flask", "waitress"]
+api = ["fastapi", "uvicorn", "itsdangerous", "httpx"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-aidigest_web = ["templates/*.html", "static/*"]
-
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
+markers = ["pg: тест ходит в Postgres (AIDIGEST_TEST_DATABASE_URL)"]
 testpaths = ["tests"]

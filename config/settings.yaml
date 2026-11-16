@@ -9,5 +9,4 @@ article_max_chars: 12000  # сколько символов статьи отд�
 recheck_after_days: 28    # повтор подтверждения кейсов «один_источник» не чаще
 max_rechecks: 2           # не более повторов на кейс
 llm_model: GigaChat-3-Pro # если в litellm.env нет LITELLM_MODEL
-monthly_limit: 1000      # кредитов Tavily в месяц по тарифу (учёт — data/credits.json)
 monthly_warn_share: 0.8  # предупреждать, когда потрачено больше этой доли

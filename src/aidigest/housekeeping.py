@@ -1,18 +1,11 @@
-"""Обслуживание папки данных: очистка старого кеша и выгрузок, копии базы кейсов.
-
-Вызывается только сборщиком на сервере (aidigest_web.worker); локальный `aidigest run` ничего не чистит.
-"""
+"""Очистка просроченных ответов из кеша пайплайна."""
 from __future__ import annotations
 
-import os
-import shutil
-from datetime import datetime
 from pathlib import Path
 
 # Срок жизни кеша по пространствам имён, в днях. Поиск Tavily устаревает быстро (новые статьи),
 # ответы LLM и тексты статей при тех же входных данных не меняются.
 CACHE_MAX_AGE_DAYS = {"tavily": 14, "llm": 180, "fetch": 180}
-BACKUPS_KEEP = 30
 DAY_SECONDS = 86400
 
 
@@ -49,22 +42,3 @@ def prune_cache(data_dir: Path, now: float) -> int:
     """Чистит <data>/cache по срокам CACHE_MAX_AGE_DAYS; возвращает число удалённых файлов."""
     cache = Path(data_dir) / "cache"
     return sum(prune_older_than(cache / ns, days, now) for ns, days in CACHE_MAX_AGE_DAYS.items())
-
-
-def backup_cases(data_dir: Path, now: datetime) -> Path | None:
-    """Копия cases.json в <data>/backups/cases_<ГГГГ-ММ-ДД_ЧЧММСС>.json; хранятся BACKUPS_KEEP последних.
-    None — базы ещё нет."""
-    data_dir = Path(data_dir)
-    base = data_dir / "cases.json"
-    if not base.exists():
-        return None
-    backups = data_dir / "backups"
-    backups.mkdir(parents=True, exist_ok=True)
-    target = backups / f"cases_{now:%Y-%m-%d_%H%M%S}.json"
-    # cases.json пишется атомарно (CaseStore), поэтому копия не застанет файл недописанным;
-    # копию тоже кладём через временный файл, чтобы в backups не было обрывков
-    tmp = target.with_suffix(".json.tmp")
-    shutil.copy2(base, tmp)
-    os.replace(tmp, target)
-    keep_newest(backups, "cases_*.json", BACKUPS_KEEP)
-    return target

@@ -1,3 +1,5 @@
+pytest_plugins = ["pgfixtures"]
+
 from datetime import date
 
 import pytest
@@ -83,3 +85,20 @@ def _no_real_tavily_usage(monkeypatch):
     """Тесты не ходят в сеть: фактический расход Tavily по умолчанию «недоступен» (тест может переопределить)."""
     monkeypatch.setattr("aidigest.usage.fetch_tavily_usage", lambda token, timeout=10: None)
     monkeypatch.setattr("aidigest.cli.fetch_tavily_usage", lambda token, timeout=10: None)
+
+
+@pytest.fixture
+def case_store(monkeypatch):
+    """Подменяет хранилище кейсов команды run на память: тесты никогда не трогают настоящую базу."""
+    from aidigest.store import MemoryStore
+    st = MemoryStore()
+    monkeypatch.setattr("aidigest.cli._case_store", lambda: st)
+    return st
+
+
+@pytest.fixture
+def usage_says(monkeypatch):
+    """Задаёт ответ Tavily GET /usage для команды run: usage_says(TavilyUsage(...)) или usage_says(None)."""
+    def _set(usage):
+        monkeypatch.setattr("aidigest.cli.fetch_tavily_usage", lambda token, timeout=10: usage)
+    return _set

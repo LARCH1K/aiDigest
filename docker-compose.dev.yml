@@ -1,0 +1,20 @@
+# Postgres для разработки и тестов: docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: aidigest
+      POSTGRES_PASSWORD: aidigest
+      POSTGRES_DB: aidigest
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - aidigest_dev_pg:/var/lib/postgresql/data
+      - ./docker/dev-init.sql:/docker-entrypoint-initdb.d/dev-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aidigest"]
+      interval: 3s
+      retries: 20
+
+volumes:
+  aidigest_dev_pg:

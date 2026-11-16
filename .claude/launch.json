@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "aidigest-web",
+      "name": "aidigest-api",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "aidigest_web", "--port", "8000"],
+      "runtimeArgs": ["-m", "aidigest_api", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "aidigest-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
     }
   ]
 }

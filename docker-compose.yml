@@ -1,13 +1,6 @@
-# Сайт (web) и сборщик (worker) из одного образа. Переменные — в .env (пример: .env.example).
+# Переменные задаются в .env (пример в .env.example).
 x-common: &common
-  build: .
-  image: aidigest:latest
-  user: "${AIDIGEST_UID:-1000}:${AIDIGEST_GID:-1000}"
-  volumes:
-    - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}:/data
   restart: unless-stopped
-  # init — маленький процесс-init (tini): передаёт SIGTERM Python-процессу, контейнер останавливается сразу
-  init: true
   logging:
     driver: json-file
     options:
@@ -15,36 +8,56 @@ x-common: &common
       max-file: "3"
 
 services:
-  web:
+  db:
     <<: *common
+    image: postgres:17
     environment:
-      AIDIGEST_DATA_DIR: /data
-      AIDIGEST_RUN_MODE: queue
-    # Без ключей сайт сам откажется стартовать на 0.0.0.0; required: false — чтобы
-    # docker compose config и тесты в образе работали без секретов.
+      POSTGRES_USER: aidigest
+      POSTGRES_DB: aidigest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+    volumes:
+      - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "aidigest", "-d", "aidigest"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    <<: *common
+    image: ghcr.io/larch1k/aidigest-backend:${AIDIGEST_VERSION:?задайте AIDIGEST_VERSION в .env}
+    build: .
+    user: "${AIDIGEST_UID:-1000}:${AIDIGEST_GID:-1000}"
+    init: true
+    environment:
+      DATABASE_URL: postgresql+psycopg://aidigest:${POSTGRES_PASSWORD}@db:5432/aidigest
+      AIDIGEST_SECURE_COOKIE: "${AIDIGEST_SECURE_COOKIE:-0}"
+      AIDIGEST_TRUST_REAL_IP: "1"
+    volumes:
+      - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}/backend:/data
     env_file:
       - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/web.env
         required: false
-      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/tavily.env  # для страницы кредитов
-        required: false
-    ports:
-      - "${AIDIGEST_HTTP_PORT:-80}:8000"
-    command: python -m aidigest_web --host 0.0.0.0 --port 8000
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  worker:
-    <<: *common
-    environment:
-      AIDIGEST_DATA_DIR: /data
-      AIDIGEST_RUN_MODE: queue
-    env_file:
-      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/litellm.env
-        required: false
       - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/tavily.env
         required: false
-    command: python -m aidigest_web.worker
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/litellm.env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  frontend:
+    <<: *common
+    image: ghcr.io/larch1k/aidigest-frontend:${AIDIGEST_VERSION:?задайте AIDIGEST_VERSION в .env}
+    build: ./frontend
+    ports:
+      - "${AIDIGEST_HTTP_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy

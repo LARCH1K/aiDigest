@@ -88,48 +88,39 @@
 | Сервер для инференса/раскатки | будет позже | запуск пайплайна по расписанию |
 | Claude Code | есть | разработка |
 
-Пример вызова LLM — `test_litellm.py`: креды читаются из `litellm.env` (ключи `LITELLM_API_KEY`, `LITELLM_BASE_URL`, опционально `LITELLM_MODEL`) и передаются в `openai.OpenAI(base_url=...)`.
+Интеграция с LiteLLM находится в `src/aidigest/llm.py`. Для подключения задайте `LITELLM_API_KEY`, `LITELLM_BASE_URL` и при необходимости `LITELLM_MODEL`.
 
-## Пайплайн `aidigest` (как запускать)
+## Пайплайн и разработка
 
-Design: `docs/superpowers/specs/2026-11-07-ai-cases-pipeline-design.md`, план: `docs/superpowers/plans/2026-11-07-ai-cases-pipeline.md`.
+Архитектура описана в `docs/superpowers/specs/2026-11-15-three-tier-architecture-design.md`. Инструкция для разработчика находится в `README.md`.
 
 ```bash
-.venv/Scripts/python -m pytest -q                       # тесты (без сети)
-.venv/Scripts/python -m aidigest run                    # регулярный цикл (~30 кредитов Tavily)
-.venv/Scripts/python -m aidigest run --budget 5 --levels "Свердловская область"   # отладка
-.venv/Scripts/python -m aidigest run --offline --budget 0                         # только кеш
-.venv/Scripts/python -m aidigest export                 # Excel из базы без поиска
-.venv/Scripts/python -m aidigest eval --offline         # эталон из кеша (без вызовов LLM)
+docker compose -f docker-compose.dev.yml up -d
+.venv/Scripts/python -m aidigest_api
+npm --prefix frontend ci
+npm --prefix frontend run dev
 ```
 
-- База кейсов: локально — `data/cases.json` (не в git); на сервере — `/srv/aidigest/data`, сервер — главный источник базы. Выгрузки — `data/out/`, кеш Tavily/LLM/HTTP — `data/cache/` (не в git; не удалять без нужды — это сэкономленные кредиты).
-- Конфиги: `config/sources.yaml` (справочник источников), `config/queries.yaml` (запросы), `config/settings.yaml` (бюджеты).
-- Эталон: `eval/reference_cases.yaml`; ручные тексты статей — `eval/texts/<id>-<n>.txt`.
-- Любая правка промпта (`extract.py`, `confirm.py`, `dedup.py`) сбрасывает кеш LLM для этих вызовов.
-- В промпт нельзя вставлять примеры с конкретными цитатами — GigaChat копирует их дословно.
-
-## Веб-интерфейс `aidigest_web`
-
-Design: `docs/superpowers/specs/2026-11-07-web-frontend-design.md`. Flask + Jinja2, свой CSS без фреймворков, сервер waitress; extra `[web]`.
-- **Не менять `src/aidigest/` ради фронта**: фронт только читает (модели, `CaseStore`, `export_xlsx`, `MonthlyUsage`) и запускает сбор отдельным процессом через `aidigest_web.runner`.
-- `web.env` (`WEB_PASSWORD`, `WEB_SECRET_KEY`) — не читать и не выводить, как остальные `*.env`.
-- Состояние запусков — `data/web/` (не в git). Запуск: `python -m aidigest_web` (localhost) или с `--host 0.0.0.0` только при заданном пароле.
-- Для проверки в браузере — `.claude/launch.json` (конфигурация `aidigest-web`). Кнопку «Запустить сбор» при проверке не нажимать — это расход кредитов.
+- Бэкенд FastAPI применяет миграции PostgreSQL при старте. Адрес переопределяется через `DATABASE_URL`.
+- В интерфейсе React можно смотреть кейсы и скачивать Excel. Бэкенд запускает сбор отдельным процессом, ведёт историю в PostgreSQL и пишет логи на свой том.
+- Для отладки используйте `POST /api/runs` с `budget`, `levels`, `days` и `offline`. Локальный запуск без пароля принимает только localhost.
+- `.venv/Scripts/python -m aidigest eval --offline` проверяет эталон через кеш. Эталон лежит в `eval/reference_cases.yaml`, ручные тексты статей в `eval/texts/<id>-<n>.txt`.
+- Ответы Tavily, LLM и HTTP кешируются в `data/cache/`. Изменения промпта в `extract.py`, `confirm.py` или `dedup.py` инвалидируют соответствующие кешированные ответы. Примеры с конкретными цитатами в промпт не добавлять, GigaChat может скопировать их дословно.
+- Для PostgreSQL-тестов задайте `AIDIGEST_TEST_DATABASE_URL=postgresql+psycopg://aidigest:aidigest@localhost:5433/aidigest_test`. Запускайте `.venv/Scripts/python -m pytest -q` и `npm --prefix frontend test`. Тесты PostgreSQL используют отдельную БД, поскольку сбрасывают её схему.
+- Конфигурации запуска в `.claude/launch.json` называются `aidigest-api` и `aidigest-frontend`. Реальный сбор через браузер расходует кредиты.
 
 ## Сервер
 
-Инструкция: `docs/deploy.md` (первая установка, выкладка, копия базы, HTTPS). Design: `docs/superpowers/specs/2026-11-08-server-deployment-design.md`.
-- Docker Compose: сервисы `web` (сайт) и `worker` (сборщик, `python -m aidigest_web.worker`) из одного образа; данные — `/srv/aidigest/data`, ключи — `/srv/aidigest/secrets/*.env` (передаются через `env_file`, в образ не попадают).
-- Выкладка — на сервере `./deploy.sh` (`--force` — перезапустить worker, даже если идёт сбор). Зависимости образа — `requirements.lock`, пересобирается `tools/lock_deps.sh`.
-- `AIDIGEST_RUN_MODE`: `local` (по умолчанию, сайт сам запускает сбор) или `queue` (сайт пишет заявку, сбор выполняет worker; так на сервере).
-- `AIDIGEST_TRUST_PROXY=1` — только за HTTPS-прокси (Caddy), и тогда порт web наружу не публикуется.
-- Базу с сервера можно скачать себе (`scp`), но обратно не заливать.
+Установка и обслуживание описаны в `docs/deploy.md`. Compose запускает `frontend`, `backend` и `db`. Свои образы появляются в GitHub Packages после успешной сборки в `master`. PostgreSQL использует официальный образ.
+
+- Секреты передаются через `env_file` из `/srv/aidigest/secrets/`. Для входа требуются `WEB_USERNAME`, `WEB_PASSWORD` и постоянный `WEB_SECRET_KEY`.
+- Выкладка: `docker compose pull`, затем `docker compose up -d --no-build`. Перезапуск бэкенда прерывает текущий сбор. Место для данных бэкенда должно быть доступно на запись его UID/GID.
+- Копирование и восстановление выполняются вручную или по расписанию на сервере. Инструкция содержит команды `pg_dump` и `pg_restore`.
 
 ## Правила
 
 - **`litellm.env` и `tavily.env` НИКОГДА не читать, не выводить, не коммитить и не отправлять куда-либо.** Код может загружать их в рантайме, но Claude не открывает эти файлы и не печатает их содержимое. То же для любых будущих файлов с ключами.
-- **Учёт кредитов Tavily:** главный источник — `GET https://api.tavily.com/usage` (`aidigest.usage.fetch_tavily_usage`, бесплатно); `data/credits.json` — запасной локальный учёт, `aidigest run` сверяет его с Tavily перед запуском. Тесты в сеть не ходят: в `tests/conftest.py` запрос подменён.
+- **Кредиты Tavily** учитываются по бесплатному `GET https://api.tavily.com/usage`. При недоступности запроса расход неизвестен, бюджет запуска всё равно ограничен. Тесты подменяют внешние вызовы.
 - **Tavily — 1000 запросов в месяц.** Использовать только для отладки пайплайна, экономно (кешировать ответы на диск, не гонять повторно одни и те же запросы). Информацию для самой разработки (документация, поиск источников, ссылки на эталонные кейсы) Claude ищет своими средствами (WebSearch/браузер), а не через Tavily.
 - **LLM через LiteLLM** — тоже только для отладки пайплайна; лимиты есть, но не критичные. Разработку (промпты, код) делает Claude.
 - Процесс разработки — через skills superpowers (brainstorming → writing-plans → реализация с TDD).

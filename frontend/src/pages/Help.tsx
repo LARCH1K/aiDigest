@@ -1,0 +1,104 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { apiGet } from "../api";
+import type { Meta } from "../types";
+
+function FlagHelp() {
+  const [help, setHelp] = useState<Meta["flag_help"]>();
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    apiGet<Meta>("/api/meta").then(
+      (meta) => { if (active) setHelp(meta.flag_help); },
+      () => { if (active) setFailed(true); },
+    );
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <section className="card">
+      <h2>Флаги</h2>
+      {failed ? <p className="error" role="alert">Не удалось загрузить пояснения к флагам.</p>
+        : !help ? <p className="muted" role="status">Загрузка пояснений к флагам…</p>
+        : <div className="table-wrap">
+          <table className="table compact flags-table">
+            <thead><tr>
+              <th scope="col">Флаг</th><th scope="col">Что значит</th><th scope="col">Что делать</th>
+            </tr></thead>
+            <tbody>
+              {Object.entries(help).map(([flag, [meaning, action]]) => (
+                <tr key={flag}><td><code>{flag}</code></td><td>{meaning}</td><td>{action}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>}
+    </section>
+  );
+}
+
+export function Help() {
+  return (
+    <>
+      <section className="hero"><div>
+        <h1>Как читать таблицу</h1>
+        <p className="muted">Откуда берутся кейсы, что значат статусы и флаги и насколько можно доверять цифрам.</p>
+      </div></section>
+
+      <div className="prose">
+        <section className="card">
+          <h2>Откуда данные</h2>
+          <p>При каждом запуске сбор ищет свежие статьи о внедрении ИИ по списку источников и поисковым запросам. Языковая модель GigaChat отбирает <b>конкретные внедрения</b> — где, кто и что внедрил — и выписывает измеримые показатели. Обзоры рынка, опросы, планы и мнения отсеиваются.</p>
+          <p>У каждой цифры должна быть <b>дословная цитата из статьи</b>. Программа проверяет, есть ли цитата и число в тексте. Если проверка не проходит, кейс сохраняется с флагом.</p>
+        </section>
+
+        <section className="card">
+          <h2>Уровни</h2>
+          <ul>
+            <li><b>мир</b> — зарубежные кейсы.</li>
+            <li><b>регионы РФ</b> — российские кейсы. Если регион не указан, стоит «федеральный уровень».</li>
+            <li><b>Свердловская область</b> — кейсы области и Екатеринбурга.</li>
+          </ul>
+        </section>
+
+        <section className="card">
+          <h2>Методики оценки эффекта</h2>
+          <ul>
+            <li><b>Р-1</b> для госсектора России оценивает скорость, качество, объективность, экономическую эффективность и персонализацию.</li>
+            <li><b>М-1</b> для зарубежного госсектора оценивает результат услуги, качество и надёжность, производительность и труд, опыт и доступность, доверие, реализуемость и масштаб.</li>
+            <li><b>Бизнес-метрики</b> включают ROI, операционные затраты, время процесса и уровень ошибок.</li>
+          </ul>
+          <p className="muted">«Прочее» — показатель вне критериев методики. Чаще всего это охват, например число пользователей, обращений или регионов.</p>
+        </section>
+
+        <section className="card">
+          <h2>Статусы подтверждения</h2>
+          <div className="table-wrap">
+            <table className="table compact">
+              <tbody>
+                <tr><td><span className="pill pill-ok">подтверждено</span></td><td>Хотя бы одна цифра найдена в другом независимом издании.</td></tr>
+                <tr><td><span className="pill pill-warn">один источник</span></td><td>Цифра пока ожидает проверки по второму источнику.</td></tr>
+                <tr><td><span className="pill pill-bad">противоречие</span></td><td>Другое издание называет другое значение того же показателя. Обе цифры видны в карточке кейса.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <FlagHelp />
+
+        <section className="card">
+          <h2>Главная цифра и ⚠</h2>
+          <p>В списке кейсов показана первая цифра, подтверждённая цитатой. Если такой цитаты нет, показывается первая из имеющихся цифр со значком ⚠. Её стоит проверить по ссылке.</p>
+          <p>Фильтр «скрыть сомнительные» убирает кейсы с флагами <code>цифра_не_найдена_в_тексте</code> и <code>противоречие_источников</code>.</p>
+        </section>
+
+        <section className="card">
+          <h2>Достоверность и «В базе с»</h2>
+          <p><b>Достоверность</b> — лучшая оценка среди источников кейса. Если хотя бы одна статья с сайта высокой достоверности, стоит <span className="pill pill-ok">высокая</span>. Оценки берутся из <Link to="/sources">справочника источников</Link> в момент сбора и сохраняются при последующих правках справочника. <span className="pill pill-muted">нет оценённых</span> означает, что в справочнике нет ни одного сайта из кейса. Такие цифры стоит перепроверить.</p>
+          <p><b>В базе с</b> — дата первого добавления кейса в базу. Она может отличаться от даты публикации статьи. При повторных сборах кейс может дополняться, а дата остаётся прежней.</p>
+          <p>С какими запросами идёт поиск, показано на странице <Link to="/queries">«Запросы»</Link>.</p>
+        </section>
+      </div>
+    </>
+  );
+}
