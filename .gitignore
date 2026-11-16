@@ -22,14 +22,9 @@ venv/
 data/cache/
 data/out/
 /data/stack/
-# База живёт на сервере (/srv/aidigest/data), локально — своя копия
-data/cases.json
 *.egg-info/
 .superpowers/
-data/web/
 web.env
-# Старые файлы данных — удаляются в конце переезда
-data/credits.json
 
 # Фронтенд
 frontend/node_modules/
