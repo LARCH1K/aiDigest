@@ -44,7 +44,7 @@ def test_explain_unexpected():
 def test_failure_reason_all_searches_failed():
     reason = failure_reason(RunReport(searches_failed=3, last_search_error=requests.Timeout()))
     assert reason.startswith("Ни один поисковый запрос")
-    assert "Tavily недоступен" in reason
+    assert "Поисковый сервис недоступен" in reason
 
 
 def test_failure_reason_no_searches_is_ok():

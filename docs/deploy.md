@@ -24,13 +24,16 @@ Docker создаст каталог `data/postgres` при первой уст�
 
 В `.env` заполните `POSTGRES_PASSWORD` случайным значением из `openssl rand -hex 24` и укажите `AIDIGEST_VERSION` из сводки того же прогона. По умолчанию сайт доступен на порту 80. Порт меняется через `AIDIGEST_HTTP_PORT`.
 
-Создайте в `/srv/aidigest/secrets` три файла с правами `0600`.
+Создайте `/srv/aidigest/secrets/secrets.env` с правами `0600`.
 
-| Файл | Переменные |
+| Назначение | Переменные |
 | --- | --- |
-| `web.env` | `WEB_USERNAME`, `WEB_PASSWORD`, `WEB_SECRET_KEY` |
-| `tavily.env` | `TAVILY_TOKEN` |
-| `litellm.env` | `LITELLM_API_KEY`, `LITELLM_BASE_URL`, опционально `LITELLM_MODEL` |
+| Вход в веб-интерфейс | `WEB_USERNAME`, `WEB_PASSWORD`, `WEB_SECRET_KEY` |
+| Поиск по умолчанию | `YANDEX_SEARCH_API_KEY`, `YANDEX_SEARCH_FOLDER_ID` |
+| Поиск через Tavily | `TAVILY_TOKEN` при выборе Tavily |
+| LiteLLM | `LITELLM_API_KEY`, `LITELLM_BASE_URL`, опционально `LITELLM_MODEL` |
+
+Для Яндекса создайте [ключ Yandex Search API](https://aistudio.yandex.ru/ru/docs/search-api/operations/web-search-sync) с областью действия `yc.search-api.execute` у сервисного аккаунта с ролью `search-api.webSearch.user`. Чтобы использовать Tavily, задайте `AIDIGEST_SEARCH_PROVIDER=tavily` в серверном `.env` и пересоздайте контейнер `backend`. При обновлении существующей установки скачайте новый `docker-compose.yml` и перенесите настройки в единый `secrets.env` перед запуском бэкенда.
 
 Для `WEB_SECRET_KEY` сгенерируйте отдельное значение через `openssl rand -hex 32` и сохраните его при обновлениях. Смена ключа завершит текущие сессии. Веб-интерфейс работает с пустой базой сразу после установки. Первый сбор запускается со страницы «Запуск».
 
@@ -50,7 +53,7 @@ docker login ghcr.io -u YOUR_GITHUB_USERNAME
 docker compose pull && docker compose up -d --no-build && docker compose ps
 ```
 
-Откройте `http://IP_СЕРВЕРА` и войдите парой из `web.env`. При нестандартном порте добавьте его к адресу. Обновление бэкенда во время сбора прерывает запуск. Уже сохранённые кейсы останутся в базе, а запуск получит статус «прервано».
+Откройте `http://IP_СЕРВЕРА` и войдите парой из `secrets.env`. При нестандартном порте добавьте его к адресу. Обновление бэкенда во время сбора прерывает запуск. Уже сохранённые кейсы останутся в базе, а запуск получит статус «прервано».
 
 Для отката укажите в `.env` тег предыдущего успешного релиза и повторите выкладку. Если новая версия уже применила несовместимую миграцию, восстановите совместимую копию БД.
 

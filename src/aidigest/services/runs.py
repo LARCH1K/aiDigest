@@ -20,7 +20,8 @@ from aidigest.db.schema import runs
 from aidigest.models import Level
 from aidigest.usage import fetch_tavily_usage
 
-REPORT_PREFIXES = ("Кредитов", "Вызовов", "Статей", "Кандидатов", "Кейсов", "Подтверждений", "Бюджет", "Флаг:")
+REPORT_PREFIXES = ("Новых поисковых запросов", "Кредитов", "Вызовов", "Статей",
+                   "Кандидатов", "Кейсов", "Подтверждений", "Бюджет", "Флаг:")
 STATE_LABEL = {"running": "идёт", "ok": "успешно", "error": "ошибка", "limit": "месячный лимит исчерпан",
                "interrupted": "прервано"}
 REASON_PREFIX = "Причина: "
@@ -258,12 +259,12 @@ class RunService:
 
     def start(self, params: RunParams | None = None) -> str:
         params = params or RunParams()
-        cr = self.credits()
+        cr = None if params.offline else self.credits()
         with self._run_lock:
             if self._stopping:
                 raise RunServiceStopping
             self._flush_finish()
-            if cr["known"] and cr["remaining"] <= 0 and not params.offline:
+            if cr and cr["known"] and cr["remaining"] <= 0:
                 raise MonthExhausted
             return self._start_child(params)
 

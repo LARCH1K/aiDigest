@@ -1,40 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, apiGet, apiPost } from "../api";
-import type { Credits, RunCurrent, RunRow, RunStarted } from "../types";
+import type { RunCurrent, RunRow, RunStarted } from "../types";
 
 const noStore = { cache: "no-store" } as const;
 const pollDelay = 5000;
-
-function isExhausted(credits: Credits) {
-  return credits.known && credits.remaining !== null && credits.remaining <= 0;
-}
-
-function CreditsCard({ credits, failed, onRetry }: { credits?: Credits; failed: boolean; onRetry: () => void }) {
-  const percent = credits?.known && credits.used !== null && credits.limit
-    ? Math.min(100, Math.max(0, 100 * credits.used / credits.limit))
-    : 0;
-  return (
-    <section className="card">
-      <h2>Кредиты поиска</h2>
-      {failed ? <>
-        <p className="error" role="alert">Не удалось загрузить кредиты поиска.</p>
-        <button className="btn btn-ghost" type="button" onClick={onRetry}>Повторить загрузку кредитов</button>
-      </>
-        : !credits ? <p className="muted" role="status">Загрузка кредитов…</p>
-        : <>
-          {credits.known ? <>
-            <div className="meter" aria-hidden="true">
-              <div className={`meter-fill${percent >= 80 ? " meter-warn" : ""}`} style={{ width: `${percent}%` }} />
-            </div>
-            <p className="meter-text">
-              потрачено {credits.used} из {credits.limit} (по данным Tavily) · осталось {credits.remaining}
-            </p>
-          </> : <p className="meter-text">расход неизвестен — Tavily не ответил</p>}
-          <p className="muted">Один запуск тратит до {credits.run_budget} кредитов.</p>
-        </>}
-    </section>
-  );
-}
 
 function RunStatus({ run }: { run: RunRow }) {
   const tone = run.state === "ok" ? "ok"
@@ -124,43 +93,19 @@ function RunHistory({ history }: { history: RunRow[] }) {
 }
 
 export function Run() {
-  const [credits, setCredits] = useState<Credits>();
   const [current, setCurrent] = useState<RunCurrent>();
   const [history, setHistory] = useState<RunRow[]>();
-  const [creditsFailed, setCreditsFailed] = useState(false);
   const [statusFailed, setStatusFailed] = useState(false);
   const [historyFailed, setHistoryFailed] = useState(false);
   const [startError, setStartError] = useState("");
   const start = useRef<(() => void) | null>(null);
-  const retryCredits = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let creditsRequest = 0;
     let historyRequest = 0;
-    let availableCredits: Credits | undefined;
     let lastStatus: RunCurrent | undefined;
     let initialHistoryHasRunning = false;
-
-    async function loadCredits() {
-      const request = ++creditsRequest;
-      retryCredits.current = null;
-      availableCredits = undefined;
-      setCredits(undefined);
-      setCreditsFailed(false);
-      try {
-        const data = await apiGet<Credits>("/api/credits", noStore);
-        if (!active || request !== creditsRequest) return;
-        availableCredits = data;
-        setCredits(data);
-      } catch {
-        if (active && request === creditsRequest) {
-          retryCredits.current = loadCredits;
-          setCreditsFailed(true);
-        }
-      }
-    }
 
     function reconcileInitialHistory() {
       if (!initialHistoryHasRunning || lastStatus?.running !== false) return;
@@ -196,7 +141,6 @@ export function Run() {
           if (previousId && previousId !== data.run_id) void loadHistory();
           timer = setTimeout(() => { void loadCurrent(true); }, pollDelay);
         } else if (refreshWhenIdle) {
-          void loadCredits();
           void loadHistory();
         } else {
           reconcileInitialHistory();
@@ -209,7 +153,7 @@ export function Run() {
     }
 
     start.current = async () => {
-      if (!active || lastStatus?.running !== false || !availableCredits || isExhausted(availableCredits)) return;
+      if (!active || lastStatus?.running !== false) return;
       // Блокируем повторный клик сразу, до обновления кнопки React.
       lastStatus = undefined;
       setCurrent(undefined);
@@ -225,48 +169,41 @@ export function Run() {
     // В StrictMode первый эффект сразу снимается. Запускаем запросы только для активного эффекта.
     queueMicrotask(() => {
       if (!active) return;
-      void loadCredits();
       void loadHistory();
       void loadCurrent(false);
     });
     return () => {
       active = false;
       start.current = null;
-      retryCredits.current = null;
       clearTimeout(timer);
     };
   }, []);
 
   const running = current?.running ? current : null;
-  const exhausted = credits ? isExhausted(credits) : false;
   return (
     <>
       <section className="hero"><div>
         <h1>Запуск сбора</h1>
         <p className="muted">Сбор ищет свежие статьи за последние 30 дней, достаёт из них кейсы с цифрами и ищет подтверждения во втором издании. Обычно занимает 5–15 минут.</p>
       </div></section>
-      <div className="grid-2 run-grid">
-        <CreditsCard credits={credits} failed={creditsFailed} onRetry={() => retryCredits.current?.()} />
-        <section className="card run-card" data-running={running ? "" : undefined}>
-          {running ? <>
-            <h2><span className="spinner" aria-hidden="true" /> Идёт сбор</h2>
-            <p>Начат в <b>{running.started.slice(11, 16)}</b> ({running.minutes} мин назад). Страницу можно закрыть — сбор продолжится.</p>
-          </> : <>
-            <h2>Новый сбор</h2>
-            <p>{current
-              ? "Нажмите кнопку — сбор пойдёт в фоне, а новые кейсы появятся в списке по мере обработки."
-              : "Проверяем состояние сбора…"}</p>
-          </>}
-          <button className="btn btn-primary btn-lg" type="button"
-            disabled={!current || !!running || !credits || exhausted}
-            onClick={() => start.current?.()}>
-            Запустить сбор
-          </button>
-          {exhausted && <p className="error">Лимит кредитов исчерпан — новый запуск возможен после пополнения лимита Tavily.</p>}
-          {startError && <p className="error" role="alert">{startError}</p>}
-          {statusFailed && <p className="error" role="alert">Не удалось обновить состояние сбора. Запрос повторится автоматически.</p>}
-        </section>
-      </div>
+      <section className="card run-card" data-running={running ? "" : undefined}>
+        {running ? <>
+          <h2><span className="spinner" aria-hidden="true" /> Идёт сбор</h2>
+          <p>Начат в <b>{running.started.slice(11, 16)}</b> ({running.minutes} мин назад). Страницу можно закрыть — сбор продолжится.</p>
+        </> : <>
+          <h2>Новый сбор</h2>
+          <p>{current
+            ? "Нажмите кнопку — сбор пойдёт в фоне, а новые кейсы появятся в списке по мере обработки."
+            : "Проверяем состояние сбора…"}</p>
+        </>}
+        <button className="btn btn-primary btn-lg" type="button"
+          disabled={!current || !!running}
+          onClick={() => start.current?.()}>
+          Запустить сбор
+        </button>
+        {startError && <p className="error" role="alert">{startError}</p>}
+        {statusFailed && <p className="error" role="alert">Не удалось обновить состояние сбора. Запрос повторится автоматически.</p>}
+      </section>
       {running && (
         <section className="card">
           <h2>Что происходит сейчас</h2>

@@ -44,7 +44,7 @@ class RunReport:
 
     def as_rows(self) -> dict[str, Any]:
         rows = {
-            "Кредитов Tavily потрачено": self.credits_spent,
+            "Новых поисковых запросов": self.credits_spent,
             "Вызовов LLM": self.llm_calls,
             "Статей обработано": self.articles_processed,
             "Статей отсеяно (не кейс)": self.articles_rejected,

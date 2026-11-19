@@ -6,7 +6,7 @@ from pathlib import Path
 
 import uvicorn
 
-from aidigest.creds import WEB_KEYS, load_creds
+from aidigest.creds import SECRETS_FILE, WEB_KEYS, load_creds
 from aidigest.db.engine import make_engine
 from aidigest_api import ROOT, create_app
 
@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
 
-    credentials = load_creds(ROOT / "web.env", WEB_KEYS)
+    credentials = load_creds(ROOT / SECRETS_FILE, WEB_KEYS)
     username = credentials.get("WEB_USERNAME")
     password = credentials.get("WEB_PASSWORD")
     secret_key = credentials.get("WEB_SECRET_KEY")

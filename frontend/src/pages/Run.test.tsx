@@ -1,12 +1,9 @@
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { Credits, RunCurrent, RunRow } from "../types";
+import type { RunCurrent, RunRow } from "../types";
 import { Run } from "./Run";
 
-const credits: Credits = {
-  known: true, used: 10, limit: 1000, remaining: 990, plan: "", run_budget: 30,
-};
 const idle: RunCurrent = { running: false };
 const running: RunCurrent = {
   running: true, run_id: "new", started: "2026-11-15T09:00:00", minutes: 2, tail: ["Поиск начат"],
@@ -25,7 +22,6 @@ function deferredResponse() {
 
 function setup(overrides: Partial<Record<string, () => Response | Promise<Response>>> = {}) {
   const responses = {
-    "/api/credits": () => Response.json(credits),
     "/api/runs/current": () => Response.json(idle),
     "/api/runs": () => Response.json([]),
     ...overrides,
@@ -86,7 +82,7 @@ it("показывает минуты и лог, не накладывает о�
   await tick(1);
   expect(current).toHaveBeenCalledTimes(3);
   expect(history).toHaveBeenCalledTimes(2);
-  expect(calls("/api/credits")).toBe(2);
+  expect(calls("/api/credits")).toBe(0);
   expect(screen.getByText("Успешно")).toBeVisible();
   expect(screen.queryByText("Сверка цифр")).toBeNull();
   expect(button()).toBeEnabled();
@@ -119,66 +115,18 @@ it("однократно отправляет запуск и показывае
   expect(button()).toBeDisabled();
 });
 
-it("при исчерпанном известном лимите два клика не отправляют запуск", async () => {
+it("запускает сбор без запроса кредитов и показывает отказ при исчерпанном лимите", async () => {
+  const detail = "Лимит поисковых запросов исчерпан.";
   const { calls } = setup({
-    "/api/credits": () => Response.json({ ...credits, used: 1000, remaining: 0 }),
+    "POST /api/runs": () => Response.json({ detail }, { status: 409 }),
   });
-  expect(await screen.findByText(/потрачено 1000 из 1000 \(по данным Tavily\)/)).toBeVisible();
-  expect(button()).toBeDisabled();
-  fireEvent.click(button());
-  fireEvent.click(button());
-  expect(calls("/api/runs", "POST")).toBe(0);
-});
-
-it.each([
-  { recovered: { ...credits, used: 20, remaining: 980 }, enabled: true, label: /по данным Tavily/ },
-  { recovered: { ...credits, used: 1000, remaining: 0 }, enabled: false, label: /по данным Tavily/ },
-  {
-    recovered: { ...credits, known: false, used: null, limit: null, remaining: null },
-    enabled: true, label: /расход неизвестен/,
-  },
-])("повторяет загрузку кредитов после сбоя (остаток: $recovered.remaining)", async ({ recovered, enabled, label }) => {
-  vi.useFakeTimers();
-  const retry = deferredResponse();
-  const { calls } = setup({
-    "/api/credits": vi.fn().mockReturnValueOnce(Response.json({}, { status: 503 })).mockReturnValue(retry.promise),
-  });
-  await tick();
-  expect(screen.getByRole("alert")).toHaveTextContent("Не удалось загрузить кредиты поиска");
-  expect(button()).toBeDisabled();
-
-  const retryButton = screen.getByRole("button", { name: "Повторить загрузку кредитов" });
-  act(() => {
-    fireEvent.click(retryButton);
-    fireEvent.click(retryButton);
-  });
-  expect(calls("/api/credits")).toBe(2);
-  expect(button()).toBeDisabled();
-  await act(async () => retry.resolve(Response.json(recovered)));
-  expect(screen.getByText(label)).toBeVisible();
-  expect(screen.queryByRole("alert")).toBeNull();
-  if (enabled) {
-    expect(button()).toBeEnabled();
-  } else {
-    expect(button()).toBeDisabled();
-    fireEvent.click(button());
-    expect(calls("/api/runs", "POST")).toBe(0);
-  }
-});
-
-it("при неизвестном расходе позволяет запустить сбор и сразу получает состояние", async () => {
-  const { calls } = setup({
-    "/api/credits": () => Response.json({ ...credits, known: false, used: null, limit: null, remaining: null }),
-    "/api/runs/current": vi.fn().mockReturnValueOnce(Response.json(idle))
-      .mockImplementation(() => Response.json(running)),
-    "POST /api/runs": () => Response.json({ run_id: running.run_id }, { status: 202 }),
-  });
-  expect(await screen.findByText(/расход неизвестен — Tavily не ответил/i)).toBeVisible();
+  expect(await screen.findByText(/Нажмите кнопку/)).toBeVisible();
   expect(button()).toBeEnabled();
   fireEvent.click(button());
-  expect(await screen.findByText("Поиск начат")).toBeVisible();
-  expect(calls("/api/runs/current")).toBe(2);
-  expect(button()).toBeDisabled();
+  expect(await screen.findByRole("alert")).toHaveTextContent(detail);
+  expect(calls("/api/runs", "POST")).toBe(1);
+  expect(calls("/api/credits")).toBe(0);
+  expect(screen.queryByText("Кредиты поиска")).toBeNull();
 });
 
 it.each(["история", "статус"])("перечитывает противоречивую начальную историю один раз, первым пришёл ответ «%s»", async (first) => {

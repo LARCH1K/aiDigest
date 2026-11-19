@@ -37,7 +37,8 @@ def archive(tmp_path_factory, monkeypatch, case_store):
     return case_store, cache, llm
 
 
-def test_archive_continues_after_unavailable_cases_and_skips_completed(archive, make_case, make_source):
+@pytest.mark.parametrize("namespace", ["tavily", "yandex"])
+def test_archive_continues_after_unavailable_cases_and_skips_completed(archive, make_case, make_source, namespace):
     store, cache, llm = archive
     url = "https://example.org/first"
     store.save(StoreData([
@@ -45,7 +46,7 @@ def test_archive_continues_after_unavailable_cases_and_skips_completed(archive, 
         make_case(id="b", sources=[make_source(url)], metrics=[]),
         make_case(id="c"),
     ], {"https://processed.example.org"}))
-    cache.put("tavily", {"query": "запрос"}, {"results": [{
+    cache.put(namespace, {"query": "запрос"}, {"results": [{
         "url": url + "?utm_source=search",
         "raw_content": "Сотрудники прошли обучение работе с искусственным интеллектом.",
         "published_date": "2025-02-03T13:14:00+03:00",

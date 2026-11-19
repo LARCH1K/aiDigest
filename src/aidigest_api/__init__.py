@@ -11,8 +11,9 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import Engine
 
 from aidigest.config import Settings, load_settings
-from aidigest.creds import TAVILY_KEYS, load_creds
+from aidigest.creds import SECRETS_FILE, TAVILY_KEYS, load_creds
 from aidigest.db.engine import migrate
+from aidigest.search import search_provider
 from aidigest.services.cases import CaseService
 from aidigest.services.catalog import CONFIG_ERRORS, CatalogService
 from aidigest.services.runs import RunService, RunStore
@@ -32,7 +33,9 @@ def create_app(engine: Engine, *, username: str | None, password: str | None, se
             settings = load_settings(config_dir / "settings.yaml")
         except CONFIG_ERRORS:
             settings = Settings()
-        token = load_creds(ROOT / "tavily.env", TAVILY_KEYS).get("TAVILY_TOKEN")
+        token = None
+        if search_provider() == "tavily":
+            token = load_creds(ROOT / SECRETS_FILE, TAVILY_KEYS).get("TAVILY_TOKEN")
         run_service = RunService(RunStore(engine), data_dir or ROOT / "data", ROOT, settings, token)
 
     @asynccontextmanager

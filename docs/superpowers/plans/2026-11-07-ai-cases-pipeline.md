@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **`litellm.env` и `tavily.env` никогда не открывать и не выводить.** Код загружает их в рантайме через `aidigest.creds.load_env_file`. Ключи: `LITELLM_API_KEY`, `LITELLM_BASE_URL`, `LITELLM_MODEL` (по умолчанию `GigaChat-3-Pro`), `TAVILY_TOKEN`.
+- **`secrets.env` никогда не открывать и не выводить.** Код загружает их в рантайме через `aidigest.creds.load_env_file`. Ключи: `LITELLM_API_KEY`, `LITELLM_BASE_URL`, `LITELLM_MODEL` (по умолчанию `GigaChat-3-Pro`), `TAVILY_TOKEN`.
 - Tavily: 1000 кредитов в месяц на всё. Регулярный запуск — около 30 кредитов, первый запуск — до 100. Резерв под подтверждение — 40%. Внешние вызовы Tavily и LLM только в задачах 12–13; в остальных задачах — фейки.
 - Тесты не ходят в сеть.
 - Все ответы Tavily, LLM и HTTP кешируются на диск. Повторный прогон на тех же данных не тратит ни кредитов, ни вызовов LLM.
@@ -714,7 +714,7 @@ Produces (`cli.py`): `main(argv: list[str] | None = None) -> int`, подком�
 - `export` — Excel из базы без поиска.
 - `eval` — задача 12.
 
-Креды читаются из корня проекта `litellm.env` / `tavily.env` через `load_env_file`; при `--offline` отсутствие файлов не ошибка. Кеш — `data/cache/`.
+Креды читаются из корня проекта `secrets.env` через `load_env_file`; при `--offline` отсутствие файлов не ошибка. Кеш — `data/cache/`.
 
 - [ ] **Step 1: Написать падающие тесты** (фейки, `tmp_path`-хранилище, реальный `registry`).
 

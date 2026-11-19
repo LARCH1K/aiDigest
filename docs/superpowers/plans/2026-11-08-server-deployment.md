@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- `litellm.env`, `tavily.env`, `web.env` и любые `*.env` не открывать, не печатать, не коммитить. Ключи не должны попадать в образ (`.dockerignore`), git или логи.
+- `secrets.env` и любые `*.env` не открывать, не печатать, не коммитить. Ключи не должны попадать в образ (`.dockerignore`), git или логи.
 - Тесты в сеть не ходят. Кредиты Tavily не тратятся: кнопку «Запустить сбор» не нажимать, `aidigest run` вызывать только с `--offline`.
 - Локальная разработка под Windows работает как сейчас: `python -m aidigest_web`, `python -m aidigest run`, `.venv/Scripts/python -m pytest -q`.
 - Python ≥ 3.12, базовый образ `python:3.13-slim`. Тяжёлых зависимостей не добавлять.
@@ -56,13 +56,13 @@
 - [ ] **Step 3: Implement `load_creds`.** `load_env_file` не меняется.
 - [ ] **Step 4: Подключить.**
   - `cli._creds(name, offline)` → `load_creds(ROOT / name, keys)` с набором по имени файла. `SystemExit(f"Не найдены ключи {name}: задайте файл в корне проекта или переменные окружения.")` выбрасывается, только если результат пуст и запуск не офлайн.
-  - `RunManager._tavily` → `load_creds(self.project_root / "tavily.env", TAVILY_KEYS).get("TAVILY_TOKEN")`.
-  - `aidigest_web.__main__._web_env` → `load_creds(PROJECT_ROOT / "web.env", WEB_KEYS)`.
+  - `RunManager._tavily` → `load_creds(self.project_root / "secrets.env", TAVILY_KEYS).get("TAVILY_TOKEN")`.
+  - `aidigest_web.__main__._web_env` → `load_creds(PROJECT_ROOT / "secrets.env", WEB_KEYS)`.
 - [ ] **Step 5: Постоянный секретный ключ в сети.** В `aidigest_web.__main__.main` при нелокальном `--host` без `WEB_SECRET_KEY` вернуть 2 с сообщением «Открыть сайт в сеть без постоянного ключа нельзя: задайте WEB_SECRET_KEY (иначе каждая перевыкладка разлогинивает пользователей).». Тесты в `tests/web/test_auth.py`:
   - `test_main_refuses_network_without_secret_key`: пароль задан через `monkeypatch.setenv`, ключа нет → `main(["--host", "0.0.0.0"]) == 2`;
   - существующий `test_main_allows_network_with_password` дополнить `WEB_SECRET_KEY`.
 
-  Чтобы тесты не зависели от настоящего `web.env`, `_web_env` в них подменяется через monkeypatch, как в существующих тестах.
+  Чтобы тесты не зависели от настоящего `secrets.env`, `_web_env` в них подменяется через monkeypatch, как в существующих тестах.
 - [ ] **Step 6: Run** `.venv/Scripts/python -m pytest -q`. Expected: все PASS.
 - [ ] **Step 7: Commit** `feat: ключи из переменных окружения, постоянный WEB_SECRET_KEY для сети`.
 
@@ -298,10 +298,10 @@
   - Том `${AIDIGEST_DATA_HOST:-/srv/aidigest/data}:/data`, `environment: AIDIGEST_DATA_DIR=/data, AIDIGEST_RUN_MODE=queue`.
   - `restart: unless-stopped`, `logging: json-file, max-size 10m, max-file 3`.
   - web:
-    - `env_file: ${AIDIGEST_SECRETS}/web.env, ${AIDIGEST_SECRETS}/tavily.env` (Tavily нужен странице кредитов);
+    - `env_file: ${AIDIGEST_SECRETS}/secrets.env, ${AIDIGEST_SECRETS}/secrets.env` (Tavily нужен странице кредитов);
     - `ports: "${AIDIGEST_HTTP_PORT:-80}:8000"`, `command: python -m aidigest_web --host 0.0.0.0 --port 8000`;
     - healthcheck через `python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"`.
-  - worker: `env_file: litellm.env, tavily.env`, `command: python -m aidigest_web.worker`.
+  - worker: `env_file: `secrets.env`, `command: python -m aidigest_web.worker`.
 - [ ] **Step 5: `deploy.sh`** (bash, `set -euo pipefail`). Флаг `--force`. Шаги:
   1. `git pull --ff-only`, при ошибке — сообщение «git pull не прошёл — на сервере есть локальные изменения?» и выход 1.
   2. `docker compose build`.

@@ -196,7 +196,7 @@ def test_cli_run_prints_reason_when_all_searches_failed(tmp_path, monkeypatch, c
     assert main(["run", "--offline", "--budget", "3"]) == 1
     out = capsys.readouterr().out
     assert "Excel:" not in out
-    assert out.strip().splitlines()[-1].startswith("Причина: Ни один поисковый запрос не выполнился. Tavily недоступен")
+    assert out.strip().splitlines()[-1].startswith("Причина: Ни один поисковый запрос не выполнился. Поисковый сервис недоступен")
 
 
 def test_offline_cache_miss_is_not_failure(tmp_path, registry, case_store):
@@ -220,7 +220,7 @@ def test_cli_run_prints_reason_when_keys_missing(tmp_path, monkeypatch, capsys, 
     monkeypatch.setattr(cli, "load_creds", lambda path, keys: {})
     assert main(["run", "--budget", "3"]) == 1
     out = capsys.readouterr().out
-    assert out.count("Причина:") == 1 and "Причина: Не найдены ключи tavily.env" in out
+    assert out.count("Причина:") == 1 and "Причина: Не заданы настройки доступа к поиску" in out
 
 
 def test_confirmations_saved_one_by_one(registry, case_reply, case_store):

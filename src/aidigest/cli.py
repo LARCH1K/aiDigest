@@ -11,10 +11,11 @@ from pathlib import Path
 from aidigest.budget import CreditBudget
 from aidigest.cache import DiskCache
 from aidigest.config import load_queries, load_settings
-from aidigest.creds import LITELLM_KEYS, TAVILY_KEYS, load_creds
+from aidigest.creds import LITELLM_KEYS, SECRETS_FILE, TAVILY_KEYS, YANDEX_KEYS, load_creds
 from aidigest.failure import explain, failure_reason
 from aidigest.models import Level
 from aidigest.registry import SourceRegistry
+from aidigest.search import search_provider
 from aidigest.store import PgCaseStore, Store, WriterBusy
 from aidigest.usage import fetch_tavily_usage
 
@@ -25,7 +26,6 @@ def _data_dir() -> Path:
     return Path(os.environ.get("AIDIGEST_DATA_DIR") or ROOT / "data")
 
 
-_CRED_KEYS = {"litellm.env": LITELLM_KEYS, "tavily.env": TAVILY_KEYS}
 _WRITER_BUSY = "Причина: Сбор или дозаполнение уже выполняется. Повторите после завершения."
 
 
@@ -33,16 +33,11 @@ class MissingCreds(SystemExit):
     """Нет ключей для онлайн-запуска; вне cmd_run ведёт себя как обычный SystemExit с сообщением."""
 
 
-def _creds(name: str, offline: bool) -> dict[str, str]:
-    creds = load_creds(ROOT / name, _CRED_KEYS[name])
-    if not creds and not offline:
-        raise MissingCreds(f"Не найдены ключи {name}: задайте файл в корне проекта или переменные окружения.")
-    return creds
-
-
 def _llm(settings, cache: DiskCache, offline: bool):
     from aidigest.llm import LiteLLMClient
-    c = _creds("litellm.env", offline)
+    c = load_creds(ROOT / SECRETS_FILE, LITELLM_KEYS)
+    if not offline and not all(c.get(key) for key in ("LITELLM_API_KEY", "LITELLM_BASE_URL")):
+        raise MissingCreds("Задайте LITELLM_API_KEY и LITELLM_BASE_URL в secrets.env или в окружении.")
     return LiteLLMClient(c.get("LITELLM_API_KEY"), c.get("LITELLM_BASE_URL"),
                          c.get("LITELLM_MODEL") or settings.llm_model, cache, offline=offline)
 
@@ -83,6 +78,7 @@ def _run_all(args, settings, store: Store) -> int:
     """Сбор целиком (включая сверку кредитов с Tavily)."""
     from aidigest.pipeline import Deps, run_cycle
     from aidigest.search import TavilySearch
+    from aidigest.yandex_search import YandexSearch
 
     today = date.today()
     if args.budget is not None:
@@ -91,27 +87,34 @@ def _run_all(args, settings, store: Store) -> int:
         requested = settings.first_run_budget
     else:
         requested = settings.run_budget
-    tavily = _creds("tavily.env", args.offline)
-    # Единственный источник правды о расходе — сам Tavily (GET /usage).
-    actual = fetch_tavily_usage(tavily.get("TAVILY_TOKEN"))
-    if actual is None:
-        print(f"Расход кредитов Tavily неизвестен (сервис не ответил) — бюджет запуска {requested:g}.")
-        total = requested
-    else:
-        print(f"Кредиты по данным Tavily: {actual.used:g} из {actual.limit:g}.")
+    provider = search_provider()
+    required = TAVILY_KEYS if provider == "tavily" else YANDEX_KEYS
+    creds = {} if args.offline else load_creds(ROOT / SECRETS_FILE, required)
+    if not args.offline and any(not creds.get(key) for key in required):
+        raise MissingCreds("Не заданы настройки доступа к поиску. Проверьте настройки сервера.")
+
+    token = creds.get("TAVILY_TOKEN") if provider == "tavily" else None
+    actual = fetch_tavily_usage(token) if token else None
+    total = requested
+    if actual is not None:
         if requested > 0 and actual.remaining <= 0:
-            print("Причина: Месячный лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения.")
+            print("Причина: Месячный лимит поисковых запросов исчерпан.")
             return 2
         total = min(requested, actual.remaining)
         if total < requested:
             print(f"Бюджет запуска урезан до остатка месячного лимита: {total:g} вместо {requested:g}.")
         if actual.used > actual.limit * settings.monthly_warn_share:
-            print(f"Внимание: в этом месяце потрачено {actual.used:g} кредитов Tavily из {actual.limit:g} "
-                  f"(осталось {actual.remaining:g}).")
+            print("Внимание: остаток месячного лимита поиска снижается.")
+    print(f"Поисковых запросов на запуск: {total:g} (бюджет запуска {requested:g}).")
     budget = CreditBudget(total, settings.confirm_share)
     cache = DiskCache(_data_dir() / "cache")
+    if provider == "tavily":
+        search = TavilySearch(token, cache, budget, offline=args.offline)
+    else:
+        search = YandexSearch(creds.get("YANDEX_SEARCH_API_KEY"), creds.get("YANDEX_SEARCH_FOLDER_ID"),
+                              cache, budget, offline=args.offline)
     deps = Deps(
-        search=TavilySearch(tavily.get("TAVILY_TOKEN"), cache, budget, offline=args.offline),
+        search=search,
         llm=_llm(settings, cache, args.offline),
         registry=SourceRegistry.load(ROOT / "config" / "sources.yaml"),
         store=store,
@@ -197,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
 
     r = sub.add_parser("run", help="регулярный цикл")
     r.add_argument("--first-run", action="store_true", help="бюджет первого запуска (first_run_budget)")
-    r.add_argument("--budget", type=float, help="лимит кредитов Tavily на запуск")
+    r.add_argument("--budget", type=float, help="лимит новых поисковых запросов на запуск")
     r.add_argument("--levels", help="уровни через запятую: мир,регионы РФ,Свердловская область")
     r.add_argument("--days", type=int, help="окно свежести, дней")
     r.add_argument("--offline", action="store_true", help="только кеш, без внешних вызовов")
