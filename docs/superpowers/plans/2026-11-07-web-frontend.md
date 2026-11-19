@@ -49,14 +49,14 @@ tests/web/         conftest (app, client, фикстура базы), test_*.py
 
 ### Task 1: Каркас, вход, запуск сервера
 
-**Files:** Create `src/aidigest_web/{__init__,__main__,auth,routes}.py`, `templates/{base,login}.html`, `static/style.css`, `tests/web/conftest.py`, `tests/web/test_auth.py`. Modify `pyproject.toml` (extra `web = ["flask", "waitress"]`), `.gitignore` (`web.env` уже покрыт `*.env` — проверить).
+**Files:** Create `src/aidigest_web/{__init__,__main__,auth,routes}.py`, `templates/{base,login}.html`, `static/style.css`, `tests/web/conftest.py`, `tests/web/test_auth.py`. Modify `pyproject.toml` (extra `web = ["flask", "waitress"]`), `.gitignore` (`secrets.env` уже покрыт `*.env` — проверить).
 
 **Interfaces — Produces:**
 - `create_app(data_dir: Path, password: str | None, secret_key: str | None = None, run_manager: RunManager | None = None) -> Flask`. `data_dir` и `run_manager` кладутся в `app.config["DATA_DIR"]` и `app.extensions["runs"]`.
 - `auth.login_required` — before_request: если `password` задан и в сессии нет `auth`, то редирект на `/login?next=...`; `/login` и `/static/*` открыты.
 - `__main__.main(argv) -> int`:
   - параметры `--host` (по умолчанию `127.0.0.1`) и `--port` (по умолчанию `8000`);
-  - читает `web.env` из корня (`WEB_PASSWORD`, `WEB_SECRET_KEY`) через `aidigest.creds.load_env_file`, а также `AIDIGEST_DATA_DIR`;
+  - читает `secrets.env` из корня (`WEB_PASSWORD`, `WEB_SECRET_KEY`) через `aidigest.creds.load_env_file`, а также `AIDIGEST_DATA_DIR`;
   - host не из `127.0.0.1`/`localhost` при пустом пароле → печать причины, `return 2`;
   - иначе `waitress.serve(app, host, port)`.
 - `conftest`:
@@ -181,12 +181,12 @@ tests/web/         conftest (app, client, фикстура базы), test_*.py
 
 ### Task 6: Внешний вид, проверка в браузере, документация
 
-**Files:** Modify `static/style.css`, шаблоны, `README.md` (раздел «Веб-интерфейс»), `CLAUDE.md` (строка о фронте и `web.env`).
+**Files:** Modify `static/style.css`, шаблоны, `README.md` (раздел «Веб-интерфейс»), `CLAUDE.md` (строка о фронте и `secrets.env`).
 
 - [ ] **Step 1: Довести стили.**
   - CSS-переменные палитры, шапка, карточки, «таблетки» статусов, липкая шапка таблиц, hover, фокус-обводка, ширина контента до ~1200px;
   - на экране шириной 375px страница не ломается (таблица прокручивается горизонтально внутри контейнера).
 - [ ] **Step 2: Запустить сервер.** `.venv/Scripts/python -m aidigest_web` в фоне на реальной базе. Пройти в встроенном браузере все страницы, сделать скриншоты и поправить вёрстку. Кнопку запуска при проверке **не нажимать** — это расход кредитов. Запуск уже покрыт тестами.
-- [ ] **Step 3: Документация.** README: установка `[web]`, `web.env`, запуск, доступ по сети только с паролем, предупреждение «не запускать сбор из консоли, пока идёт запуск с сайта», как удалить фронт.
+- [ ] **Step 3: Документация.** README: установка `[web]`, `secrets.env`, запуск, доступ по сети только с паролем, предупреждение «не запускать сбор из консоли, пока идёт запуск с сайта», как удалить фронт.
 - [ ] **Step 4: Весь набор тестов** `.venv/Scripts/python -m pytest -q` — PASS. Проверить, что `git diff master -- src/aidigest` пуст.
 - [ ] **Step 5: Commit** `feat(web): оформление и документация`.

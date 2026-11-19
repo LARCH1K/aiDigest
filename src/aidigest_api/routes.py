@@ -1,4 +1,5 @@
 """Адаптеры HTTP над сервисами кейсов, каталога и запусков."""
+import re
 from datetime import date
 from typing import Annotated
 
@@ -20,8 +21,19 @@ from aidigest_api.schemas import (
 )
 
 BUSY = "Сбор уже идёт — дождитесь, пока он закончится."
-LIMIT_EXHAUSTED = "Лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения лимита."
+LIMIT_EXHAUSTED = "Лимит поисковых запросов исчерпан."
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_PROVIDER_NAMES = re.compile(
+    r"https://(?:api\.tavily\.com|searchapi\.api\.cloud\.yandex\.net)[^\s\"']*"
+    r"|\b(?:Yandex Search API|YandexSearch|TavilySearch|yandex_search|Tavily)(?:\.env)?\b",
+    re.IGNORECASE,
+)
+
+
+def _run_text(text: str) -> str:
+    """Убирает имена провайдеров из текста текущих и архивных запусков."""
+    text = text.replace("Кредитов Tavily потрачено", "Новых поисковых запросов")
+    return _PROVIDER_NAMES.sub("поисковый сервис", text)
 
 
 async def _run_params(request: Request, body: RunRequest | None = None) -> RunParams:
@@ -107,7 +119,8 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
         if current is None:
             return IdleRun()
         run, tail = current
-        return ActiveRun(run_id=run.run_id, started=run.started, minutes=run.minutes, tail=tail)
+        return ActiveRun(run_id=run.run_id, started=run.started, minutes=run.minutes,
+                         tail=[_run_text(line) for line in tail])
 
     @router.post("/runs", status_code=202)
     def start_run(params: Annotated[RunParams, Depends(_run_params)]) -> RunStarted:
@@ -122,14 +135,19 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
 
     @router.get("/runs")
     def run_history(query: Annotated[RunQuery, Query()]) -> list[RunRow]:
-        return [RunRow.model_validate(run) for run in runs.history(query.limit)]
+        history = [RunRow.model_validate(run) for run in runs.history(query.limit)]
+        for row in history:
+            if row.reason:
+                row.reason = _run_text(row.reason)
+            row.report = {_run_text(key): _run_text(value) for key, value in row.report.items()}
+        return history
 
     @router.get("/runs/{run_id}/log", response_class=PlainTextResponse)
     def run_log(run_id: str) -> str:
         result = runs.log(run_id)
         if result is None:
             raise HTTPException(404, "Лог запуска не найден")
-        return result
+        return _run_text(result)
 
     @router.get("/queries")
     def queries() -> Queries:

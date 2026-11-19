@@ -24,7 +24,6 @@ data/out/
 /data/stack/
 *.egg-info/
 .superpowers/
-web.env
 
 # Фронтенд
 frontend/node_modules/

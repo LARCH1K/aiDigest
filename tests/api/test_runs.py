@@ -111,7 +111,7 @@ def test_month_exhausted(authed):
     svc._fetch_usage = lambda t: TavilyUsage(used=1000, limit=1000, plan="x")
     r = authed.post("/api/runs")
     assert r.status_code == 409
-    assert r.json() == {"detail": "Лимит кредитов Tavily исчерпан — новый сбор возможен после пополнения лимита."}
+    assert r.json() == {"detail": "Лимит поисковых запросов исчерпан."}
 
 
 def test_credits(authed):

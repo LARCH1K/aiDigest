@@ -207,10 +207,6 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
 .flags p { margin: 4px 0 0; }
 
 /* ---------- запуск ---------- */
-.meter { height: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
-.meter-fill { height: 100%; background: linear-gradient(90deg, #2f5bea, #7b5cff); border-radius: 999px; }
-.meter-fill.meter-warn { background: linear-gradient(90deg, #f0a400, #e0542f); }
-.meter-text { margin: 10px 0 4px; font-size: 16px; }
 .run-card { display: flex; flex-direction: column; align-items: flex-start; }
 .run-card p { margin-top: 0; }
 .run-card[data-running] { border-color: #c9d6ff; background: linear-gradient(180deg, #f5f8ff, #fff); }

@@ -33,14 +33,11 @@ services:
       DATABASE_URL: postgresql+psycopg://aidigest:${POSTGRES_PASSWORD}@db:5432/aidigest
       AIDIGEST_SECURE_COOKIE: "${AIDIGEST_SECURE_COOKIE:-0}"
       AIDIGEST_TRUST_REAL_IP: "1"
+      AIDIGEST_SEARCH_PROVIDER: "${AIDIGEST_SEARCH_PROVIDER:-yandex}"
     volumes:
       - ${AIDIGEST_DATA_HOST:-/srv/aidigest/data}/backend:/data
     env_file:
-      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/web.env
-        required: false
-      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/tavily.env
-        required: false
-      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/litellm.env
+      - path: ${AIDIGEST_SECRETS:-/srv/aidigest/secrets}/secrets.env
         required: false
     depends_on:
       db:

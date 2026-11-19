@@ -5,6 +5,7 @@ import sys
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date
+from itertools import chain
 
 from aidigest.cache import DiskCache
 from aidigest.failure import explain
@@ -27,7 +28,7 @@ class EnrichmentReport:
 def _cached_articles(cache: DiskCache, urls: set[str]) -> dict[str, Article]:
     articles: dict[str, Article] = {}
     text_dates: dict[str, set[str]] = {}
-    for response in cache.values("tavily"):
+    for response in chain(cache.values("tavily"), cache.values("yandex")):
         if not isinstance(response, dict) or not isinstance(response.get("results"), list):
             continue
         for row in response["results"]:

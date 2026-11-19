@@ -53,7 +53,7 @@ def explain(exc: BaseException, service: str | None = None) -> str:
 def failure_reason(report: RunReport) -> str | None:
     """Причина, по которой завершившийся сбор всё равно считается неудачным; None — сбор удался."""
     if report.searches_ok == 0 and report.searches_failed > 0:
-        return "Ни один поисковый запрос не выполнился. " + explain(report.last_search_error, "Tavily")
+        return "Ни один поисковый запрос не выполнился. " + explain(report.last_search_error, "Поисковый сервис")
     # last_llm_error не задан, если статьи «упали» только из-за промаха офлайн-кеша — это не сбой.
     if report.articles_processed == 0 and report.articles_failed > 0 and report.last_llm_error is not None:
         return "Ни одна статья не обработана. " + explain(report.last_llm_error, "LiteLLM")

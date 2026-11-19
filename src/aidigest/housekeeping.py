@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Срок жизни кеша по пространствам имён, в днях. Поиск Tavily устаревает быстро (новые статьи),
 # ответы LLM и тексты статей при тех же входных данных не меняются.
-CACHE_MAX_AGE_DAYS = {"tavily": 14, "llm": 180, "fetch": 180}
+CACHE_MAX_AGE_DAYS = {"tavily": 14, "yandex": 14, "llm": 180, "fetch": 180}
 DAY_SECONDS = 86400
 
 

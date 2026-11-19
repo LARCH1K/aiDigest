@@ -1,8 +1,9 @@
 """Поиск статей через Tavily с учётом бюджета кредитов и дисковым кешем."""
 from __future__ import annotations
 
+import os
 from datetime import date
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from aidigest.budget import CreditBudget, Pool
 from aidigest.cache import DiskCache
@@ -10,6 +11,13 @@ from aidigest.models import Article
 from aidigest.urls import domain_of, normalize_url
 
 CREDITS_PER_SEARCH = 1  # search_depth="basic"
+
+
+def search_provider() -> Literal["yandex", "tavily"]:
+    provider = os.environ.get("AIDIGEST_SEARCH_PROVIDER", "yandex").strip().lower()
+    if provider in ("yandex", "tavily"):
+        return provider
+    raise ValueError("AIDIGEST_SEARCH_PROVIDER: недопустимое значение.")
 
 
 class SearchClient(Protocol):

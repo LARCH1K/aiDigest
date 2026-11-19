@@ -113,15 +113,6 @@ export interface CaseDetail extends CaseSummary {
   last_confirmation_attempt: string | null;
 }
 
-export interface Credits {
-  known: boolean;
-  used: number | null;
-  limit: number | null;
-  remaining: number | null;
-  plan: string;
-  run_budget: number;
-}
-
 export interface RunStarted {
   run_id: string;
 }
