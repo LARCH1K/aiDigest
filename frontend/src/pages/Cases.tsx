@@ -4,13 +4,14 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { ApiError, apiGet } from "../api";
 import { formatDate } from "../formatDate";
 import type { CaseList, CaseRow, Level, Meta, Option } from "../types";
+import { formatLabel } from "../formatLabel";
 
 const selectFilters = [
   { name: "level", label: "Уровень", empty: "Все уровни" },
   { name: "status", label: "Подтверждение", empty: "Любое" },
   { name: "reliability", label: "Достоверность", empty: "Любая" },
   { name: "criterion", label: "Тип эффекта", empty: "Любой тип эффекта" },
-  { name: "kpi", label: "KPI Стратегии", empty: "Любой KPI" },
+  { name: "kpi", label: "Показатель нацплана", empty: "Все показатели" },
 ] as const;
 type FilterOptions = Record<(typeof selectFilters)[number]["name"], Option[]>;
 type Sort = { index: number; direction: "ascending" | "descending" };
@@ -28,9 +29,9 @@ const columns: {
   secondary?: (row: CaseRow) => string;
   title?: string;
 }[] = [
+  { label: "Кейс", value: (row) => row.title, secondary: (row) => row.organization ?? "" },
   { label: "Уровень", value: (row) => row.level },
   { label: "Регион", value: (row) => row.region || row.country },
-  { label: "Кейс", value: (row) => row.title, secondary: (row) => row.organization ?? "" },
   { label: "Показатели" },
   { label: "Стадия", value: (row) => row.stage },
   { label: "Статус", value: (row) => row.status_label },
@@ -75,10 +76,11 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
   }
 
   return (
-    <form className="filters card" method="get" action="/" onSubmit={submit} onReset={() => {
+    <form className="filters card" aria-labelledby="case-filters" method="get" action="/" onSubmit={submit} onReset={() => {
       setKpi(query.get("kpi") ?? "");
       setMetrics(query.get("metrics"));
     }}>
+      <h2 id="case-filters" className="filter-heading">Поиск и фильтры</h2>
       <label className="field field-grow">
         <span>Поиск</span>
         <input type="search" name="q" defaultValue={query.get("q") ?? ""}
@@ -97,7 +99,7 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
               {current && !options[name].some(({ value }) => value === current) && (
                 <option value={current}>{current} (устаревшее значение)</option>
               )}
-              {options[name].map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+              {options[name].map(({ value, label }) => <option key={value} value={value}>{formatLabel(label)}</option>)}
             </select>
           </label>
         );
@@ -106,11 +108,11 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
         <label className="check">
           <input type="checkbox" name="metrics" value="1" checked={metrics === null ? !kpi : metrics === "1"}
             onChange={(event) => setMetrics(event.currentTarget.checked ? "1" : "0")} />
-          {" "}только с цифрами
+          {" "}Только с цифрами
         </label>
         <label className="check">
           <input type="checkbox" name="doubtful" value="1" defaultChecked={query.get("doubtful") === "1"} />
-          {" "}скрыть сомнительные
+          {" "}Скрыть сомнительные
         </label>
       </div>
       <div className="filter-actions">
@@ -137,7 +139,7 @@ function MetricsCell({ row, kpis }: { row: CaseRow; kpis: Option[] }) {
   const kpiIds = new Set(row.strategy_links.map(({ kpi_id }) => kpi_id));
   const links = [...kpiIds].map((id) => (
     <li className="case-kpi" key={id}>
-      <span className="tag">KPI</span> {kpis.find(({ value }) => value === id)?.label ?? id}
+      <span className="tag">Нацплан</span> {kpis.find(({ value }) => value === id)?.label ?? id}
     </li>
   ));
   const lines = [...metrics, ...links];
@@ -188,7 +190,7 @@ function CasesTable({ rows, kpis }: { rows: CaseRow[]; kpis: Option[] }) {
 
   return (
     <>
-      <div className="table-wrap card">
+      <div className="table-wrap card registry-table" tabIndex={0} role="region" aria-label="Таблица кейсов">
         <table className="table sortable">
           <thead>
             <tr>
@@ -210,16 +212,16 @@ function CasesTable({ rows, kpis }: { rows: CaseRow[]; kpis: Option[] }) {
           <tbody>
             {sorted.map((row) => (
               <tr key={row.id}>
-                <td><span className={`level ${levelClasses[row.level]}`}>{row.level}</span></td>
-                <td className="col-region">{row.region || row.country}</td>
                 <td className="case-title">
                   <Link to={`/case/${encodeURIComponent(row.id)}`} state={{ casesSearch: search }}>{row.title}</Link>
                   {row.organization && <small>{row.organization}</small>}
                 </td>
+                <td><span className={`level ${levelClasses[row.level]}`}>{formatLabel(row.level)}</span></td>
+                <td className="col-region">{row.region || row.country}</td>
                 <MetricsCell row={row} kpis={kpis} />
-                <td className="nowrap">{row.stage}</td>
-                <td><span className={`pill pill-${row.status_class}`}>{row.status_label}</span></td>
-                <td><span className={`pill pill-${row.reliability_class}`}>{row.reliability_label}</span></td>
+                <td className="nowrap">{formatLabel(row.stage)}</td>
+                <td><span className={`pill pill-${row.status_class}`}>{formatLabel(row.status_label)}</span></td>
+                <td><span className={`pill pill-${row.reliability_class}`}>{formatLabel(row.reliability_label)}</span></td>
                 <td className="nowrap"><time dateTime={row.updated}>{formatDate(row.updated)}</time></td>
               </tr>
             ))}
@@ -270,7 +272,7 @@ function CasesResults({ query, unmatched, validateOnServer, kpis }: {
   const cases = unmatched ? [] : data.cases;
   return (
     <>
-      <p className="summary">
+      <p className="summary" role="status">
         <b>Найдено {cases.length} из {total}</b>
         {updated && <>
           <span className="dot">·</span> база обновлена{" "}
@@ -333,7 +335,7 @@ export function Cases() {
       <section className="hero">
         <div>
           <h1>Кейсы внедрения ИИ</h1>
-          <p className="muted">Мир, регионы России и Свердловская область. Каждая цифра — с дословной цитатой из статьи.</p>
+          <p className="muted">Реестр проектов в мире, регионах России и Свердловской области.</p>
         </div>
         <a className="btn btn-ghost" href="/api/export.xlsx" title="Вся база в Excel">Выгрузить в Excel</a>
       </section>

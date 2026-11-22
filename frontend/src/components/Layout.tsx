@@ -4,7 +4,6 @@ import { ApiError } from "../api";
 import { useAuth } from "../auth";
 
 const pages = [
-  { path: "/run", title: "Запуск" },
   { path: "/queries", title: "Запросы" },
   { path: "/sources", title: "Источники" },
   { path: "/help", title: "Справка" },
@@ -30,6 +29,7 @@ export function Layout({ showNav = true }: { showNav?: boolean }) {
 
   return (
     <>
+      <a className="skip-link" href="#main">К содержанию</a>
       <header className="topbar">
         <div className="topbar-inner">
           <Link className="brand" to="/">
@@ -39,10 +39,15 @@ export function Layout({ showNav = true }: { showNav?: boolean }) {
           {showNav && (
             <>
               <nav className="nav" aria-label="Разделы">
-                <NavLink to="/" end className={({ isActive }) => isActive || casePage ? "active" : ""}>
-                  Кейсы
-                </NavLink>
-                {pages.map(({ path, title }) => <NavLink to={path} key={path}>{title}</NavLink>)}
+                <div className="nav-main">
+                  <NavLink to="/" end className={({ isActive }) => isActive || casePage ? "active" : ""}>
+                    Кейсы
+                  </NavLink>
+                  <NavLink to="/run">Запуск сбора</NavLink>
+                </div>
+                <div className="nav-secondary">
+                  {pages.map(({ path, title }) => <NavLink to={path} key={path}>{title}</NavLink>)}
+                </div>
               </nav>
               {loginRequired && (
                 <button className="btn btn-ghost nav-logout" onClick={signOut} disabled={pending}>
@@ -53,7 +58,7 @@ export function Layout({ showNav = true }: { showNav?: boolean }) {
           )}
         </div>
       </header>
-      <main className="page">
+      <main className="page" id="main">
         {error && <p className="notice notice-bad" role="alert">{error}</p>}
         <Outlet />
       </main>

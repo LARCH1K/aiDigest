@@ -6,6 +6,7 @@ import { Flags } from "../components/Flags";
 import { formatDate } from "../formatDate";
 import { safeUrl } from "../safeUrl";
 import type { CaseDetail, Meta, Metric, Source, StrategyKpi, StrategyLink } from "../types";
+import { formatLabel } from "../formatLabel";
 
 function CaseHeader({ data }: { data: CaseDetail }) {
   const place = [data.region || data.country, data.municipality].filter(Boolean).join(", ");
@@ -13,16 +14,16 @@ function CaseHeader({ data }: { data: CaseDetail }) {
     <section className="card case-head">
       <div className="case-head-top">
         <h1>{data.title}</h1>
-        <span className={`pill pill-lg pill-${data.status_class}`}>{data.status_label}</span>
+        <span className={`pill pill-lg pill-${data.status_class}`}>{formatLabel(data.status_label)}</span>
       </div>
       <dl className="props">
-        <div><dt>Уровень</dt><dd>{data.level}</dd></div>
+        <div><dt>Уровень</dt><dd>{formatLabel(data.level)}</dd></div>
         <div><dt>Место</dt><dd>{place}</dd></div>
         {data.organization && <div><dt>Кто внедрил</dt><dd>{data.organization}</dd></div>}
-        <div><dt>Сектор</dt><dd>{data.sector}</dd></div>
-        {data.industry && <div><dt>Отрасль</dt><dd>{data.industry}</dd></div>}
+        <div><dt>Сектор</dt><dd>{formatLabel(data.sector)}</dd></div>
+        {data.industry && <div><dt>Отрасль</dt><dd>{formatLabel(data.industry)}</dd></div>}
         {data.ai_technology && <div><dt>Технология</dt><dd>{data.ai_technology}</dd></div>}
-        <div><dt>Стадия</dt><dd>{data.stage}</dd></div>
+        <div><dt>Стадия</dt><dd>{formatLabel(data.stage)}</dd></div>
         <div><dt>Методика</dt><dd>{data.methodology}</dd></div>
         <div><dt>Обновлён</dt><dd><time dateTime={data.updated}>{formatDate(data.updated)}</time></dd></div>
       </dl>
@@ -36,12 +37,12 @@ function MetricRow({ metric }: { metric: Metric }) {
   const sourceLabel = metric.source_url.replace(/^https?:\/\//i, "");
   return (
     <tr>
-      <td><b>{metric.name}</b>{metric.kind === "план" && <small className="tag">план</small>}</td>
+      <td><b>{metric.name}</b>{metric.kind === "план" && <small className="tag">План</small>}</td>
       <td className="value">
         {before && after ? `${before} → ${after}` : after || before}
         {change && change !== after && <div className="change">{change}</div>}
       </td>
-      <td>{metric.criterion}</td>
+      <td>{formatLabel(metric.criterion)}</td>
       <td className="quote">
         <blockquote>«{metric.quote}»</blockquote>
         <a className="src" href={safeUrl(metric.source_url)} target="_blank" rel="noopener noreferrer">
@@ -50,20 +51,20 @@ function MetricRow({ metric }: { metric: Metric }) {
       </td>
       <td className="checks-cell">
         {metric.quote_verified
-          ? <div className="ok-line">✔ цитата найдена в тексте</div>
-          : <div className="bad-line">⚠ цитата или число не найдены</div>}
+          ? <div className="ok-line">✔ Цитата найдена в тексте</div>
+          : <div className="bad-line">⚠ Цитата или число не найдены</div>}
         {metric.confirmed_by.map((url, index) => {
           const href = safeUrl(url);
           return (
             <div className="ok-line" key={index}>
-              ✔ подтверждено: <a href={href} target="_blank" rel="noopener noreferrer">
+              ✔ Подтверждено: <a href={href} target="_blank" rel="noopener noreferrer">
                 {href === "#" ? url : new URL(href).host}
               </a>
             </div>
           );
         })}
         {metric.conflicting_values.map((value, index) => (
-          <div className="bad-line" key={index}>≠ другое значение: {value}</div>
+          <div className="bad-line" key={index}>≠ Другое значение: {value}</div>
         ))}
       </td>
     </tr>
@@ -78,15 +79,15 @@ function StrategyLinks({ links, kpis }: { links: StrategyLink[]; kpis: StrategyK
     else byKpi.set(link.kpi_id, [link]);
   }
   return (
-    <section className="strategy-links">
-      <h3>KPI Стратегии</h3>
+    <section className="card strategy-links">
+      <h2>Показатели нацплана</h2>
       {[...byKpi].map(([id, evidence]) => {
         const kpi = kpis.find(({ value }) => value === id);
         return (
           <div className="strategy-item" key={id}>
-            <h4>{kpi?.label ?? id}</h4>
+            <h3>{kpi?.label ?? id}</h3>
             {kpi && <a className="src" href={safeUrl(kpi.url)} target="_blank" rel="noopener noreferrer">
-              Пункт {kpi.clause} Стратегии
+              Основание: п. {kpi.clause} Национальной стратегии развития ИИ
             </a>}
             <ul>
               {evidence.map(({ explanation, quote, source_url }) => (
@@ -104,7 +105,7 @@ function StrategyLinks({ links, kpis }: { links: StrategyLink[]; kpis: StrategyK
   );
 }
 
-function Metrics({ metrics, links, kpis }: { metrics: Metric[]; links: StrategyLink[]; kpis: StrategyKpi[] }) {
+function Metrics({ metrics }: { metrics: Metric[] }) {
   return (
     <section className="card">
       <h2>Показатели</h2>
@@ -128,7 +129,6 @@ function Metrics({ metrics, links, kpis }: { metrics: Metric[]; links: StrategyL
           </table>
         </div>
       )}
-      {links.length > 0 && <StrategyLinks links={links} kpis={kpis} />}
     </section>
   );
 }
@@ -148,7 +148,7 @@ function Sources({ sources }: { sources: Source[] }) {
               {published
                 ? <time className="muted" dateTime={source.published_at?.slice(0, 10)}>{published}</time>
                 : <span className="muted">Дата публикации не указана</span>}
-              <span className={`tag tag-${tag}`}>достоверность: {source.reliability.replace("_", " ")}</span>
+              <span className={`tag tag-${tag}`}>Достоверность: {source.reliability.replace("_", " ")}</span>
             </li>
           );
         })}
@@ -215,7 +215,10 @@ function CaseContent({ id }: { id: string }) {
   return (
     <>
       <CaseHeader data={data} />
-      <Metrics metrics={data.metrics} links={data.strategy_links} kpis={meta?.strategy_kpis ?? []} />
+      <Metrics metrics={data.metrics} />
+      {data.strategy_links.length > 0 && (
+        <StrategyLinks links={data.strategy_links} kpis={meta?.strategy_kpis ?? []} />
+      )}
       <div className="grid-2">
         <Sources sources={data.sources} />
         <Flags flags={data.flags} help={meta?.flag_help} failed={metaFailed} />
@@ -230,7 +233,7 @@ export function CaseDetailPage() {
 
   return (
     <>
-      <CaseListLink className="back">← к списку кейсов</CaseListLink>
+      <CaseListLink className="back">← К списку кейсов</CaseListLink>
       <CaseContent key={id} id={id} />
     </>
   );

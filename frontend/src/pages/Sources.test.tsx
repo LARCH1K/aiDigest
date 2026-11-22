@@ -86,7 +86,7 @@ it("маршруты запросов и справки показывают п�
     throw new Error(`Неожиданный запрос ${url}`);
   });
   expect(await screen.findByText("AI in public transport")).toBeVisible();
-  expect(screen.getByText("английский")).toBeVisible();
+  expect(screen.getByText("Английский")).toBeVisible();
   expect(screen.getByText(/последние 14 дн/)).toBeVisible();
   await user.click(screen.getByRole("link", { name: "Справка" }));
   expect(await screen.findByRole("heading", { name: "Как читать таблицу" })).toBeVisible();

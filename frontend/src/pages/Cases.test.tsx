@@ -62,8 +62,8 @@ it("фильтры из адреса уходят в запрос, а посто
     "/api/cases?level=%D0%BC%D0%B8%D1%80&metrics=1&doubtful=1",
   );
   expect(await screen.findByLabelText("Уровень")).toHaveValue("мир");
-  expect(screen.getByLabelText("только с цифрами")).toBeChecked();
-  expect(screen.getByLabelText("скрыть сомнительные")).toBeChecked();
+  expect(screen.getByLabelText("Только с цифрами")).toBeChecked();
+  expect(screen.getByLabelText("Скрыть сомнительные")).toBeChecked();
 });
 
 it("при ошибке справочника действительный фильтр из адреса по-прежнему загружает таблицу", async () => {
@@ -101,8 +101,8 @@ it("отправка формы обновляет адрес и запрос, �
   await user.selectOptions(screen.getByLabelText("Уровень"), "мир");
   await user.selectOptions(screen.getByLabelText("Подтверждение"), "один_источник");
   await user.selectOptions(screen.getByLabelText("Достоверность"), "низкая");
-  await user.click(screen.getByLabelText("только с цифрами"));
-  await user.click(screen.getByLabelText("скрыть сомнительные"));
+  await user.click(screen.getByLabelText("Только с цифрами"));
+  await user.click(screen.getByLabelText("Скрыть сомнительные"));
   await user.click(screen.getByRole("button", { name: "Показать" }));
 
   const search = screen.getByLabelText("Фильтры в адресе").textContent!;
@@ -115,8 +115,8 @@ it("отправка формы обновляет адрес и запрос, �
   await user.click(screen.getByRole("link", { name: "Сбросить" }));
   expect(screen.getByLabelText("Фильтры в адресе").textContent).toBe("");
   expect(screen.getByLabelText("Поиск")).toHaveValue("");
-  expect(screen.getByLabelText("только с цифрами")).toBeChecked();
-  expect(screen.getByLabelText("скрыть сомнительные")).not.toBeChecked();
+  expect(screen.getByLabelText("Только с цифрами")).toBeChecked();
+  expect(screen.getByLabelText("Скрыть сомнительные")).not.toBeChecked();
 });
 
 it("пустая база — понятный текст, а не пустая таблица", async () => {
@@ -194,6 +194,7 @@ it("показатели и краткие названия KPI раскрыва
   }));
   expect(await screen.findByRole("columnheader", { name: "Показатели" })).toBeVisible();
   expect(screen.queryByRole("columnheader", { name: "Главная цифра" })).toBeNull();
+  expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("Кейс");
   expect(screen.getByText(/Время проверки.*12 мин → 4 мин/)).toBeVisible();
   expect(screen.getByText(/Время расчёта.*−6 мин/)).toBeVisible();
   expect(screen.queryByText(/Пропускная способность/)).toBeNull();
@@ -217,8 +218,8 @@ it.each([
   const { fetch } = setup("/?criterion=скорость&kpi=ai_skills&level=мир" + metrics, async () =>
     Response.json({ total: 1, updated: null, cases: [row] }));
   expect(await screen.findByLabelText("Тип эффекта")).toHaveValue("скорость");
-  expect(screen.getByLabelText("KPI Стратегии")).toHaveValue("ai_skills");
-  expect((screen.getByLabelText("только с цифрами") as HTMLInputElement).checked).toBe(checked);
+  expect(screen.getByLabelText("Показатель нацплана")).toHaveValue("ai_skills");
+  expect((screen.getByLabelText("Только с цифрами") as HTMLInputElement).checked).toBe(checked);
   expect(await screen.findByRole("table")).toBeVisible();
   const request = fetch.mock.calls.find(([url]) => url.startsWith("/api/cases?"))![0];
   expect(Object.fromEntries(new URL(request, "https://aidigest.test").searchParams)).toEqual({
@@ -228,8 +229,8 @@ it.each([
 
 it("выбор KPI меняет автоматическое значение флажка и сохраняет явное включение", async () => {
   const { fetch, user } = setup("/", async () => Response.json({ total: 1, updated: null, cases: [row] }));
-  const kpi = await screen.findByLabelText("KPI Стратегии");
-  const metrics = screen.getByLabelText("только с цифрами");
+  const kpi = await screen.findByLabelText("Показатель нацплана");
+  const metrics = screen.getByLabelText("Только с цифрами");
   await user.selectOptions(kpi, "ai_skills");
   expect(metrics).not.toBeChecked();
   await user.selectOptions(kpi, "");
@@ -239,7 +240,7 @@ it("выбор KPI меняет автоматическое значение ф
   await user.click(screen.getByRole("button", { name: "Показать" }));
   expect(Object.fromEntries(new URLSearchParams(screen.getByLabelText("Фильтры в адресе").textContent!)))
     .toEqual({ criterion: "скорость", kpi: "ai_skills" });
-  await user.click(screen.getByLabelText("только с цифрами"));
+  await user.click(screen.getByLabelText("Только с цифрами"));
   await user.click(screen.getByRole("button", { name: "Показать" }));
   const search = screen.getByLabelText("Фильтры в адресе").textContent!;
   expect(Object.fromEntries(new URLSearchParams(search))).toEqual({

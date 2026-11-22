@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet } from "../api";
 import type { Level, QueriesResp } from "../types";
+import { formatLabel } from "../formatLabel";
 
 const levelClasses: Record<Level, string> = {
   мир: "level-world",
@@ -59,7 +60,7 @@ export function Queries() {
           <p className="summary"><b>Всего запросов: {data.total}</b></p>
           {data.groups.map(({ level, queries }) => (
             <section className="card" key={level}>
-              <h2><span className={`level ${levelClasses[level]}`}>{level}</span> <small className="muted">{queries.length}</small></h2>
+              <h2><span className={`level ${levelClasses[level]}`}>{formatLabel(level)}</span> <small className="muted">{queries.length}</small></h2>
               <div className="table-wrap">
                 <table className="table">
                   <thead><tr>
@@ -71,10 +72,10 @@ export function Queries() {
                         <td>{query.text}</td>
                         <td className="nowrap">
                           <span className={`pill pill-${query.use_registry_domains ? "ok" : "muted"}`}>
-                            {query.use_registry_domains ? "да" : "нет"}
+                            {query.use_registry_domains ? "Да" : "Нет"}
                           </span>
                         </td>
-                        <td className="nowrap">{languages.get(query.language) ?? query.language}</td>
+                        <td className="nowrap">{formatLabel(languages.get(query.language) ?? query.language)}</td>
                       </tr>
                     ))}
                   </tbody>

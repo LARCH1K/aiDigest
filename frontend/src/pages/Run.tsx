@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, apiGet, apiPost } from "../api";
 import type { RunCurrent, RunRow, RunStarted } from "../types";
+import { formatLabel } from "../formatLabel";
 
 const noStore = { cache: "no-store" } as const;
 const pollDelay = 5000;
@@ -9,7 +10,7 @@ function RunStatus({ run }: { run: RunRow }) {
   const tone = run.state === "ok" ? "ok"
     : ["limit", "interrupted", "busy"].includes(run.state) ? "warn"
     : run.state === "running" ? "muted" : "bad";
-  return <span className={`pill pill-${tone}`}>{run.label}</span>;
+  return <span className={`pill pill-${tone}`}>{formatLabel(run.label)}</span>;
 }
 
 function DebugParams({ params }: { params: RunRow["params"] }) {
@@ -17,7 +18,7 @@ function DebugParams({ params }: { params: RunRow["params"] }) {
   if (entries.length === 0) return null;
   return (
     <small className="run-reason">
-      <b>отладочный</b> · {entries.map(([key, value]) =>
+      <b>Отладочный</b> · {entries.map(([key, value]) =>
         `${key}=${typeof value === "string" ? value : JSON.stringify(value)}`,
       ).join(", ")}
     </small>
@@ -51,7 +52,7 @@ function RunHistory({ history }: { history: RunRow[] }) {
           : null}
         <p className="muted">
           {startedAt(last.started)}{last.finished && ` · длился ${last.minutes} мин`}
-          {" · "}<LogLink id={last.run_id} label="полный лог" />
+          {" · "}<LogLink id={last.run_id} label="Полный лог" />
         </p>
         <DebugParams params={last.params} />
         {report.length > 0 && (
@@ -80,7 +81,7 @@ function RunHistory({ history }: { history: RunRow[] }) {
                       <DebugParams params={run.params} />
                     </td>
                     <td>{run.report["Кейсов новых"] ?? "—"}</td>
-                    <td><LogLink id={run.run_id} label="лог" /></td>
+                    <td><LogLink id={run.run_id} label="Лог" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -187,20 +188,27 @@ export function Run() {
         <p className="muted">Сбор ищет свежие статьи за последние 30 дней, достаёт из них кейсы с цифрами и ищет подтверждения во втором издании. Обычно занимает 5–15 минут.</p>
       </div></section>
       <section className="card run-card" data-running={running ? "" : undefined}>
-        {running ? <>
-          <h2><span className="spinner" aria-hidden="true" /> Идёт сбор</h2>
-          <p>Начат в <b>{running.started.slice(11, 16)}</b> ({running.minutes} мин назад). Страницу можно закрыть — сбор продолжится.</p>
-        </> : <>
-          <h2>Новый сбор</h2>
-          <p>{current
-            ? "Нажмите кнопку — сбор пойдёт в фоне, а новые кейсы появятся в списке по мере обработки."
-            : "Проверяем состояние сбора…"}</p>
-        </>}
-        <button className="btn btn-primary btn-lg" type="button"
-          disabled={!current || !!running}
-          onClick={() => start.current?.()}>
-          Запустить сбор
-        </button>
+        <div className="run-controls">
+          <div>
+            <h2>{running ? "Идёт сбор" : "Новый сбор"}</h2>
+            <p className="muted">
+              {running
+                ? `Начат в ${running.started.slice(11, 16)} (${running.minutes} мин назад). Можно закрыть страницу, сбор продолжится.`
+                : "Новые кейсы появятся в реестре по мере обработки."}
+            </p>
+          </div>
+          <button className="btn btn-primary" type="button"
+            disabled={!current || !!running || statusFailed}
+            onClick={() => start.current?.()}>
+            Запустить сбор
+          </button>
+        </div>
+        <div className="run-state" role="status">
+          <span className="muted">Состояние</span>
+          <span className={`pill pill-${current && !running && !statusFailed ? "ok" : "muted"}`}>
+            {statusFailed ? "Статус недоступен" : running ? "Выполняется" : current ? "Готов к запуску" : "Проверяем состояние сбора…"}
+          </span>
+        </div>
         {startError && <p className="error" role="alert">{startError}</p>}
         {statusFailed && <p className="error" role="alert">Не удалось обновить состояние сбора. Запрос повторится автоматически.</p>}
       </section>
@@ -212,7 +220,12 @@ export function Run() {
         </section>
       )}
       {historyFailed && <p className="error" role="alert">Не удалось загрузить историю запусков.</p>}
-      {history && <RunHistory history={history} />}
+      {history && (history.length > 0 ? <RunHistory history={history} /> : (
+        <section className="card">
+          <h2>История запусков</h2>
+          <p className="muted">Запусков пока нет.</p>
+        </section>
+      ))}
     </>
   );
 }
