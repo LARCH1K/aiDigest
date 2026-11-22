@@ -2,6 +2,8 @@
 
 На сервере работают три контейнера Docker Compose. Nginx отдаёт интерфейс и направляет запросы API в FastAPI. PostgreSQL и API доступны внутри сети Compose. Сервер скачивает образы фронтенда и бэкенда из GitHub Packages, а образ PostgreSQL с Docker Hub.
 
+Действующий стенд проектного офиса использует `appctl`, общий Caddy и одну базу PostgreSQL для aiDigest и паспортов проектов. Для обновления на этом стенде используйте [инструкцию выкладки в песочнице](deploy-sandbox.md).
+
 ## Первая установка
 
 Понадобится Linux-сервер с Docker Engine и плагином Docker Compose. Установите их по инструкции Docker для [Ubuntu](https://docs.docker.com/engine/install/ubuntu/) или [Debian](https://docs.docker.com/engine/install/debian/). Команды ниже запускаются от пользователя с доступом к Docker.
