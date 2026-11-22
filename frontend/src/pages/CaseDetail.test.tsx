@@ -82,7 +82,7 @@ it("ссылки источников и показателей проходят
   expect(screen.getByRole("link", { name: "report.example" })).toHaveAttribute("href", "https://report.example/detail");
   expect(screen.getByRole("link", { name: "news.example" })).toHaveAttribute("href", "https://news.example/story");
   expect(screen.getByText("12 мин → 4 мин")).toBeVisible();
-  expect(screen.getByText("≠ другое значение: 6 мин")).toBeVisible();
+  expect(screen.getByText("≠ Другое значение: 6 мин")).toBeVisible();
 });
 
 it("флаги показывают пояснение из meta.flag_help", async () => {
@@ -112,7 +112,7 @@ it("в основных сведениях есть дата обновлени�
   expect(dates[3]).toHaveTextContent("Дата публикации не указана");
 });
 
-it("свидетельства одного KPI сгруппированы с подпунктом и безопасными ссылками", async () => {
+it("свидетельства по показателю нацплана сгруппированы с подпунктом и безопасными ссылками", async () => {
   const { fetch } = setup("/case/water", async () => Response.json({
     ...detail,
     metrics: [],
@@ -125,6 +125,7 @@ it("свидетельства одного KPI сгруппированы с п
     }],
   }));
   expect(await screen.findByRole("heading", { name: "Навыки работы с ИИ" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Показатели нацплана", level: 2 })).toBeVisible();
   expect(screen.getAllByRole("heading", { name: "Навыки работы с ИИ" })).toHaveLength(1);
   expect(screen.getByRole("link", { name: /28\.1 «е»/ })).toHaveAttribute("href", decree);
   expect(screen.getByText("Публикация описывает обучение работников.")).toBeVisible();
@@ -144,7 +145,7 @@ it("неизвестный кейс — страница «Кейс не най�
   expect(await screen.findByRole("heading", { name: "Кейс не найден" })).toBeVisible();
   expect(screen.getByText(/Возможно, кейс был удалён при пересборке базы/)).toBeVisible();
   expect(screen.getByRole("link", { name: "списку кейсов" })).toHaveAttribute("href", "/");
-  const back = screen.getByRole("link", { name: "← к списку кейсов" });
+  const back = screen.getByRole("link", { name: "← К списку кейсов" });
   expect(back).toHaveAttribute("href", "/");
   await user.click(back);
   expect(screen.getByLabelText("Текущий адрес")).toHaveTextContent(/^\/$/);
@@ -177,11 +178,11 @@ it("возврат из карточки восстанавливает запи
   await user.click(await screen.findByRole("columnheader", { name: "Кейс" }));
   await user.click(await screen.findByRole("link", { name: detail.title }));
   expect(await screen.findByRole("heading", { name: detail.title })).toBeVisible();
-  const back = screen.getByRole("link", { name: "← к списку кейсов" });
+  const back = screen.getByRole("link", { name: "← К списку кейсов" });
   expect(back).toHaveAttribute("href", "/?q=вода&metrics=0");
   await user.click(back);
   expect(await screen.findByLabelText("Поиск")).toHaveValue("вода");
-  expect(screen.getByLabelText("только с цифрами")).not.toBeChecked();
+  expect(screen.getByLabelText("Только с цифрами")).not.toBeChecked();
   await user.click(screen.getByRole("button", { name: "Назад в браузере" }));
   expect(screen.getByLabelText("Текущий адрес")).toHaveTextContent("/history-start");
 });
@@ -191,7 +192,7 @@ it("после возврата из карточки таблица сохра�
   await user.click(await screen.findByRole("columnheader", { name: "Кейс" }));
   await user.click(screen.getByRole("link", { name: detail.title }));
   expect(await screen.findByRole("heading", { name: detail.title })).toBeVisible();
-  await user.click(screen.getByRole("link", { name: "← к списку кейсов" }));
+  await user.click(screen.getByRole("link", { name: "← К списку кейсов" }));
   expect(await screen.findByRole("columnheader", { name: "Кейс" })).toHaveAttribute("aria-sort", "ascending");
   expect(screen.getAllByRole("row")[1]).toHaveTextContent("Анализ воздуха");
 });

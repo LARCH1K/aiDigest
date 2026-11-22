@@ -120,7 +120,7 @@ it("запускает сбор без запроса кредитов и пок
   const { calls } = setup({
     "POST /api/runs": () => Response.json({ detail }, { status: 409 }),
   });
-  expect(await screen.findByText(/Нажмите кнопку/)).toBeVisible();
+  expect(await screen.findByText("Готов к запуску")).toBeVisible();
   expect(button()).toBeEnabled();
   fireEvent.click(button());
   expect(await screen.findByRole("alert")).toHaveTextContent(detail);
@@ -175,8 +175,8 @@ it("показывает причину прерывания, параметры
   expect(await screen.findByRole("heading", { name: "Последний запуск" })).toBeVisible();
   const history = within(screen.getByRole("table"));
   expect(history.getByText("Сервис был остановлен")).toBeVisible();
-  expect(history.getByText("отладочный").parentElement).toHaveTextContent(/budget=5.*offline=true.*мир/);
-  const fullLog = screen.getByRole("link", { name: "полный лог" });
+  expect(history.getByText("Отладочный").parentElement).toHaveTextContent(/budget=5.*offline=true.*мир/);
+  const fullLog = screen.getByRole("link", { name: "Полный лог" });
   expect(fullLog).toHaveAttribute("href", "/api/runs/new/log");
   expect(fullLog).toHaveAttribute("rel", "noopener noreferrer");
   expect(history.getAllByRole("link")).toHaveLength(1);

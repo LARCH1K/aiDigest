@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { apiGet } from "../api";
 import type { Reliability, SourceInfo, SourcesResp } from "../types";
+import { formatLabel } from "../formatLabel";
 
 const filterFields = ["level", "reliability"] as const;
 const anyRfLabel = "регионы РФ и Свердловская область";
@@ -43,14 +44,14 @@ function SourceFilters({ query, data }: { query: URLSearchParams; data: SourcesR
         <span>Уровень</span>
         <select name="level" defaultValue={query.get("level") ?? ""}>
           <option value="">Все уровни</option>
-          {data.level_options.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+          {data.level_options.map(({ value, label }) => <option key={value} value={value}>{formatLabel(label)}</option>)}
         </select>
       </label>
       <label className="field">
         <span>Достоверность</span>
         <select name="reliability" defaultValue={query.get("reliability") ?? ""}>
           <option value="">Любая</option>
-          {data.reliability_options.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+          {data.reliability_options.map(({ value, label }) => <option key={value} value={value}>{formatLabel(label)}</option>)}
         </select>
       </label>
       <div className="filter-actions">
@@ -101,12 +102,12 @@ function SourceTable({ sources, ratings }: { sources: SourceInfo[]; ratings: Sou
                 <td>{source.domains.map((domain, index) => (
                   <Fragment key={index}>{index > 0 && ", "}<code>{domain}</code></Fragment>
                 ))}</td>
-                <td>{source.level ?? anyRfLabel}</td>
+                <td>{formatLabel(source.level ?? anyRfLabel)}</td>
                 <td><span className={`pill pill-${reliabilityStyle[source.reliability]}`}>
-                  {ratings.find(({ value }) => value === source.reliability)?.label ?? source.reliability.replace("_", " ")}
+                  {formatLabel(ratings.find(({ value }) => value === source.reliability)?.label ?? source.reliability.replace("_", " "))}
                 </span></td>
-                <td>{source.source_type}</td>
-                <td>{source.update_frequency || "—"}</td>
+                <td>{formatLabel(source.source_type)}</td>
+                <td>{formatLabel(source.update_frequency || "—")}</td>
               </tr>
             ))}
           </tbody>
