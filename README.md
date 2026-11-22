@@ -95,6 +95,8 @@ curl -fsS http://localhost:8000/api/runs -H 'Content-Type: application/json' \
 
 Docker Compose запускает фронтенд React на nginx, API FastAPI и PostgreSQL. Готовые образы двух приложений публикуются в GitHub Packages после прохождения CI в `master`. Установка, обновление, откат и резервные копии описаны в [docs/deploy.md](docs/deploy.md).
 
+Для стенда проектного офиса используйте [выкладку через appctl](docs/deploy-sandbox.md). В инструкции описаны запуск PostgreSQL от своего пользователя и загрузка демонстрационных кейсов.
+
 ---
 
 ## Лимиты и как их не сжечь
