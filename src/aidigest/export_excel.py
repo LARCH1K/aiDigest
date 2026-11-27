@@ -8,17 +8,22 @@ from typing import Any, Mapping
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
-from aidigest.models import Case, ConfirmationStatus, Level, Metric
+from aidigest.methodology import m1_profile, r1_ratio
+from aidigest.models import Case, ConfirmationStatus, Level, Methodology, Metric
+from aidigest.national_plan import PLAN_INDICATORS, PLAN_SOURCE, PLAN_TARGET_YEAR
 
 CASE_HEADERS = ["Уровень", "Страна", "Регион", "Организация", "Сектор", "Отрасль", "Технология ИИ", "Название",
                 "Суть", "Стадия", "Методика", "Показатели", "Статус подтверждения", "Флаги", "Источники",
                 "Впервые найден", "Обновлён"]
 METRIC_HEADERS = ["ID кейса", "Название кейса", "Показатель", "Критерий", "Было", "Стало", "Изменение",
                   "Единица", "Вид", "Цитата", "Источник", "Цитата проверена", "Подтверждено источниками",
-                  "Расхождения"]
+                  "Расхождения", "Р-1 (Base / Project)"]
+PLAN_HEADERS = ["Пункт", "Показатель нацплана", "Год цели", "Цель, %", "Источник цели", "ID кейса", "Название кейса",
+                "Связь с кейсом", "Цитата", "Источник"]
+M1_HEADERS = ["ID кейса", "Название кейса", "Критерий", "Факт", "Цитата", "Источник"]
 _STATUS_ORDER = [ConfirmationStatus.CONFIRMED, ConfirmationStatus.CONFLICT, ConfirmationStatus.SINGLE]
 _WIDE = {"Суть": 60, "Показатели": 60, "Источники": 50, "Флаги": 30, "Цитата": 60, "Название": 35,
-         "Название кейса": 35}
+         "Название кейса": 35, "Показатель нацплана": 60, "Источник цели": 50, "Факт": 45, "Связь с кейсом": 45}
 
 
 def metric_line(m: Metric) -> str:
@@ -44,7 +49,27 @@ def _metric_rows(c: Case):
     for m in c.metrics:
         yield [c.id, c.title, m.name, m.criterion, m.before, m.after, m.change, m.unit, m.kind, m.quote,
                m.source_url, "да" if m.quote_verified else "нет", "\n".join(m.confirmed_by),
-               "\n".join(m.conflicting_values)]
+               "\n".join(m.conflicting_values), r1_ratio(m) if c.methodology == Methodology.R1 else None]
+
+
+def _plan_rows(cases: list[Case]):
+    links_by_indicator: dict[str, list[list[str]]] = {}
+    for case in cases:
+        for link in case.plan_links:
+            links_by_indicator.setdefault(link.indicator_id, []).append(
+                [case.id, case.title, link.explanation, link.quote, link.source_url])
+    for indicator_id, indicator in PLAN_INDICATORS.items():
+        goal = [indicator_id, indicator.label, PLAN_TARGET_YEAR, indicator.target_percent, PLAN_SOURCE]
+        for evidence in links_by_indicator.get(indicator_id, [[]]):
+            yield [*goal, *evidence]
+
+
+def _m1_rows(case: Case):
+    for criterion, evidence in m1_profile(case).items():
+        if not evidence:
+            yield [case.id, case.title, criterion, "Нет сохранённых свидетельств"]
+        for item in evidence:
+            yield [case.id, case.title, criterion, item.fact, item.quote, item.source_url]
 
 
 def _sheet(wb: Workbook, title: str, headers: list[str], rows, first: bool = False):
@@ -59,6 +84,8 @@ def _sheet(wb: Workbook, title: str, headers: list[str], rows, first: bool = Fal
         ws.column_dimensions[ws.cell(1, i).column_letter].width = _WIDE.get(h, 18)
     for row in ws.iter_rows(min_row=2):
         for cell in row:
+            if cell.data_type == "f":
+                cell.data_type = "s"
             cell.alignment = Alignment(wrap_text=True, vertical="top")
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
@@ -70,6 +97,8 @@ def export_xlsx(cases: list[Case], report: Mapping[str, Any] | None, path: Path)
     wb = Workbook()
     _sheet(wb, "Кейсы", CASE_HEADERS, (_case_row(c) for c in ordered), first=True)
     _sheet(wb, "Показатели", METRIC_HEADERS, (r for c in ordered for r in _metric_rows(c)))
+    _sheet(wb, "Нацплан", PLAN_HEADERS, _plan_rows(ordered))
+    _sheet(wb, "Карта М-1", M1_HEADERS, (r for c in ordered for r in _m1_rows(c)))
     if report is not None:
         ws = wb.create_sheet("Отчёт запуска")
         for k, v in report.items():

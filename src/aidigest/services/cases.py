@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 
 from aidigest.export_excel import export_xlsx
-from aidigest.methodology import CRITERIA, OTHER_CRITERION
-from aidigest.models import Case, ConfirmationStatus, Flag, Level, Reliability
+from aidigest.methodology import CRITERIA, OTHER_CRITERION, m1_metric_criterion
+from aidigest.models import Case, ConfirmationStatus, Flag, Level, Methodology, Reliability
 from aidigest.store import Store
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
@@ -69,6 +69,10 @@ def _norm(s: str | None) -> str:
     return (s or "").lower().replace("ё", "е")
 
 
+def _industry_key(name: str) -> str:
+    return _norm(" ".join(name.split()))
+
+
 def _haystack(c: Case) -> str:
     return _norm(" ".join(filter(None, (c.title, c.summary, c.region, c.organization, c.ai_technology,
                                         c.municipality, c.country, c.industry))))
@@ -80,16 +84,22 @@ def sort_key(c: Case):
 
 def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = "",
                  with_metrics: bool | None = None, hide_doubtful: bool = False, reliability: str = "",
-                 criterion: str = "", kpi: str = "") -> list[Case]:
+                 criterion: str = "", plan: str = "", industry: str = "") -> list[Case]:
     words = _norm(q).split()
-    metrics_required = with_metrics if with_metrics is not None else not kpi
+    industry = _industry_key(industry)
+    metrics_required = with_metrics if with_metrics is not None else not plan
     out = []
     for c in cases:
         if metrics_required and not c.metrics:
             continue
-        if criterion and not any(metric.criterion == criterion for metric in c.metrics):
+        if criterion:
+            metric_criteria = (m1_metric_criterion(metric) if c.methodology == Methodology.M1 else metric.criterion
+                               for metric in c.metrics)
+            if criterion not in metric_criteria and not any(item.criterion == criterion for item in c.qualitative_evidence):
+                continue
+        if plan and not any(link.indicator_id == plan for link in c.plan_links):
             continue
-        if kpi and not any(link.kpi_id == kpi for link in c.strategy_links):
+        if industry and _industry_key(c.industry) != industry:
             continue
         if reliability:
             best = best_reliability(c)
@@ -136,7 +146,8 @@ class CaseFilter:
     hide_doubtful: bool = False
     reliability: str = ""
     criterion: str = ""
-    kpi: str = ""
+    plan: str = ""
+    industry: str = ""
 
 
 class CaseService:
@@ -148,11 +159,18 @@ class CaseService:
         cases = self.store.load().cases
         shown = filter_cases(cases, q=f.q, level=f.level, status=f.status, with_metrics=f.with_metrics,
                              hide_doubtful=f.hide_doubtful, reliability=f.reliability,
-                             criterion=f.criterion, kpi=f.kpi)
+                             criterion=f.criterion, plan=f.plan, industry=f.industry)
         return shown, len(cases)
 
     def get(self, case_id: str) -> Case | None:
         return next((c for c in self.store.load().cases if c.id == case_id), None)
+
+    def industries(self) -> list[tuple[str, str]]:
+        labels: dict[str, str] = {}
+        names = {" ".join(name.split()) for name in self.store.industry_names()}
+        for name in sorted(names - {""}):
+            labels.setdefault(_industry_key(name), name)
+        return sorted(labels.items())
 
     def export_xlsx(self) -> bytes:
         """Excel со всеми кейсами; файл пишется во временную папку и удаляется."""

@@ -46,6 +46,7 @@ class SourceType(StrEnum):
     STATISTICS = "статистика"
     CASES = "кейсы"
     MARKET = "аналитика рынка"
+    ANALYTICS = "аналитика"
     MEDIA = "СМИ"
     UNKNOWN = "неизвестно"
 
@@ -109,9 +110,16 @@ class Article(BaseModel):
     published_at: str | None = None
 
 
-class StrategyLink(BaseModel):
-    kpi_id: str
+class PlanLink(BaseModel):
+    indicator_id: str
     explanation: str
+    source_url: str
+    quote: str
+
+
+class QualitativeEvidence(BaseModel):
+    criterion: str
+    fact: str
     source_url: str
     quote: str
 
@@ -137,8 +145,9 @@ class Case(BaseModel):
     confirmation_status: ConfirmationStatus = ConfirmationStatus.SINGLE
     confirmation_attempts: int = 0
     last_confirmation_attempt: date | None = None
-    strategy_links: list[StrategyLink] = Field(default_factory=list)
-    strategy_input: str | None = None
+    plan_links: list[PlanLink] = Field(default_factory=list)
+    plan_input: str | None = None
+    qualitative_evidence: list[QualitativeEvidence] = Field(default_factory=list)
 
     @computed_field
     @property

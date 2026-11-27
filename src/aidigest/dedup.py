@@ -63,6 +63,10 @@ def merge_into(target: Case, new: Case, today: date) -> None:
         for source in new.sources:
             merge_source(target, source)
 
+        for evidence in new.qualitative_evidence:
+            if evidence not in target.qualitative_evidence:
+                target.qualitative_evidence.append(evidence)
+
         for nm in new.metrics:
             same = next((tm for tm in target.metrics
                          if tm.criterion == nm.criterion and _numbers(tm) == _numbers(nm) and _numbers(nm)), None)

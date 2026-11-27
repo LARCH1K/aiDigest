@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from aidigest.models import Article, Level, Reliability, Source, SourceType
 from aidigest.publication import publication_date
@@ -16,6 +16,7 @@ _RUSSIAN_LEVELS = {Level.RF_REGIONS, Level.SVERDLOVSK}
 class SourceInfo(BaseModel):
     name: str
     domains: list[str]
+    urls: list[str] = Field(default_factory=list)
     level: Level | None = None  # None — общероссийский источник, годится для уровней РФ
     reliability: Reliability
     source_type: SourceType

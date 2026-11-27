@@ -1,7 +1,7 @@
 import openpyxl
 
 from aidigest.export_excel import export_xlsx, metric_line
-from aidigest.models import Level
+from aidigest.models import Level, PlanLink
 
 
 def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):
@@ -11,13 +11,17 @@ def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):
     p = tmp_path / "out.xlsx"
     export_xlsx([a, b], {"Кредитов потрачено": 3}, p)
     wb = openpyxl.load_workbook(p)
-    assert wb.sheetnames == ["Кейсы", "Показатели", "Отчёт запуска"]
+    assert wb.sheetnames == ["Кейсы", "Показатели", "Нацплан", "Карта М-1", "Отчёт запуска"]
     ws = wb["Кейсы"]
     hdr = [c.value for c in ws[1]]
     assert hdr[0] == "Уровень" and "Флаги" in hdr and len(hdr) == 17
     assert ws.cell(2, hdr.index("Название") + 1).value == "подтверждён"
     assert ws.freeze_panes == "A2" and ws.auto_filter.ref
     assert wb["Показатели"].max_row == 2
+    assert wb["Показатели"]["O2"].value == 2.6
+    assert {row[0]: row[3] for row in wb["Нацплан"].iter_rows(min_row=2, values_only=True)} == {
+        "1.1": 70, "1.2": 50, "2.3": 60, "3.1": 70, "3.2": 100, "3.3": 50,
+    }
     assert wb["Отчёт запуска"].cell(1, 2).value == 3
 
 
@@ -37,7 +41,18 @@ def test_sort_by_status_then_level(tmp_path, make_case, make_metric):
 def test_export_without_report(tmp_path, make_case):
     p = tmp_path / "o.xlsx"
     export_xlsx([make_case()], None, p)
-    assert openpyxl.load_workbook(p).sheetnames == ["Кейсы", "Показатели"]
+    assert openpyxl.load_workbook(p).sheetnames == ["Кейсы", "Показатели", "Нацплан", "Карта М-1"]
+
+
+def test_plan_sheet_keeps_the_target_and_case_evidence_in_separate_columns(tmp_path, make_case):
+    link = PlanLink(indicator_id="1.2", explanation="ИИ готовит проекты ответов.",
+                    source_url="https://example.org/replies", quote="Помощник составляет проекты ответов на обращения.")
+    case = make_case(plan_links=[link])
+    workbook = openpyxl.load_workbook(export_xlsx([case], None, tmp_path / "out.xlsx"))
+    rows = list(workbook["Нацплан"].iter_rows(min_row=2, values_only=True))
+    assert rows[1][0] == "1.2" and rows[1][2:4] == (2030, 50)
+    assert rows[1][5:] == (case.id, case.title, link.explanation, link.quote, link.source_url)
+    assert all(row[5] is None for row in [rows[0], *rows[2:]])
 
 
 def test_metric_line_skips_empty_parts(make_metric):

@@ -260,12 +260,12 @@ curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8080/passport/a
 
 - [Первая подборка](../deploy/sandbox/seed_aidigest_demo.py) добавляет 5 кейсов.
 - [Вторая подборка](../deploy/sandbox/seed_aidigest_demo_more.py) добавляет ещё 9 кейсов.
-- [Обновление KPI](../deploy/sandbox/update_demo_kpi.py) добавляет к карточке ЕВРАЗ НТМК связь с KPI «Затраты организаций на внедрение и использование ИИ» и уточняет стадию как «пилот» по публикации об опытной эксплуатации.
+- [Уточнение стадии ЕВРАЗ НТМК](../deploy/sandbox/update_demo_evraz_stage.py) отмечает кейс как пилот по публикации об опытной эксплуатации.
 
-Передайте файлы с локального компьютера. Если подборки уже загружены, повторный импорт пропустит записи с теми же идентификаторами. Обновление KPI выполняется после второй подборки.
+Передайте файлы с локального компьютера. Если подборки уже загружены, повторный импорт пропустит записи с теми же идентификаторами. Стадия уточняется после второй подборки.
 
 ```powershell
-scp -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -P 46281 .\deploy\sandbox\seed_aidigest_demo.py .\deploy\sandbox\seed_aidigest_demo_more.py .\deploy\sandbox\update_demo_kpi.py "nikita@so-project-1.ds-hub-cf.ru:/home/nikita/"
+scp -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -P 46281 .\deploy\sandbox\seed_aidigest_demo.py .\deploy\sandbox\seed_aidigest_demo_more.py .\deploy\sandbox\update_demo_evraz_stage.py "nikita@so-project-1.ds-hub-cf.ru:/home/nikita/"
 ```
 
 На стенде укажите SHA **активного** релиза и запустите:
@@ -278,11 +278,11 @@ scp -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -P 46281 .\deploy\sandbox\
   export PYTHONPATH=src
   .venv/bin/python "$HOME/seed_aidigest_demo.py"
   .venv/bin/python "$HOME/seed_aidigest_demo_more.py"
-  .venv/bin/python "$HOME/update_demo_kpi.py"
+  .venv/bin/python "$HOME/update_demo_evraz_stage.py"
 )
 ```
 
-Импорт проверяет записи по модели `Case` и пишет через штатный `PgCaseStore` с блокировкой. Обновите страницу «Кейсы». Всего в подборках 14 карточек и 27 показателей. Они видны при фильтрации по всем трём уровням. Фильтр «Показатель нацплана» ищет явные связи по пункту 28.1. Обычные показатели вроде сокращения времени доступны через «Тип эффекта». Для проверки фильтра выберите пункт про затраты. Он должен вернуть карточку ЕВРАЗ НТМК. Перезапуск приложения и внешние API-вызовы для импорта не требуются.
+Импорт проверяет записи по модели `Case` и пишет через штатный `PgCaseStore` с блокировкой. Обновите страницу «Кейсы». Всего в подборках 14 карточек и 27 показателей. Они видны при фильтрации по всем трём уровням. Метрики вроде сокращения времени доступны через «Тип эффекта». Фильтр нацплана использует связи, подтверждённые цитатами из публикаций. Перезапуск приложения и внешние API-вызовы для импорта не требуются.
 
 ## Внешние API и состояние живого сбора
 

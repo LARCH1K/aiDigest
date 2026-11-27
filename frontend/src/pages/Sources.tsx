@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { apiGet } from "../api";
 import type { Reliability, SourceInfo, SourcesResp } from "../types";
+import { safeUrl } from "../safeUrl";
 import { formatLabel } from "../formatLabel";
 
 const filterFields = ["level", "reliability"] as const;
@@ -98,7 +99,16 @@ function SourceTable({ sources, ratings }: { sources: SourceInfo[]; ratings: Sou
           <tbody>
             {sorted.map((source) => (
               <tr key={JSON.stringify([source.name, source.level, source.domains])}>
-                <td><b>{source.name}</b></td>
+                  <td>
+                    <b>{source.name}</b>
+                    {source.urls?.map((url, index, urls) => (
+                      <div key={url}>
+                        <a className="src" href={safeUrl(url)} target="_blank" rel="noopener noreferrer" title={url}>
+                          {urls.length === 1 ? "Страница источника" : `Страница источника ${index + 1}`}
+                        </a>
+                      </div>
+                    ))}
+                  </td>
                 <td>{source.domains.map((domain, index) => (
                   <Fragment key={index}>{index > 0 && ", "}<code>{domain}</code></Fragment>
                 ))}</td>

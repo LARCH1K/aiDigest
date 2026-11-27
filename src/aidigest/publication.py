@@ -23,7 +23,7 @@ _LABELED_DATE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _TECHNICAL_FIELDS = {"first_seen", "updated", "confirmation_attempts", "last_confirmation_attempt",
-                     "strategy_input", "flags"}
+                     "plan_input", "flags"}
 
 
 def _parse_date(value: str) -> date | None:

@@ -1,12 +1,14 @@
-"""Методики оценки эффекта ИИ (из презентации «Аналитики») и выбор методики для кейса."""
+"""Методики оценки эффекта ИИ и выбор методики для кейса."""
+import math
 import re
 
-from aidigest.models import Level, Methodology, Sector
+from aidigest.models import Case, Level, Methodology, Metric, MetricKind, QualitativeEvidence, Sector
+from aidigest.quotes import normalize_text
 
 CRITERIA: dict[Methodology, list[str]] = {
     Methodology.R1: ["скорость", "качество", "объективность", "экономическая эффективность", "персонализация"],
     Methodology.M1: ["результат услуги", "качество и надёжность", "производительность и труд",
-                     "опыт и доступность", "доверие и распределение эффекта", "реализуемость и масштаб"],
+                     "реализуемость и масштаб", "сопутствующие риски"],
     Methodology.BUSINESS: ["ROI", "операционные затраты", "время процесса", "уровень ошибок"],
 }
 OTHER_CRITERION = "прочее"
@@ -20,12 +22,11 @@ _EXAMPLES: dict[Methodology, dict[str, str]] = {
         "персонализация": "доля услуг, адаптированных к потребности, релевантность рекомендаций",
     },
     Methodology.M1: {
-        "результат услуги": "время до решения, доля решённых с первого обращения",
-        "качество и надёжность": "доля правильных рекомендаций, ошибки и отказы",
-        "производительность и труд": "кейсы на сотрудника, часы на один кейс, доля ручной работы",
-        "опыт и доступность": "удовлетворённость, жалобы, доступность для особых групп",
-        "доверие и распределение эффекта": "доверие, апелляции и отмены решений",
-        "реализуемость и масштаб": "охват (число пользователей, объектов, ведомств), стоимость расширения",
+        "результат услуги": "время до решения, доступность по времени или каналу, доля решённых с первого обращения",
+        "качество и надёжность": "правильные рекомендации, ошибки и отказы, устойчивость в реальных условиях",
+        "производительность и труд": "кейсы на сотрудника, часы на кейс, доля ручной работы, нагрузка персонала",
+        "реализуемость и масштаб": "готовность данных и кадров, стоимость расширения, интеграционные ограничения",
+        "сопутствующие риски": "возможные негативные последствия, ограничения работы и риски исключения групп",
     },
     Methodology.BUSINESS: {
         "ROI": "(выгода − затраты на ИИ) / затраты × 100%",
@@ -42,6 +43,95 @@ _TITLES = {
 }
 
 _RUSSIA = {"россия", "рф", "russia", "российская федерация"}
+_R1_NUMBER = r"[+−-]?(?:\d{1,3}(?: \d{3})+|\d+)(?:[.,]\d+)?"
+_R1_VALUE = re.compile(rf"({_R1_NUMBER})(?:\s*(%|[а-яёa-z₽][а-яёa-z₽. /]*))?", re.I)
+_R1_QUOTE_NUMBER = re.compile(rf"(?<![\w.,]){_R1_NUMBER}(?!\d)")
+_R1_BASE_MARKERS = {"было", "ранее", "прежде"}
+_R1_PROJECT_MARKERS = {"стало", "теперь", "сейчас"}
+_R1_SEPARATOR = re.compile(r"(.*?)(?<!\w)(до|стало|теперь|сейчас|было|ранее|прежде|→)\s*")
+_R1_MARKER = re.compile(r"\b(с|было|ранее|прежде|стало|теперь|сейчас)\s*$")
+_R1_UNITS = {"процент": "%", "процента": "%", "процентов": "%", "минута": "мин", "минуты": "мин", "минут": "мин",
+             "секунда": "сек", "секунды": "сек", "секунд": "сек", "рублей": "руб", "₽": "руб"}
+
+
+def _r1_unit(unit: str) -> str:
+    stripped = " ".join(unit.casefold().replace("ё", "е").replace(".", "").split())
+    return _R1_UNITS.get(stripped, stripped)
+
+
+def _r1_number(value: str) -> float:
+    return float(value.replace(" ", "").replace(",", ".").replace("−", "-"))
+
+
+def _r1_quote_supports_pair(quote: str, before: float, after: float, unit: str) -> bool:
+    text = normalize_text(quote)
+    numbers = list(_R1_QUOTE_NUMBER.finditer(text))
+    aliases = {unit, *(name for name, normalized in _R1_UNITS.items() if normalized == unit)} - {""}
+    for left, right in zip(numbers, numbers[1:]):
+        separator = _R1_SEPARATOR.fullmatch(text[left.end():right.start()])
+        if separator is None:
+            continue
+        unit_text, end_marker = separator.groups()
+        marker = _R1_MARKER.search(text, 0, left.start())
+        start_marker = marker[1] if marker else ""
+        reverse = start_marker in _R1_PROJECT_MARKERS and end_marker in _R1_BASE_MARKERS
+        forward = (end_marker == "→" or (start_marker, end_marker) == ("с", "до")
+                   or (start_marker in _R1_BASE_MARKERS and end_marker in _R1_PROJECT_MARKERS))
+        if not (forward or reverse):
+            continue
+        quoted = (_r1_number(left[0]), _r1_number(right[0]))
+        if quoted != ((after, before) if reverse else (before, after)):
+            continue
+        left_unit = _r1_unit(re.sub(r"[,;]\s*(?:а\s*)?$", "", unit_text.strip()))
+        if left_unit and left_unit != unit:
+            continue
+        tail = text[right.end():].lstrip()
+        if any(re.match(r"\s+".join(re.escape(token) + r"\.?" for token in alias.split()) + r"(?![\w/])", tail)
+               for alias in aliases):
+            return True
+        if left_unit == unit and (not tail or tail[0] in ",.;!?)…"):
+            return True
+    return False
+
+
+def r1_ratio(metric: Metric) -> float | None:
+    """Отношение базового значения к фактическому результату в сопоставимых единицах."""
+    if (metric.kind != MetricKind.FACT or not metric.quote_verified or not metric.before or not metric.after
+            or metric.criterion not in CRITERIA[Methodology.R1] or metric.conflicting_values):
+        return None
+    base = _R1_VALUE.fullmatch(" ".join(metric.before.split()))
+    project = _R1_VALUE.fullmatch(" ".join(metric.after.split()))
+    if not base or not project:
+        return None
+    unit = _r1_unit(metric.unit or "")
+    base_unit, project_unit = (_r1_unit(match[2] or unit) for match in (base, project))
+    if base_unit != project_unit or (unit and base_unit != unit):
+        return None
+    before, after = (_r1_number(match[1]) for match in (base, project))
+    if not math.isfinite(before) or not math.isfinite(after) or after == 0:
+        return None
+    if not _r1_quote_supports_pair(metric.quote, before, after, base_unit):
+        return None
+    ratio = before / after
+    return ratio if math.isfinite(ratio) else None
+
+
+def m1_profile(case: Case) -> dict[str, list[QualitativeEvidence]]:
+    if case.methodology != Methodology.M1:
+        return {}
+    profile: dict[str, list[QualitativeEvidence]] = {criterion: [] for criterion in CRITERIA[Methodology.M1]}
+    for item in case.qualitative_evidence:
+        if item.criterion in profile:
+            profile[item.criterion].append(item)
+    for metric in case.metrics:
+        criterion = m1_metric_criterion(metric)
+        if criterion not in profile or not metric.quote_verified or metric.conflicting_values:
+            continue
+        findings = profile[criterion]
+        if not any(item.quote == metric.quote and item.source_url == metric.source_url for item in findings):
+            findings.append(QualitativeEvidence(criterion=criterion, fact=metric.name,
+                                                source_url=metric.source_url, quote=metric.quote))
+    return profile
 
 
 def select_methodology(level: Level, sector: Sector) -> Methodology:
@@ -87,11 +177,10 @@ _KEYWORDS: dict[Methodology, list[tuple[str, tuple[str, ...]]]] = {
         ("экономическая эффективность", ("эконом", "бюджет", "затрат", "расход", "руб", "стоимост", "потер")),
     ],
     Methodology.M1: [
-        ("доверие и распределение эффекта", ("довери", "апелляц", "отмен")),
-        ("опыт и доступность", ("удовлетвор", "жалоб", "доступн")),
+        ("сопутствующие риски", ("риск", "дискриминац", "утечк", "исключен", "апелляц")),
         ("качество и надёжность", ("точност", "ошиб", "отказ", "качеств", "правильн")),
         ("производительность и труд", ("производительн", "сотрудник", "нагрузк", "ручн", "трудозатрат")),
-        ("результат услуги", ("время", "времен", "решен", "обращени", "срок")),
+        ("результат услуги", ("время", "времен", "решен", "обращени", "срок", "доступн", "удовлетвор")),
         ("реализуемость и масштаб", ("пользовател", "охват", "масштаб", "объект", "ведомств", "муниципалитет",
                                      "число", "количеств")),
     ],
@@ -105,3 +194,9 @@ def guess_criterion(text: str, methodology: Methodology) -> str:
         if any(re.search(r"(?<!\w)" + re.escape(w.replace("ё", "е")), low) for w in words):
             return criterion
     return OTHER_CRITERION
+
+
+def m1_metric_criterion(metric: Metric) -> str:
+    if metric.criterion in {"опыт и доступность", "доверие и распределение эффекта"}:
+        return guess_criterion(metric.name, Methodology.M1)
+    return metric.criterion

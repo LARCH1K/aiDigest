@@ -18,7 +18,7 @@ from aidigest.publication import case_update, merge_source
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
 from aidigest.store import Store, StoreData
-from aidigest.strategy import classify_strategy
+from aidigest.national_plan import classify_plan
 from aidigest.urls import normalize_url
 
 
@@ -78,13 +78,13 @@ def _log(msg: str) -> None:
 def _classify(case: Case, deps: Deps, articles: list[Article], today: date) -> None:
     try:
         with case_update(case, today):
-            classify_strategy(case, deps.llm, articles)
+            classify_plan(case, deps.llm, articles)
     except (LLMFormatError, OfflineCacheMiss) as exc:
-        case.strategy_input = None
-        _log(f"Связь с KPI отложена ({case.id}): {exc}")
+        case.plan_input = None
+        _log(f"Связь с нацпланом отложена ({case.id}): {exc}")
     except Exception as exc:
-        case.strategy_input = None
-        _log(f"Связь с KPI отложена ({case.id}): {type(exc).__name__}")
+        case.plan_input = None
+        _log(f"Связь с нацпланом отложена ({case.id}): {type(exc).__name__}")
 
 
 def _refresh_known_cases(data: StoreData, articles: list[Article], deps: Deps, today: date) -> int:
@@ -99,15 +99,15 @@ def _refresh_known_cases(data: StoreData, articles: list[Article], deps: Deps, t
             continue
         missing = [sources[url] for source in case.sources if not source.published_at
                    and (url := normalize_url(source.url)) in sources and sources[url].published_at]
-        old_links = case.strategy_links
+        old_links = case.plan_links
         if missing:
             with case_update(case, today):
                 for source in missing:
                     merge_source(case, source)
-        if case.strategy_input is None:
+        if case.plan_input is None:
             _classify(case, deps, [by_url[url] for url in found], today)
-            save |= case.strategy_input is not None
-        if missing or case.strategy_links != old_links:
+            save |= case.plan_input is not None
+        if missing or case.plan_links != old_links:
             changed += 1
     if changed or save:
         deps.store.save(data)

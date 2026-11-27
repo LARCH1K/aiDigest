@@ -6,7 +6,6 @@ import { App } from "../App";
 import type { CaseDetail, CaseRow } from "../types";
 
 const unsafeUrl = "javascript:alert(1)";
-const decree = "https://publication.pravo.gov.ru/document/0001202402150063";
 const detail: CaseDetail = {
   id: "water", title: "Контроль воды", level: "мир", country: "Япония", region: null,
   municipality: "Токио", organization: "Водоканал", industry: "ЖКХ", sector: "госсектор",
@@ -20,7 +19,9 @@ const detail: CaseDetail = {
     kind: "план", unit: "мин", quote: "Проверка займёт 4 минуты.", source_url: unsafeUrl,
     quote_verified: true, confirmed_by: [unsafeUrl, "https://report.example/detail"], conflicting_values: ["6 мин"],
   }],
-  strategy_links: [],
+  plan_links: [],
+  m1_profile: {},
+  r1_ratios: [],
   sources: [{
     url: unsafeUrl, domain: "example.test", title: "Первый источник", published_at: null,
     reliability: "низкая", source_type: "СМИ",
@@ -52,7 +53,10 @@ function setup(path: string, cases: (url: string) => Promise<Response> = async (
     if (url === "/api/me") return Response.json({ authenticated: true, login_required: false });
     if (url === "/api/meta") return Response.json({
       levels: ["мир"], statuses: [], reliability: [], criteria: [],
-      strategy_kpis: [{ value: "ai_skills", label: "Навыки работы с ИИ", clause: "28.1 «е»", url: decree }],
+      plan_indicators: [{ value: "1.2", label: "Подготовка проектов ответов с ИИ", target_percent: 50 }],
+      plan_target_year: 2030,
+      plan_source: "Материалы команды «Аналитика»",
+      industries: [],
       flag_help: { один_источник: ["Только один источник.", "Найдите второй источник."] },
     });
     return cases(url);
@@ -115,27 +119,44 @@ it("в основных сведениях есть дата обновлени�
 it("свидетельства по показателю нацплана сгруппированы с подпунктом и безопасными ссылками", async () => {
   const { fetch } = setup("/case/water", async () => Response.json({
     ...detail,
-    metrics: [],
-    strategy_links: [{
-      kpi_id: "ai_skills", explanation: "Публикация описывает обучение работников.",
-      source_url: "https://news.example/story", quote: "Работники прошли обучение.",
+    metrics: [], methodology: "Р-1", level: "регионы РФ",
+    plan_links: [{
+      indicator_id: "1.2", explanation: "ИИ готовит черновики ответов жителям.",
+      source_url: "https://news.example/story", quote: "ИИ формирует проект ответа на обращение гражданина.",
     }, {
-      kpi_id: "ai_skills", explanation: "Вторая публикация подтверждает обучение.",
-      source_url: unsafeUrl, quote: "Обучение завершено.",
+      indicator_id: "1.2", explanation: "Вторая публикация подтверждает подготовку ответов.",
+      source_url: unsafeUrl, quote: "Ассистент готовит шаблон ответа по заявлению.",
     }],
   }));
-  expect(await screen.findByRole("heading", { name: "Навыки работы с ИИ" })).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "1.2. Подготовка проектов ответов с ИИ" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Показатели нацплана", level: 2 })).toBeVisible();
-  expect(screen.getAllByRole("heading", { name: "Навыки работы с ИИ" })).toHaveLength(1);
-  expect(screen.getByRole("link", { name: /28\.1 «е»/ })).toHaveAttribute("href", decree);
-  expect(screen.getByText("Публикация описывает обучение работников.")).toBeVisible();
-  expect(screen.getByText("«Работники прошли обучение.»")).toBeVisible();
+  expect(screen.getAllByRole("heading", { name: "1.2. Подготовка проектов ответов с ИИ" })).toHaveLength(1);
+  expect(screen.getByText("Цель к 2030 году — 50%")).toBeVisible();
+  expect(screen.getByText("ИИ готовит черновики ответов жителям.")).toBeVisible();
+  expect(screen.getByText("«ИИ формирует проект ответа на обращение гражданина.»")).toBeVisible();
   const evidence = screen.getAllByRole("link", { name: "Публикация" });
   expect(evidence[0]).toHaveAttribute("href", "https://news.example/story");
   expect(evidence[1]).toHaveAttribute("href", "#");
   expect(evidence[1]).toHaveAttribute("rel", "noopener noreferrer");
   expect(screen.getByText("Только один источник.")).toBeVisible();
   expect(fetch.mock.calls.filter(([url]) => url === "/api/meta")).toHaveLength(1);
+});
+
+it("карта М-1 показывает свидетельства рисков и пробелы по другим критериям", async () => {
+  setup("/case/water", async () => Response.json({
+    ...detail,
+    m1_profile: {
+      "результат услуги": [],
+      "сопутствующие риски": [{
+        criterion: "сопутствующие риски", fact: "Требуется проверка сотрудником.",
+        quote: "Caseworkers must check every suggested decision.", source_url: "https://news.example/story",
+      }],
+    },
+  }));
+  expect(await screen.findByRole("heading", { name: "Качественная карта М-1" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Сопутствующие риски" })).toBeVisible();
+  expect(screen.getByText("Требуется проверка сотрудником.")).toBeVisible();
+  expect(screen.getByText("Нет сохранённых свидетельств.")).toBeVisible();
 });
 
 it("неизвестный кейс — страница «Кейс не найден»", async () => {

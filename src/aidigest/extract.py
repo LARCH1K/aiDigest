@@ -1,6 +1,7 @@
 """Извлечение кейсов внедрения ИИ из статьи с помощью LLM."""
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date
 from typing import Any
@@ -8,8 +9,8 @@ from typing import Any
 from aidigest.llm import LLMClient, LLMFormatError
 from aidigest.methodology import (CRITERIA, OTHER_CRITERION, guess_criterion, infer_level, methodology_prompt,
                                   select_methodology)
-from aidigest.models import Article, Case, Level, Metric, MetricKind, Sector, Stage
-from aidigest.quotes import verify_metric
+from aidigest.models import Article, Case, Level, Methodology, Metric, MetricKind, QualitativeEvidence, Sector, Stage
+from aidigest.quotes import quote_in_text, verify_metric
 from aidigest.registry import SourceRegistry
 from aidigest.urls import normalize_url
 
@@ -59,11 +60,17 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
   («426 госслужащих из 25 ведомств» → два показателя: 426 госслужащих и 25 ведомств).
 Числа, упомянутые в summary, тоже должны быть в metrics.
 
+Для М-1 заполни также qualitative_evidence: наблюдения о публичной услуге по пяти критериям М-1,
+включая риски и ограничения. Для каждого наблюдения верни criterion, fact (кратко по-русски, без цифр)
+и quote (дословный фрагмент, подтверждающий факт). Если свидетельства нет, пропусти этот критерий.
+Для других методик оставь qualitative_evidence пустым.
+
 {methodology_prompt()}
 
 Ответ — только JSON без пояснений, строго такого вида:
 {{"cases": [{{"is_concrete": true, "not_concrete_reason": null, "country": "", "region": null, "municipality": null, "organization": null,
   "sector": "госсектор", "industry": "", "ai_technology": "", "title": "", "summary": "", "stage": "неизвестно",
+  "qualitative_evidence": [{{"criterion": "", "fact": "", "quote": ""}}],
   "metrics": [{{"name": "", "criterion": "", "before": null, "after": null, "change": null,
                "unit": null, "kind": "факт", "quote": ""}}]}}]}}"""
 
@@ -90,6 +97,24 @@ def _opt(v: Any) -> str | None:
         return None
     s = str(v).strip()
     return s or None
+
+
+def _qualitative_evidence(rows: Any, text: str, url: str) -> list[QualitativeEvidence]:
+    evidence = []
+    if not isinstance(rows, list):
+        return evidence
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        fields = ("criterion", "fact", "quote")
+        if any(not isinstance(row.get(field), str) for field in fields):
+            continue
+        criterion, fact, quote = (row[field].strip() for field in fields)
+        if criterion in CRITERIA[Methodology.M1] and fact and not re.search(r"\d", fact) and quote_in_text(quote, text):
+            item = QualitativeEvidence(criterion=criterion, fact=fact, quote=quote, source_url=url)
+            if item not in evidence:
+                evidence.append(item)
+    return evidence
 
 
 def _cases_from_reply(reply: Any) -> list[dict]:
@@ -173,6 +198,8 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
             )
             metric = _verified_variant(metric, article.text)
             metrics.append(metric)
+        qualitative = (_qualitative_evidence(raw.get("qualitative_evidence"), article.text[:max_chars], url)
+                       if methodology == Methodology.M1 else [])
         out.append(Case(
             id=uuid.uuid4().hex[:12], first_seen=today, updated=today, level=level,
             country=country, region=region, municipality=municipality,
@@ -180,6 +207,6 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
             industry=_opt(raw.get("industry")) or "", ai_technology=_opt(raw.get("ai_technology")) or "",
             title=title, summary=_opt(raw.get("summary")) or "",
             stage=_enum(Stage, raw.get("stage"), Stage.UNKNOWN), methodology=methodology,
-            metrics=metrics, sources=[source.model_copy()],
+            metrics=metrics, sources=[source.model_copy()], qualitative_evidence=qualitative,
         ))
     return out

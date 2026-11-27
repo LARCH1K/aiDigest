@@ -11,9 +11,9 @@ from aidigest.cache import DiskCache
 from aidigest.failure import explain
 from aidigest.llm import LLMClient, OfflineCacheMiss
 from aidigest.models import Article, Case
+from aidigest.national_plan import classify_plan, plan_input
 from aidigest.publication import case_update, publication_date
 from aidigest.store import Store, StoreData
-from aidigest.strategy import classify_strategy, strategy_input
 from aidigest.urls import normalize_url
 
 
@@ -98,8 +98,8 @@ def enrich_archive(store: Store, cache: DiskCache, llm: LLMClient, limit: int, t
             for source, article in zip(case.sources, articles, strict=True)
             if not source.published_at and article.published_at
         ]
-        signature = strategy_input(case, articles)
-        classify = signature is not None and signature != case.strategy_input
+        signature = plan_input(case, articles)
+        classify = signature is not None and signature != case.plan_input
         if not date_changes and not classify:
             continue
 
@@ -109,7 +109,7 @@ def enrich_archive(store: Store, cache: DiskCache, llm: LLMClient, limit: int, t
                 source.published_at = published
             if classify:
                 try:
-                    classify_strategy(case, llm, articles)
+                    classify_plan(case, llm, articles)
                 except OfflineCacheMiss:
                     report.cache_misses += 1
                 except Exception as exc:

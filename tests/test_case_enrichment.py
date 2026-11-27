@@ -8,7 +8,7 @@ from fakes import FakeLLM
 
 
 TODAY = date(2026, 11, 16)
-QUOTE = "Сотрудники освоили навыки работы с инструментами искусственного интеллекта."
+QUOTE = "Помощник на основе искусственного интеллекта готовит проекты ответов на обращения жителей."
 
 
 @pytest.mark.parametrize(("metadata", "body", "expected"), [
@@ -33,59 +33,52 @@ def test_duplicate_update_depends_on_new_visible_data(make_case, make_source):
     assert len(case.sources) == 1 and case.sources[0].published_at == "2026-11-02"
 
 
-def test_catalog_covers_all_official_clauses():
-    from aidigest.strategy import STRATEGY_KPIS
+def test_plan_keeps_only_evidenced_applicable_links(make_case, make_metric):
+    from aidigest.national_plan import classify_plan
 
-    assert {kpi.clause for kpi in STRATEGY_KPIS.values()} == {
-        f"28.1.{letter}" for letter in "абвгдежзик"
-    }
-
-
-def test_strategy_keeps_only_evidenced_applicable_links(make_case, make_metric):
-    from aidigest.strategy import classify_strategy
-
-    metric = make_metric(name="число обученных сотрудников", quote=QUOTE)
+    metric = make_metric(name="проекты ответов на обращения", quote=QUOTE)
     case = make_case(metrics=[metric])
-    link = {"kpi_id": "workforce-skills", "source_url": metric.source_url, "quote": QUOTE,
-            "evidence_type": "training", "explanation": "Работники освоили инструменты ИИ."}
-    llm = FakeLLM([{"links": [link, dict(link, kpi_id="invented"), dict(link, quote="Выдумано"),
-                              dict(link, kpi_id="gdp-growth"), dict(link, source_url="https://other.example/"),
+    link = {"indicator_id": "1.2", "source_url": metric.source_url, "quote": QUOTE,
+            "evidence_type": "reply_drafts", "explanation": "ИИ готовит черновики ответов жителям."}
+    llm = FakeLLM([{"links": [link, dict(link, indicator_id="ai-spending"), dict(link, quote="Выдумано"),
+                              dict(link, indicator_id="3.2"), dict(link, source_url="https://other.example/"),
                               dict(link, source_url="https://example.org:bad/")]}])
-    classify_strategy(case, llm, [])
-    classify_strategy(case, llm, [])
-    assert [item.kpi_id for item in case.strategy_links] == ["workforce-skills"]
-    assert case.strategy_links[0].quote == QUOTE
+    classify_plan(case, llm, [])
+    classify_plan(case, llm, [])
+    assert [item.indicator_id for item in case.plan_links] == ["1.2"]
+    assert case.plan_links[0].quote == QUOTE
 
 
 def test_unverified_archive_quote_cannot_be_used_without_article(make_case, make_metric):
-    from aidigest.strategy import classify_strategy
+    from aidigest.national_plan import classify_plan
 
     case = make_case(metrics=[make_metric(quote=QUOTE, quote_verified=False)])
-    classify_strategy(case, FakeLLM([]), [])
-    assert case.strategy_links == []
-    assert case.strategy_input is None
+    classify_plan(case, FakeLLM([]), [])
+    assert case.plan_links == []
+    assert case.plan_input is None
 
 
 def test_all_invalid_links_leave_case_open_for_retry(make_case, make_metric):
     from aidigest.llm import LLMFormatError
-    from aidigest.strategy import classify_strategy
+    from aidigest.national_plan import classify_plan
 
     case = make_case(metrics=[make_metric(quote=QUOTE)])
-    llm = FakeLLM([{"links": [{"kpi_id": "invented"}]}, {"links": []}])
+    llm = FakeLLM([{"links": [{"indicator_id": "invented"}]}, {"links": []}])
     with pytest.raises(LLMFormatError):
-        classify_strategy(case, llm, [])
-    assert case.strategy_input is None
-    classify_strategy(case, llm, [])
-    assert case.strategy_input is not None
+        classify_plan(case, llm, [])
+    assert case.plan_input is None
+    classify_plan(case, llm, [])
+    assert case.plan_input is not None
 
 
-def test_russian_workforce_kpi_excludes_overseas_case(make_case, make_metric):
-    from aidigest.strategy import classify_strategy
+@pytest.mark.parametrize(("level", "region"), [(Level.WORLD, None), (Level.RF_REGIONS, "федеральный уровень")])
+def test_regional_plan_excludes_overseas_and_federal_cases(make_case, make_metric, level, region):
+    from aidigest.national_plan import classify_plan
 
     metric = make_metric(quote=QUOTE)
-    case = make_case(level=Level.WORLD, country="Япония", region=None, metrics=[metric])
-    classify_strategy(case, FakeLLM([]), [])
-    assert not case.strategy_links
+    case = make_case(level=level, region=region, metrics=[metric])
+    classify_plan(case, FakeLLM([]), [])
+    assert not case.plan_links
 
 
 def test_repeated_confirmation_changes_date_only_when_evidence_changes(make_case, registry):
@@ -104,7 +97,7 @@ def test_repeated_confirmation_changes_date_only_when_evidence_changes(make_case
 
 
 @pytest.mark.parametrize("retry", [False, True])
-def test_regular_cycle_persists_kpi_and_backfills_repeat_publication(registry, case_reply, case_store, retry):
+def test_regular_cycle_persists_plan_link_and_backfills_repeat_publication(registry, case_reply, case_store, retry):
     from aidigest.budget import CreditBudget
     from aidigest.config import QuerySpec, Settings
     from aidigest.extract import SYSTEM_PROMPT
@@ -113,21 +106,21 @@ def test_regular_cycle_persists_kpi_and_backfills_repeat_publication(registry, c
 
     article = Article(url="https://gubernia74.ru/news/1", domain="gubernia74.ru", title="Статья",
                       text=f"{QUOTE} Время в пробках сократилось с 13 до 5 минут.")
-    links = {"links": [{"kpi_id": "workforce-skills", "source_url": article.url, "quote": QUOTE,
-                        "evidence_type": "training", "explanation": "Сотрудники освоили инструменты ИИ."}]}
+    links = {"links": [{"indicator_id": "1.2", "source_url": article.url, "quote": QUOTE,
+                        "evidence_type": "reply_drafts", "explanation": "ИИ готовит черновики ответов жителям."}]}
     query = QuerySpec(level=Level.RF_REGIONS, text="Кейсы", use_registry_domains=False, language="ru")
     day = date(2026, 11, 15)
 
-    def run(material, today, strategy_reply):
+    def run(material, today, plan_reply):
         budget = CreditBudget(20)
         search = FakeSearch(lambda **kw: [material] if kw["pool"] == "collect" else [], budget=budget)
-        llm = FakeLLM(lambda system, _: case_reply() if system == SYSTEM_PROMPT else strategy_reply)
+        llm = FakeLLM(lambda system, _: case_reply() if system == SYSTEM_PROMPT else plan_reply)
         return run_cycle(Deps(search, llm, registry, case_store, [query], Settings(), budget), {query.level}, today)
 
     assert run(article, day, {"invalid": []} if retry else links).cases_new == 1
-    assert bool(case_store.load().cases[0].strategy_links) is not retry
+    assert bool(case_store.load().cases[0].plan_links) is not retry
     article.published_at = "2026-11-04"
     assert run(article, TODAY, links).cases_updated == 1
     case = case_store.load().cases[0]
-    assert case.strategy_links[0].kpi_id == "workforce-skills"
+    assert case.plan_links[0].indicator_id == "1.2"
     assert case.updated == TODAY and case.sources[0].published_at == "2026-11-04"

@@ -31,6 +31,7 @@ class StoreData:
 
 class Store(Protocol):
     def load(self) -> StoreData: ...
+    def industry_names(self) -> set[str]: ...
 
     def save(self, data: StoreData) -> None: ...
 
@@ -49,6 +50,9 @@ class MemoryStore:
 
     def load(self) -> StoreData:
         return self._copy(self._data)
+
+    def industry_names(self) -> set[str]:
+        return {case.industry for case in self._data.cases}
 
     def save(self, data: StoreData) -> None:
         incoming = self._copy(data)
@@ -99,6 +103,11 @@ class PgCaseStore:
             urls = {r[0] for r in c.execute(select(urls_table.c.url))}
         return StoreData(cases, urls)
 
+    def industry_names(self) -> set[str]:
+        industry = cases_table.c.data["industry"].astext
+        with self._transaction() as conn:
+            return set(conn.scalars(select(industry).where(industry.is_not(None)).distinct()))
+
     def save(self, data: StoreData) -> None:
         """Одна транзакция: upsert всех кейсов и добавление новых URL; кейсы не удаляются."""
         with self._transaction() as c:
@@ -109,7 +118,10 @@ class PgCaseStore:
                 stmt = insert(cases_table).values(row)
                 c.execute(stmt.on_conflict_do_update(
                     index_elements=[cases_table.c.id],
-                    set_={k: stmt.excluded[k] for k in ("level", "first_seen", "updated", "data")}))
+                    set_={"level": stmt.excluded.level, "first_seen": stmt.excluded.first_seen,
+                          "updated": stmt.excluded.updated,
+                          # При обновлении известных полей сохраняем архивные поля JSONB.
+                          "data": cases_table.c.data.op("||")(stmt.excluded.data)}))
             if data.processed_urls:
                 c.execute(insert(urls_table).on_conflict_do_nothing(),
                           [{"url": u} for u in sorted(data.processed_urls)])
