@@ -53,9 +53,7 @@ function setup(path: string, cases: (url: string) => Promise<Response> = async (
     if (url === "/api/me") return Response.json({ authenticated: true, login_required: false });
     if (url === "/api/meta") return Response.json({
       levels: ["мир"], statuses: [], reliability: [], criteria: [],
-      plan_indicators: [{ value: "1.2", label: "Подготовка проектов ответов с ИИ", target_percent: 50 }],
-      plan_target_year: 2030,
-      plan_source: "Материалы команды «Аналитика»",
+      plan_indicators: [{ value: "1.2", label: "Подготовка проектов ответов с ИИ" }],
       industries: [],
       flag_help: { один_источник: ["Только один источник.", "Найдите второй источник."] },
     });
@@ -131,7 +129,7 @@ it("свидетельства по показателю нацплана сгр
   expect(await screen.findByRole("heading", { name: "1.2. Подготовка проектов ответов с ИИ" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Показатели нацплана", level: 2 })).toBeVisible();
   expect(screen.getAllByRole("heading", { name: "1.2. Подготовка проектов ответов с ИИ" })).toHaveLength(1);
-  expect(screen.getByText("Цель к 2030 году — 50%")).toBeVisible();
+  expect(screen.queryAllByText(/Цель к|Источник целей/)).toHaveLength(0);
   expect(screen.getByText("ИИ готовит черновики ответов жителям.")).toBeVisible();
   expect(screen.getByText("«ИИ формирует проект ответа на обращение гражданина.»")).toBeVisible();
   const evidence = screen.getAllByRole("link", { name: "Публикация" });

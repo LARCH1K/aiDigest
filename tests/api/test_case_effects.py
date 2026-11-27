@@ -47,8 +47,8 @@ def test_meta_exposes_effect_and_plan_options(effects_client):
     assert {"value": "скорость", "label": "Скорость"} in meta["criteria"]
     assert {"value": "ROI", "label": "ROI"} in meta["criteria"]
     option = next(option for option in meta["plan_indicators"] if option["value"] == INDICATOR_ID)
-    assert option["label"] and option["target_percent"] == 50
-    assert meta["plan_target_year"] == 2030
+    assert option == {"value": INDICATOR_ID,
+                      "label": "Доля обращений, проекты ответов на которые сформированы с использованием ИИ"}
 
 
 def test_list_and_detail_expose_all_metrics_and_plan_evidence(effects_client):

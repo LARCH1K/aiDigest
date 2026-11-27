@@ -31,10 +31,8 @@ function setup(path: string, cases: (url: string) => Promise<Response>, metaStat
         reliability: [{ value: "низкая", label: "низкая" }],
         criteria: [{ value: "скорость", label: "Скорость" }],
         industries: [{ value: "жкх", label: "ЖКХ" }],
-        plan_target_year: 2030,
-        plan_source: "Материалы команды «Аналитика»",
         plan_indicators: [{
-          value: "1.2", label: "Подготовка проектов ответов с ИИ", target_percent: 50,
+          value: "1.2", label: "Подготовка проектов ответов с ИИ",
         }],
         flag_help: {},
       });

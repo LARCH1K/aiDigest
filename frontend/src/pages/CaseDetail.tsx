@@ -5,7 +5,7 @@ import { ApiError, apiGet } from "../api";
 import { Flags } from "../components/Flags";
 import { formatDate } from "../formatDate";
 import { safeUrl } from "../safeUrl";
-import type { CaseDetail, Meta, Metric, PlanLink, QualitativeEvidence, Source } from "../types";
+import type { CaseDetail, Meta, Metric, Option, PlanLink, QualitativeEvidence, Source } from "../types";
 import { formatLabel } from "../formatLabel";
 
 function CaseHeader({ data }: { data: CaseDetail }) {
@@ -74,7 +74,7 @@ function MetricRow({ metric, ratio }: { metric: Metric; ratio: number | null | u
   );
 }
 
-function PlanLinks({ links, meta }: { links: PlanLink[]; meta: Meta | undefined }) {
+function PlanLinks({ links, indicators }: { links: PlanLink[]; indicators: Option[] }) {
   const byIndicator = new Map<string, PlanLink[]>();
   for (const link of links) {
     const evidence = byIndicator.get(link.indicator_id);
@@ -85,11 +85,10 @@ function PlanLinks({ links, meta }: { links: PlanLink[]; meta: Meta | undefined 
     <section className="card plan-links">
       <h2>Показатели нацплана</h2>
       {[...byIndicator].map(([id, evidence]) => {
-        const indicator = meta?.plan_indicators.find(({ value }) => value === id);
+        const indicator = indicators.find(({ value }) => value === id);
         return (
           <div className="plan-item" key={id}>
             <h3>{indicator ? `${id}. ${indicator.label}` : `Пункт ${id}`}</h3>
-            {indicator && <p className="muted">Цель к {meta?.plan_target_year} году — {indicator.target_percent}%</p>}
             <ul>
               {evidence.map(({ explanation, quote, source_url }) => (
                 <li key={source_url} className="quote">
@@ -102,7 +101,6 @@ function PlanLinks({ links, meta }: { links: PlanLink[]; meta: Meta | undefined 
           </div>
         );
       })}
-      {meta?.plan_source && <p className="hint">Источник целей — {meta.plan_source}.</p>}
     </section>
   );
 }
@@ -244,7 +242,7 @@ function CaseContent({ id }: { id: string }) {
       <Metrics metrics={data.metrics} ratios={data.r1_ratios} />
       {data.methodology === "М-1" && <M1Profile profile={data.m1_profile} />}
       {data.plan_links.length > 0 && (
-        <PlanLinks links={data.plan_links} meta={meta} />
+        <PlanLinks links={data.plan_links} indicators={meta?.plan_indicators ?? []} />
       )}
       <div className="grid-2">
         <Sources sources={data.sources} />

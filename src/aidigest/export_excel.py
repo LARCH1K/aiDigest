@@ -10,7 +10,7 @@ from openpyxl.styles import Alignment, Font
 
 from aidigest.methodology import m1_profile, r1_ratio
 from aidigest.models import Case, ConfirmationStatus, Level, Methodology, Metric
-from aidigest.national_plan import PLAN_INDICATORS, PLAN_SOURCE, PLAN_TARGET_YEAR
+from aidigest.national_plan import PLAN_INDICATORS
 
 CASE_HEADERS = ["Уровень", "Страна", "Регион", "Организация", "Сектор", "Отрасль", "Технология ИИ", "Название",
                 "Суть", "Стадия", "Методика", "Показатели", "Статус подтверждения", "Флаги", "Источники",
@@ -18,12 +18,11 @@ CASE_HEADERS = ["Уровень", "Страна", "Регион", "Органи�
 METRIC_HEADERS = ["ID кейса", "Название кейса", "Показатель", "Критерий", "Было", "Стало", "Изменение",
                   "Единица", "Вид", "Цитата", "Источник", "Цитата проверена", "Подтверждено источниками",
                   "Расхождения", "Р-1 (Base / Project)"]
-PLAN_HEADERS = ["Пункт", "Показатель нацплана", "Год цели", "Цель, %", "Источник цели", "ID кейса", "Название кейса",
-                "Связь с кейсом", "Цитата", "Источник"]
+PLAN_HEADERS = ["Пункт", "Показатель нацплана", "ID кейса", "Название кейса", "Связь с кейсом", "Цитата", "Источник"]
 M1_HEADERS = ["ID кейса", "Название кейса", "Критерий", "Факт", "Цитата", "Источник"]
 _STATUS_ORDER = [ConfirmationStatus.CONFIRMED, ConfirmationStatus.CONFLICT, ConfirmationStatus.SINGLE]
 _WIDE = {"Суть": 60, "Показатели": 60, "Источники": 50, "Флаги": 30, "Цитата": 60, "Название": 35,
-         "Название кейса": 35, "Показатель нацплана": 60, "Источник цели": 50, "Факт": 45, "Связь с кейсом": 45}
+         "Название кейса": 35, "Показатель нацплана": 60, "Факт": 45, "Связь с кейсом": 45}
 
 
 def metric_line(m: Metric) -> str:
@@ -59,9 +58,8 @@ def _plan_rows(cases: list[Case]):
             links_by_indicator.setdefault(link.indicator_id, []).append(
                 [case.id, case.title, link.explanation, link.quote, link.source_url])
     for indicator_id, indicator in PLAN_INDICATORS.items():
-        goal = [indicator_id, indicator.label, PLAN_TARGET_YEAR, indicator.target_percent, PLAN_SOURCE]
-        for evidence in links_by_indicator.get(indicator_id, [[]]):
-            yield [*goal, *evidence]
+        for evidence in links_by_indicator.get(indicator_id, []):
+            yield [indicator_id, indicator.label, *evidence]
 
 
 def _m1_rows(case: Case):

@@ -23,18 +23,12 @@ export interface Option {
   label: string;
 }
 
-export interface PlanIndicator extends Option {
-  target_percent: number;
-}
-
 export interface Meta {
   levels: Level[];
   statuses: (Option & { class: StatusClass })[];
   reliability: Option[];
   criteria: Option[];
-  plan_indicators: PlanIndicator[];
-  plan_target_year: number;
-  plan_source: string;
+  plan_indicators: Option[];
   industries: Option[];
   flag_help: Record<Flag, [string, string]>;
 }

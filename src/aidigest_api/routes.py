@@ -9,7 +9,7 @@ from fastapi.responses import PlainTextResponse
 
 from aidigest.methodology import m1_profile, r1_ratio
 from aidigest.models import Case, ConfirmationStatus, Level, Methodology
-from aidigest.national_plan import PLAN_INDICATORS, PLAN_SOURCE, PLAN_TARGET_YEAR
+from aidigest.national_plan import PLAN_INDICATORS
 from aidigest.services.cases import (
     EFFECT_CRITERIA, FLAG_HELP, NO_RATED, RELIABILITY_CLASS, RELIABILITY_LABEL, RELIABILITY_ORDER, STATUS_CLASS,
     STATUS_LABEL, CaseFilter, CaseService, best_reliability, headline,
@@ -18,7 +18,7 @@ from aidigest.services.catalog import ANY_RF_LABEL, ANY_RF_LEVEL, CatalogService
 from aidigest.services.runs import AlreadyRunning, MonthExhausted, RunParams, RunService, RunServiceStopping
 from aidigest_api.schemas import (
     ActiveRun, CaseDetail, CaseList, CaseQuery, CaseRow, Credits, IdleRun, Meta, Option, Queries,
-    PlanIndicatorOption, QueryGroup, RunQuery, RunRequest, RunRow, RunStarted, SourceQuery, Sources, StatusOption,
+    QueryGroup, RunQuery, RunRequest, RunRow, RunStarted, SourceQuery, Sources, StatusOption,
 )
 
 BUSY = "Сбор уже идёт — дождитесь, пока он закончится."
@@ -79,10 +79,8 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
             reliability=[*reliability_options, Option(value=NO_RATED, label=RELIABILITY_LABEL[None])],
             criteria=[Option(value=criterion, label=criterion[0].upper() + criterion[1:])
                       for criterion in EFFECT_CRITERIA],
-            plan_indicators=[PlanIndicatorOption(value=indicator_id, label=indicator.label,
-                                                 target_percent=indicator.target_percent)
+            plan_indicators=[Option(value=indicator_id, label=indicator.label)
                              for indicator_id, indicator in PLAN_INDICATORS.items()],
-            plan_target_year=PLAN_TARGET_YEAR, plan_source=PLAN_SOURCE,
             industries=[Option(value=value, label=label) for value, label in case_service.industries()],
             flag_help=FLAG_HELP,
         )

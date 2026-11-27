@@ -86,18 +86,12 @@ class StatusOption(Option):
     css_class: str = Field(serialization_alias="class")
 
 
-class PlanIndicatorOption(Option):
-    target_percent: int
-
-
 class Meta(BaseModel):
     levels: list[Level]
     statuses: list[StatusOption]
     reliability: list[Option]
     criteria: list[Option]
-    plan_indicators: list[PlanIndicatorOption]
-    plan_target_year: int
-    plan_source: str
+    plan_indicators: list[Option]
     industries: list[Option]
     flag_help: dict[Flag, tuple[str, str]]
 

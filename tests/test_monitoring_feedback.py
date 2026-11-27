@@ -22,11 +22,12 @@ def _meta(*cases):
     return handler().model_dump()
 
 
-def test_meta_exposes_six_national_plan_goals():
-    indicators = _meta().get("plan_indicators", [])
-    assert {item["value"]: item["target_percent"] for item in indicators} == {
-        "1.1": 70, "1.2": 50, "2.3": 60, "3.1": 70, "3.2": 100, "3.3": 50,
-    }
+def test_meta_exposes_national_plan_indicators_without_targets():
+    meta = _meta()
+    indicators = meta["plan_indicators"]
+    assert [item["value"] for item in indicators] == ["1.1", "1.2", "2.3", "3.1", "3.2", "3.3"]
+    assert all(item.keys() == {"value", "label"} and item["label"] for item in indicators)
+    assert {"plan_target_year", "plan_source"}.isdisjoint(meta)
 
 
 def test_meta_combines_industry_spelling_variants(make_case):

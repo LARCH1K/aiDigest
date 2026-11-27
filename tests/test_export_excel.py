@@ -19,9 +19,7 @@ def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):
     assert ws.freeze_panes == "A2" and ws.auto_filter.ref
     assert wb["Показатели"].max_row == 2
     assert wb["Показатели"]["O2"].value == 2.6
-    assert {row[0]: row[3] for row in wb["Нацплан"].iter_rows(min_row=2, values_only=True)} == {
-        "1.1": 70, "1.2": 50, "2.3": 60, "3.1": 70, "3.2": 100, "3.3": 50,
-    }
+    assert wb["Нацплан"].max_row == 1
     assert wb["Отчёт запуска"].cell(1, 2).value == 3
 
 
@@ -44,15 +42,17 @@ def test_export_without_report(tmp_path, make_case):
     assert openpyxl.load_workbook(p).sheetnames == ["Кейсы", "Показатели", "Нацплан", "Карта М-1"]
 
 
-def test_plan_sheet_keeps_the_target_and_case_evidence_in_separate_columns(tmp_path, make_case):
+def test_plan_sheet_exports_only_case_evidence(tmp_path, make_case):
     link = PlanLink(indicator_id="1.2", explanation="ИИ готовит проекты ответов.",
                     source_url="https://example.org/replies", quote="Помощник составляет проекты ответов на обращения.")
     case = make_case(plan_links=[link])
     workbook = openpyxl.load_workbook(export_xlsx([case], None, tmp_path / "out.xlsx"))
-    rows = list(workbook["Нацплан"].iter_rows(min_row=2, values_only=True))
-    assert rows[1][0] == "1.2" and rows[1][2:4] == (2030, 50)
-    assert rows[1][5:] == (case.id, case.title, link.explanation, link.quote, link.source_url)
-    assert all(row[5] is None for row in [rows[0], *rows[2:]])
+    sheet = workbook["Нацплан"]
+    assert sheet.max_row == 2
+    headers, row = sheet.values
+    assert headers == ("Пункт", "Показатель нацплана", "ID кейса", "Название кейса", "Связь с кейсом", "Цитата", "Источник")
+    assert row == ("1.2", "Доля обращений, проекты ответов на которые сформированы с использованием ИИ",
+                   case.id, case.title, link.explanation, link.quote, link.source_url)
 
 
 def test_metric_line_skips_empty_parts(make_metric):
