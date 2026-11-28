@@ -8,7 +8,7 @@ from aidigest.models import Level
 
 
 class Settings(BaseModel):
-    run_budget: float = 30
+    run_budget: float = 50
     first_run_budget: float = 100
     confirm_share: float = 0.4
     freshness_days: int = 30

@@ -35,7 +35,7 @@ def test_candidates_limited_and_prioritised(make_case):
     assert '"best"' in prompt and prompt.count('"id"') == 6  # новый кейс + 5 кандидатов
 
 
-def test_merge_same_metric_other_domain_confirms(make_case, make_metric, make_source):
+def test_merge_same_metric_other_domain_keeps_sources_without_confirming(make_case, make_metric, make_source):
     t = make_case(stage=Stage.PILOT,
                   metrics=[make_metric(criterion="качество", before=None, after=None, change="-23%",
                                        source_url="https://chr.rbc.ru/1")],
@@ -45,10 +45,10 @@ def test_merge_same_metric_other_domain_confirms(make_case, make_metric, make_so
                                        source_url="https://itrussia.media/2")],
                   sources=[make_source("https://itrussia.media/2")])
     merge_into(t, n, date(2026, 11, 7))
-    assert t.metrics[0].confirmed_by == ["https://itrussia.media/2"] and len(t.metrics) == 1
+    assert t.metrics[0].confirmed_by == [] and len(t.metrics) == 1
     assert t.stage == Stage.DEPLOYED and len(t.sources) == 2 and t.updated == date(2026, 11, 7)
-    assert t.confirmation_status == ConfirmationStatus.CONFIRMED
-    assert Flag.CONFIRMATION_SKIPPED not in t.flags
+    assert t.confirmation_status == ConfirmationStatus.SINGLE
+    assert Flag.CONFIRMATION_SKIPPED in t.flags
 
 
 def test_merge_same_domain_does_not_confirm(make_case, make_metric, make_source):

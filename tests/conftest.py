@@ -48,8 +48,11 @@ def case_reply():
     def _make(**kw):
         case = {"country": "Россия", "region": "Челябинская область", "municipality": None,
                 "organization": None, "sector": "госсектор", "industry": "транспорт",
+                "implementation_quote": "В Челябинской области ИИ анализирует дорожную обстановку",
+                "application": "дорожную обстановку",
                 "ai_technology": "компьютерное зрение", "title": "т", "summary": "с", "stage": "внедрён"}
-        for k in ("region", "stage", "country", "sector", "organization", "title"):
+        for k in ("region", "stage", "country", "sector", "organization", "title", "municipality",
+                  "implementation_quote", "application", "attribution_quote"):
             if k in kw:
                 case[k] = kw.pop(k)
         metric = {"name": "время в пробках", "criterion": "скорость", "before": "13 мин", "after": "5 мин",

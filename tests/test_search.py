@@ -52,7 +52,7 @@ def test_offline_miss_returns_empty_without_call(tmp_path):
 def test_real_configs_load():
     s = load_settings(Path("config/settings.yaml"))
     q = load_queries(Path("config/queries.yaml"))
-    assert s.first_run_budget == 100 and s.run_budget == 30 and s.confirm_share == 0.4
+    assert s.first_run_budget == 100 and s.run_budget == 50 and s.confirm_share == 0.4
     assert {x.level for x in q} == set(Level) and len(q) <= 14
     for lvl in Level:
         kinds = {x.use_registry_domains for x in q if x.level == lvl}

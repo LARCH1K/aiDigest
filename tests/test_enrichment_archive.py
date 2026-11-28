@@ -54,18 +54,18 @@ def test_archive_continues_after_unavailable_cases_and_skips_completed(archive, 
 
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     cases = {c.id: c for c in store.load().cases}
-    assert cases["a"].strategy_input is None
+    assert cases["a"].plan_input is None
     assert cases["b"].sources[0].published_at == "2025-02-03"
     assert cases["b"].updated == date.today()
-    assert cases["b"].strategy_input is not None
-    assert cases["c"].strategy_input is None
+    assert cases["b"].plan_input is not None
+    assert cases["c"].plan_input is None
     assert llm.calls == 1
 
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     after = store.load()
     assert llm.calls == 2
-    assert after.cases[2].strategy_input is not None
+    assert after.cases[2].plan_input is not None
     assert after.cases[2].updated == date(2026, 11, 1)
     assert after.processed_urls == {"https://processed.example.org"}
 
@@ -80,7 +80,7 @@ def test_archive_retries_cache_miss_without_blocking_next_batch(archive, make_ca
     llm.cache_miss = True
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     assert llm.calls == 1
-    assert store.load().cases[0].strategy_input is None
+    assert store.load().cases[0].plan_input is None
 
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     assert store.load().cases[1].sources[0].published_at == "2025-02-03"
@@ -89,7 +89,7 @@ def test_archive_retries_cache_miss_without_blocking_next_batch(archive, make_ca
     llm.cache_miss = False
     assert main(["enrich", "--limit", "1", "--offline"]) == 0
     assert llm.calls == 2
-    assert store.load().cases[0].strategy_input is not None
+    assert store.load().cases[0].plan_input is not None
 
 
 def test_archive_preserves_new_date_even_when_llm_cache_is_missing(archive, make_case, make_source):
@@ -107,8 +107,23 @@ def test_archive_preserves_new_date_even_when_llm_cache_is_missing(archive, make
     case = store.load().cases[0]
     assert case.sources[0].published_at == "2025-02-03"
     assert case.updated == date.today()
-    assert case.strategy_input is None
+    assert case.plan_input is None
     assert llm.calls == 1
+
+
+@pytest.mark.parametrize("fetch_entry", [
+    "Опубликовано 03.02.2025\nСотрудники прошли обучение работе с искусственным интеллектом.",
+    {"text": "Сотрудники прошли обучение работе с искусственным интеллектом.",
+     "published_date": "2025-02-03"},
+])
+def test_archive_reads_publication_date_in_old_and_new_http_cache(archive, make_case, make_source, fetch_entry):
+    store, cache, _ = archive
+    url = "https://example.org/training"
+    store.save(StoreData([make_case(sources=[make_source(url)], metrics=[])]))
+    cache.put("fetch", url, fetch_entry)
+
+    assert main(["enrich", "--limit", "1", "--offline"]) == 0
+    assert store.load().cases[0].sources[0].published_at == "2025-02-03"
 
 
 @pytest.mark.parametrize("command", [["run", "--offline"], ["enrich", "--limit", "1", "--offline"]])

@@ -2,7 +2,7 @@
 from datetime import date
 
 from aidigest.models import (
-    Case, ConfirmationStatus, Level, Methodology, Metric, MetricKind, Reliability, Sector, Source, SourceType, Stage,
+    Case, ConfirmationEvidence, Level, Methodology, Metric, MetricKind, Reliability, Sector, Source, SourceType, Stage,
 )
 
 
@@ -27,7 +27,9 @@ def _case(**kw):
 
 
 def sample_cases() -> list[Case]:
-    confirmed = _case(id="chel", metrics=[_metric(confirmed_by=["https://chel.kp.ru/1"])])
+    evidence = ConfirmationEvidence(source_url="https://chel.kp.ru/1", quote="По замерам время сократилось с 13 до 5 минут.",
+                                    basis_quote="Журналисты провели собственные замеры.")
+    confirmed = _case(id="chel", metrics=[_metric(confirmed_by=[evidence.source_url], confirmation_evidence=[evidence])])
     confirmed.recompute_status()
     sverd = _case(id="ekb", level=Level.SVERDLOVSK, region="Свердловская область", title="ИИ-помощник «Катюша» в ЗАГС",
                   organization="ЗАГС Екатеринбурга", industry="госуслуги",

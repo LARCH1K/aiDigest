@@ -125,7 +125,7 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
 .filter-heading { flex-basis: 100%; margin: 0; }
 .filters .field { flex: 1 1 155px; min-width: 0; }
 .filters .field-grow { flex: 1 0 100%; }
-.kpi-select { width: 100%; }
+.plan-select { width: 100%; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px 18px; align-self: center; }
 .filter-actions { display: flex; gap: 8px; margin-left: auto; }
 .summary { color: var(--muted); margin: 24px 0 10px; }
@@ -201,11 +201,11 @@ code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2)
                border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 15.5px; }
 .metrics .value { white-space: nowrap; font-weight: 650; }
 .metrics .change { color: var(--accent); font-size: 13px; }
-.strategy-links h3 { margin: 0 0 4px; font-size: 15px; }
-.strategy-item + .strategy-item { margin-top: 14px; }
-.strategy-item ul { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
-.strategy-item li + li { margin-top: 10px; }
-.strategy-item p { margin: 0 0 4px; }
+.plan-links h3 { margin: 0 0 4px; font-size: 15px; }
+.plan-item + .plan-item { margin-top: 14px; }
+.plan-item ul { list-style: none; margin: 8px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
+.plan-item li + li { margin-top: 10px; }
+.plan-item p { margin: 0 0 4px; }
 .quote blockquote { margin: 0 0 4px; color: #2b3550; font-style: italic; }
 .quote .src { font-size: 12.5px; }
 .checks-cell { font-size: 13px; min-width: 190px; }

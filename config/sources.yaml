@@ -206,3 +206,130 @@ sources:
     reliability: средняя
     source_type: СМИ
     update_frequency: ежедневно
+
+  - name: Interoperable Europe (Европейский союз)
+    domains: [interoperable-europe.ec.europa.eu]
+    urls:
+      - https://interoperable-europe.ec.europa.eu/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: UNDP (страны Африки)
+    domains: [undp.org]
+    urls:
+      - https://www.undp.org/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Kratid (Эстония)
+    domains: [kratid.ee]
+    urls:
+      - https://www.kratid.ee/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: GovTech (Сингапур)
+    domains: [tech.gov.sg]
+    urls:
+      - https://www.tech.gov.sg/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Núcleo de IA do Governo Federal (Бразилия)
+    domains: [gov.br]
+    urls:
+      - https://www.gov.br/governodigital/pt-br/infraestrutura-nacional-de-dados/inteligencia-artificial
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: GOV.UK (Великобритания)
+    domains: [gov.uk]
+    urls:
+      - https://www.gov.uk/algorithmic-transparency-records
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Government of Canada (Канада)
+    domains: [open.canada.ca]
+    urls:
+      - https://open.canada.ca/data/dataset/fcbc0200-79ba-4fa4-94a6-00e32facea6b
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Algoritmeregister (Нидерланды)
+    domains: [algoritmes.overheid.nl]
+    urls:
+      - https://algoritmes.overheid.nl/nl
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Federal Reserve AI Use Case Inventory (США)
+    domains: [federalreserve.gov]
+    urls:
+      - https://www.federalreserve.gov/ai-use-case-inventory.htm
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: ежегодно
+
+  - name: UAE Government (ОАЭ)
+    domains: [ai.gov.ae]
+    urls:
+      - https://ai.gov.ae/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Government AI GENAI (Япония)
+    domains: [digital.go.jp]
+    urls:
+      - https://www.digital.go.jp/en/policies/genai
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: MyDIGITAL (Малайзия)
+    domains: [mydigital.gov.my]
+    urls:
+      - https://www.mydigital.gov.my/ai-use-cases/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: IndiaAI (Индия)
+    domains: [indiaai.gov.in]
+    urls:
+      - https://indiaai.gov.in/
+    level: мир
+    reliability: высокая
+    source_type: кейсы
+    update_frequency: без чёткой периодичности
+
+  - name: Microsoft
+    domains: [microsoft.com]
+    urls:
+      - https://www.microsoft.com/en-us/corporate-responsibility/topics/ai-economy-institute/
+      - https://www.microsoft.com/en-us/corporate-responsibility/topics/ai-for-good-lab/
+    level: мир
+    reliability: высокая
+    source_type: аналитика
+    update_frequency: регулярно

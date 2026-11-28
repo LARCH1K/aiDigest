@@ -18,6 +18,21 @@ def test_extract_numbers_russian_formats():
     assert extract_numbers("1,2 млрд") == [1_200_000_000]
 
 
+def test_english_grouped_numbers_are_not_decimal_fractions():
+    assert extract_numbers("Processed 5,000 forms and saved $18,450.25.") == [5000, 18450.25]
+    assert extract_numbers("в 5,5 раза") == [5.5]
+
+
+def test_quote_with_numbers_cannot_confirm_empty_metric(make_metric):
+    assert not verify_metric(make_metric(before=None, after=None, change=None), TEXT)
+
+
+def test_quote_about_forecast_cannot_verify_actual_metric(make_metric):
+    quote = "сокращение времени ожидания на 30%"
+    metric = make_metric(before=None, after=None, change="-30%", quote=quote)
+    assert not verify_metric(metric, f"Ожидается, что система обеспечит {quote}.")
+
+
 def test_quote_found_despite_nbsp_and_dash():
     assert quote_in_text("сократилось с 13 до 5 минут", TEXT)
     assert quote_in_text("экономия бюджета - более 9 млн руб", TEXT)
@@ -48,6 +63,17 @@ def test_extract_numbers_spelled_multipliers():
     assert extract_numbers("превысила 9 миллионов рублей") == [9_000_000]
     assert extract_numbers("1,5 миллиарда") == [1_500_000_000]
     assert extract_numbers("12 тысяч человек") == [12_000]
+
+
+def test_spelled_singular_scale_can_verify_numeric_bound(make_metric):
+    quote = "Обработано более миллиона карт взрослых пациентов."
+    bound = make_metric(before=None, after="более 1 млн", change=None, quote=quote)
+    assert verify_metric(bound, quote)
+    assert extract_numbers("обработано много миллионов карт") == []
+
+
+def test_three_fraction_digits_before_russian_multiplier_are_not_thousands():
+    assert extract_numbers("объём составил 1,500 млн") == [1_500_000]
 
 
 # --- пакет «к показу»: направление изменения и длина цитаты ---

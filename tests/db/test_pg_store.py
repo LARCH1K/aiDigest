@@ -1,7 +1,7 @@
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 
-from aidigest.db.schema import metadata
+from aidigest.db.schema import cases, metadata
 from aidigest.store import PgCaseStore, StoreData
 
 pytestmark = pytest.mark.pg
@@ -22,6 +22,50 @@ def test_roundtrip_and_upsert(pg, make_case):
 
 def test_empty_db_loads_empty(pg):
     assert PgCaseStore(pg).load() == StoreData() and PgCaseStore(pg).updated_at() is None
+
+
+def test_archive_update_preserves_legacy_evidence_without_exposing_it_as_plan(pg, make_case):
+    case = make_case(industry="ЖКХ")
+    legacy_links = [{"kpi_id": "ai-spending", "quote": "Проект требует инвестиций."}]
+    data = case.model_dump(mode="json", exclude={"plan_links", "plan_input"})
+    data["strategy_links"] = legacy_links
+    with pg.begin() as conn:
+        conn.execute(cases.insert().values(id=case.id, level=case.level, first_seen=case.first_seen,
+                                           updated=case.updated, data=data))
+    store = PgCaseStore(pg)
+    saved, = store.load().cases
+    assert saved.plan_links == []
+    assert store.industry_names() == {"ЖКХ"}
+    saved.industry = "Транспорт"
+    store.save(StoreData([saved]))
+    assert store.industry_names() == {"Транспорт"}
+    with pg.begin() as conn:
+        updated = conn.scalar(select(cases.c.data).where(cases.c.id == case.id))
+    assert updated["strategy_links"] == legacy_links
+    assert updated["plan_links"] == []
+
+
+def test_archive_hides_unsupported_links_and_unproven_confirmations(pg, make_case, make_metric):
+    from aidigest.models import ConfirmationStatus, PlanLink
+
+    unverifiable = make_metric(confirmed_by=["https://another.example/notes"])
+    empty = make_metric(before=None, after=None, change=None)
+    wrong_link = PlanLink(indicator_id="1.2", source_url=unverifiable.source_url,
+                          quote="Система ИИ распознаёт транспортные потоки.", explanation="Применяется ИИ.")
+    original = make_case(metrics=[unverifiable, empty], plan_links=[wrong_link], plan_input="old",
+                         confirmation_status=ConfirmationStatus.CONFIRMED)
+    store = PgCaseStore(pg)
+    store.save(StoreData([original]))
+
+    restored, = store.load().cases
+
+    assert restored.confirmation_status == ConfirmationStatus.SINGLE
+    [metric] = restored.metrics
+    assert metric.confirmed_by == []
+    assert restored.plan_links == [] and restored.plan_input is None
+    with pg.begin() as conn:
+        raw = conn.scalar(select(cases.c.data).where(cases.c.id == original.id))
+    assert raw["metrics"][0]["confirmed_by"] == ["https://another.example/notes"]
 
 
 def test_save_is_atomic(pg, make_case):

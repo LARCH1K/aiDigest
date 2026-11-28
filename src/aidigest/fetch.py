@@ -2,16 +2,24 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
 from socket import SOCK_STREAM, getaddrinfo
 from urllib.parse import urljoin, urlsplit
 
 from aidigest.cache import DiskCache
+from aidigest.publication import html_publication_date, publication_date
 from aidigest.urls import domain_of
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
+
+
+@dataclass(frozen=True)
+class FetchedArticle:
+    text: str = ""
+    published_at: str | None = None
 
 
 def fetch_text(url: str, cache: DiskCache, manual_dir: Path, ref_id: str, index: int,
@@ -30,11 +38,17 @@ def _public_address(host: str, port: int) -> str | None:
 
 
 def fetch_article_text(url: str, cache: DiskCache, allow_network: bool = True) -> str:
+    return fetch_article(url, cache, allow_network).text
+
+
+def fetch_article(url: str, cache: DiskCache, allow_network: bool = True) -> FetchedArticle:
     cached = cache.get("fetch", url)
-    if cached is not None:
-        return cached
+    if isinstance(cached, str):
+        return FetchedArticle(cached)
+    if isinstance(cached, dict) and isinstance(cached.get("text"), str):
+        return FetchedArticle(cached["text"], publication_date(cached.get("published_date")))
     if not allow_network:
-        return ""
+        return FetchedArticle()
     try:
         import requests
         import trafilatura
@@ -46,15 +60,15 @@ def fetch_article_text(url: str, cache: DiskCache, allow_network: bool = True) -
             parsed = urlsplit(target)
             if (parsed.scheme not in ("http", "https") or not parsed.hostname
                     or parsed.username is not None or domain_of(target) != source_domain):
-                return ""
+                return FetchedArticle()
             https = parsed.scheme == "https"
             port = parsed.port or (443 if https else 80)
             if port not in (80, 443):
-                return ""
+                return FetchedArticle()
             host = parsed.hostname.encode("idna").decode("ascii")
             address = _public_address(host, port)
             if address is None:
-                return ""
+                return FetchedArticle()
             # Подключаемся к проверенному IP, сохраняя имя для Host, SNI и проверки сертификата.
             if https:
                 pool = urllib3.HTTPSConnectionPool(address, port, server_hostname=host, assert_hostname=host,
@@ -75,20 +89,24 @@ def fetch_article_text(url: str, cache: DiskCache, allow_network: bool = True) -
                     continue
                 if resp.status != 200:
                     resp.close()
-                    return ""
+                    return FetchedArticle()
                 body = bytearray()
                 with resp:
                     for chunk in resp.stream(65536, decode_content=True):
                         body.extend(chunk)
                         if len(body) > 4 * 1024 * 1024:
-                            return ""
-                text = trafilatura.extract(bytes(body), include_comments=False, include_tables=True) or ""
+                            return FetchedArticle()
                 break
         else:
-            return ""
+            return FetchedArticle()
+        tree = trafilatura.load_html(bytes(body))
+        if tree is None:
+            return FetchedArticle()
+        published = html_publication_date(tree)
+        text = trafilatura.extract(tree, include_comments=False, include_tables=True) or ""
     except Exception as e:
         print(f"Не удалось скачать {url}: {e}", file=sys.stderr)
-        return ""
-    if text:
-        cache.put("fetch", url, text)
-    return text
+        return FetchedArticle()
+    if text or published:
+        cache.put("fetch", url, {"text": text, "published_date": published})
+    return FetchedArticle(text, published)

@@ -1,6 +1,6 @@
 """Логика представления кейсов: фильтры, главная цифра, достоверность."""
 from aidigest.models import ConfirmationStatus, Flag, Level
-from aidigest.services.cases import FLAG_HELP, STATUS_CLASS, CaseFilter, CaseService, filter_cases, headline
+from aidigest.services.cases import FLAG_HELP, STATUS_CLASS, STATUS_LABEL, CaseFilter, CaseService, filter_cases, headline
 from aidigest.store import MemoryStore, StoreData
 
 from casedata import sample_cases
@@ -10,9 +10,10 @@ def ids(cases):
     return [c.id for c in cases]
 
 
-def test_default_filter_keeps_only_cases_with_metrics():
-    assert set(ids(filter_cases(sample_cases()))) == {"chel", "ekb"}
-    assert len(filter_cases(sample_cases(), with_metrics=False)) == 3
+def test_default_filter_keeps_cases_without_numbers():
+    assert ids(filter_cases(sample_cases())) == ["chel", "ekb", "bcg"]
+    assert ids(filter_cases(sample_cases(), with_metrics=True)) == ["chel", "ekb"]
+    assert ids(filter_cases(sample_cases(), with_metrics=False)) == ["chel", "ekb", "bcg"]
 
 
 def test_search_is_case_insensitive_and_yo_insensitive(make_case):
@@ -27,11 +28,20 @@ def test_level_and_status_filters():
 
 
 def test_hide_doubtful_drops_flagged():
-    assert ids(filter_cases(sample_cases(), hide_doubtful=True)) == ["chel"]
+    assert ids(filter_cases(sample_cases(), hide_doubtful=True)) == ["chel", "bcg"]
 
 
-def test_sort_matches_excel_order():
-    assert ids(filter_cases(sample_cases(), with_metrics=False)) == ["chel", "ekb", "bcg"]
+def test_sort_prioritizes_checked_numbers_then_unchecked_numbers(make_case, make_metric):
+    cases = [
+        make_case(id="empty", metrics=[]),
+        make_case(id="legacy_text", confirmation_status=ConfirmationStatus.CONFIRMED,
+                  metrics=[make_metric(name="Эффект в 2026 году", before=None, after="улучшено")]),
+        make_case(id="unchecked", confirmation_status=ConfirmationStatus.CONFIRMED,
+                  metrics=[make_metric(quote_verified=False)]),
+        make_case(id="checked", metrics=[make_metric()]),
+    ]
+    assert ids(filter_cases(cases, with_metrics=False)) == ["checked", "unchecked", "legacy_text", "empty"]
+    assert ids(filter_cases(cases, with_metrics=True)) == ["checked", "unchecked"]
 
 
 def test_headline_prefers_verified_metric(make_case, make_metric):
@@ -52,6 +62,12 @@ def test_flag_help_covers_all_flags():
     assert set(FLAG_HELP) == set(Flag)
     assert all(meaning and action for meaning, action in FLAG_HELP.values())
     assert set(STATUS_CLASS) == set(ConfirmationStatus)
+
+
+def test_single_source_labels_the_absence_of_independent_confirmation():
+    assert ConfirmationStatus.SINGLE.value == "один_источник"
+    assert STATUS_LABEL[ConfirmationStatus.SINGLE] == "без независимого подтверждения"
+    assert "Независимого подтверждения" in FLAG_HELP[Flag.SINGLE_SOURCE][0]
 
 
 def test_headline_short_form(make_case, make_metric):
@@ -98,9 +114,9 @@ def test_case_service_filters_and_counts(make_case):
     st = MemoryStore()
     st.save(StoreData([make_case(id="a"), make_case(id="b", metrics=[])], set()))
     shown, total = CaseService(st).list(CaseFilter())
-    assert [c.id for c in shown] == ["a"] and total == 2
-    shown, _ = CaseService(st).list(CaseFilter(with_metrics=False))
-    assert {c.id for c in shown} == {"a", "b"}
+    assert [c.id for c in shown] == ["a", "b"] and total == 2
+    shown, _ = CaseService(st).list(CaseFilter(with_metrics=True))
+    assert [c.id for c in shown] == ["a"]
 
 
 def test_get_returns_case_or_none(make_case):

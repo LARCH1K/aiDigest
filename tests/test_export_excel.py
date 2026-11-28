@@ -1,7 +1,17 @@
 import openpyxl
 
 from aidigest.export_excel import export_xlsx, metric_line
-from aidigest.models import Level
+from aidigest.models import ConfirmationEvidence, Level, PlanLink
+
+
+def test_export_includes_evidence_for_independent_confirmation(tmp_path, make_case, make_metric):
+    evidence = ConfirmationEvidence(source_url="https://example.org/study", quote="Цитата с числом",
+                                    basis_quote="Исследователи провели собственные замеры")
+    case = make_case(metrics=[make_metric(confirmed_by=[evidence.source_url], confirmation_evidence=[evidence])])
+    rows = openpyxl.load_workbook(export_xlsx([case], None, tmp_path / "out.xlsx"))["Показатели"].values
+    headers, row = tuple(rows)
+    value = row[headers.index("Свидетельства подтверждения")]
+    assert evidence.source_url in value and evidence.quote in value and evidence.basis_quote in value
 
 
 def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):
@@ -11,13 +21,15 @@ def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):
     p = tmp_path / "out.xlsx"
     export_xlsx([a, b], {"Кредитов потрачено": 3}, p)
     wb = openpyxl.load_workbook(p)
-    assert wb.sheetnames == ["Кейсы", "Показатели", "Отчёт запуска"]
+    assert wb.sheetnames == ["Кейсы", "Показатели", "Нацплан", "Карта М-1", "Отчёт запуска"]
     ws = wb["Кейсы"]
     hdr = [c.value for c in ws[1]]
     assert hdr[0] == "Уровень" and "Флаги" in hdr and len(hdr) == 17
     assert ws.cell(2, hdr.index("Название") + 1).value == "подтверждён"
     assert ws.freeze_panes == "A2" and ws.auto_filter.ref
     assert wb["Показатели"].max_row == 2
+    assert wb["Показатели"]["O2"].value == 2.6
+    assert wb["Нацплан"].max_row == 1
     assert wb["Отчёт запуска"].cell(1, 2).value == 3
 
 
@@ -37,7 +49,20 @@ def test_sort_by_status_then_level(tmp_path, make_case, make_metric):
 def test_export_without_report(tmp_path, make_case):
     p = tmp_path / "o.xlsx"
     export_xlsx([make_case()], None, p)
-    assert openpyxl.load_workbook(p).sheetnames == ["Кейсы", "Показатели"]
+    assert openpyxl.load_workbook(p).sheetnames == ["Кейсы", "Показатели", "Нацплан", "Карта М-1"]
+
+
+def test_plan_sheet_exports_only_case_evidence(tmp_path, make_case):
+    link = PlanLink(indicator_id="1.2", explanation="ИИ готовит проекты ответов.",
+                    source_url="https://example.org/replies", quote="Помощник составляет проекты ответов на обращения.")
+    case = make_case(plan_links=[link])
+    workbook = openpyxl.load_workbook(export_xlsx([case], None, tmp_path / "out.xlsx"))
+    sheet = workbook["Нацплан"]
+    assert sheet.max_row == 2
+    headers, row = sheet.values
+    assert headers == ("Пункт", "Показатель нацплана", "ID кейса", "Название кейса", "Связь с кейсом", "Цитата", "Источник")
+    assert row == ("1.2", "Доля обращений, проекты ответов на которые сформированы с использованием ИИ",
+                   case.id, case.title, link.explanation, link.quote, link.source_url)
 
 
 def test_metric_line_skips_empty_parts(make_metric):

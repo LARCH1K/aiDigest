@@ -9,11 +9,12 @@ from itertools import chain
 
 from aidigest.cache import DiskCache
 from aidigest.failure import explain
+from aidigest.fetch import FetchedArticle, fetch_article
 from aidigest.llm import LLMClient, OfflineCacheMiss
 from aidigest.models import Article, Case
+from aidigest.national_plan import classify_plan, plan_input
 from aidigest.publication import case_update, publication_date
 from aidigest.store import Store, StoreData
-from aidigest.strategy import classify_strategy, strategy_input
 from aidigest.urls import normalize_url
 
 
@@ -42,8 +43,7 @@ def _cached_articles(cache: DiskCache, urls: set[str]) -> dict[str, Article]:
                 continue
             raw_text = row.get("raw_content") or row.get("content")
             text = raw_text if isinstance(raw_text, str) and raw_text.strip() else ""
-            value = row.get("published_date")
-            published = publication_date(value) if isinstance(value, str) else None
+            published = publication_date(row.get("published_date"))
             article = articles.setdefault(url, Article(url=url, domain="", title="", text=""))
             if len(text) > len(article.text):
                 article.text = text
@@ -64,16 +64,15 @@ def _case_articles(case: Case, cached: dict[str, Article], cache: DiskCache) -> 
         article = cached.get(key)
         text = article.text if article else ""
         published = article.published_at if article else None
-        if not text:
+        if not text or not published:
             try:
-                fetched = cache.get("fetch", source.url)
+                fetched = fetch_article(source.url, cache, allow_network=False)
             except (OSError, ValueError):
-                fetched = None
-            if isinstance(fetched, str):
-                text = fetched
-                published = published or publication_date(None, fetched)
+                fetched = FetchedArticle()
+            published = published or publication_date(fetched.published_at, fetched.text if not text else "")
+            text = text or fetched.text
         articles.append(Article(url=source.url, domain=source.domain, title=source.title, text=text,
-                                published_at=published))
+                                published_at=publication_date(published, url=source.url)))
     return articles
 
 
@@ -98,8 +97,8 @@ def enrich_archive(store: Store, cache: DiskCache, llm: LLMClient, limit: int, t
             for source, article in zip(case.sources, articles, strict=True)
             if not source.published_at and article.published_at
         ]
-        signature = strategy_input(case, articles)
-        classify = signature is not None and signature != case.strategy_input
+        signature = plan_input(case, articles)
+        classify = signature is not None and signature != case.plan_input
         if not date_changes and not classify:
             continue
 
@@ -109,7 +108,7 @@ def enrich_archive(store: Store, cache: DiskCache, llm: LLMClient, limit: int, t
                 source.published_at = published
             if classify:
                 try:
-                    classify_strategy(case, llm, articles)
+                    classify_plan(case, llm, articles)
                 except OfflineCacheMiss:
                     report.cache_misses += 1
                 except Exception as exc:

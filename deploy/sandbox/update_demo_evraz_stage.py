@@ -1,13 +1,11 @@
 from datetime import date
 
 from aidigest.db.engine import make_engine
-from aidigest.models import MetricKind, Stage, StrategyLink
+from aidigest.models import MetricKind, Stage
 from aidigest.publication import case_update
 from aidigest.store import PgCaseStore, StoreData
-from aidigest.strategy import STRATEGY_KPIS
 
 case_id = "demo-evraz-wheel-marking"
-kpi_id = "ai-spending"
 
 def update_case(store):
     with store.write_lock() as locked:
@@ -25,21 +23,12 @@ def update_case(store):
         if metric is None:
             raise SystemExit("Не найдена проверенная цитата об инвестициях в проект.")
 
-        link = StrategyLink(
-            kpi_id=kpi_id, source_url=metric.source_url, quote=metric.quote,
-            explanation="В публикации указаны фактические затраты комбината на внедрение машинного зрения.",
-        )
-        before = case.model_dump()
-        with case_update(case, date.today()):
-            if not any(row.kpi_id == kpi_id and row.source_url == link.source_url
-                       for row in case.strategy_links):
-                case.strategy_links.append(link)
-            if case.stage == Stage.DEPLOYED:
+        if case.stage == Stage.DEPLOYED:
+            with case_update(case, date.today()):
                 case.stage = Stage.PILOT
-        if case.model_dump() != before:
             locked.save(StoreData(cases=[case]))
 
-    print(f"Проверьте фильтр: {STRATEGY_KPIS[kpi_id].label}")
+    print(f"Стадия кейса ЕВРАЗ НТМК: {case.stage}")
 
 if __name__ == "__main__":
     engine = make_engine()

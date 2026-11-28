@@ -7,17 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse
 
-from aidigest.models import Case, ConfirmationStatus, Level
+from aidigest.methodology import m1_profile, r1_ratio
+from aidigest.models import Case, ConfirmationStatus, Level, Methodology
+from aidigest.national_plan import PLAN_INDICATORS
 from aidigest.services.cases import (
     EFFECT_CRITERIA, FLAG_HELP, NO_RATED, RELIABILITY_CLASS, RELIABILITY_LABEL, RELIABILITY_ORDER, STATUS_CLASS,
     STATUS_LABEL, CaseFilter, CaseService, best_reliability, headline,
 )
 from aidigest.services.catalog import ANY_RF_LABEL, ANY_RF_LEVEL, CatalogService
 from aidigest.services.runs import AlreadyRunning, MonthExhausted, RunParams, RunService, RunServiceStopping
-from aidigest.strategy import STRATEGY_KPIS
 from aidigest_api.schemas import (
     ActiveRun, CaseDetail, CaseList, CaseQuery, CaseRow, Credits, IdleRun, Meta, Option, Queries,
-    QueryGroup, RunQuery, RunRequest, RunRow, RunStarted, SourceQuery, Sources, StatusOption, StrategyKpiOption,
+    QueryGroup, RunQuery, RunRequest, RunRow, RunStarted, SourceQuery, Sources, StatusOption,
 )
 
 BUSY = "Сбор уже идёт — дождитесь, пока он закончится."
@@ -55,7 +56,7 @@ def _case_row(case: Case) -> CaseRow:
     return CaseRow(
         id=case.id, title=case.title, level=case.level, country=case.country, region=case.region,
         organization=case.organization, industry=case.industry, stage=case.stage, first_seen=case.first_seen,
-        updated=case.updated, metrics=case.metrics, strategy_links=case.strategy_links,
+        updated=case.updated, metrics=case.metrics, plan_links=case.plan_links,
         status=status, status_label=STATUS_LABEL[status], status_class=STATUS_CLASS[status],
         headline=headline_text, headline_unverified=headline_unverified, flags=case.flags,
         reliability=reliability, reliability_label=RELIABILITY_LABEL[reliability],
@@ -78,8 +79,9 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
             reliability=[*reliability_options, Option(value=NO_RATED, label=RELIABILITY_LABEL[None])],
             criteria=[Option(value=criterion, label=criterion[0].upper() + criterion[1:])
                       for criterion in EFFECT_CRITERIA],
-            strategy_kpis=[StrategyKpiOption(value=kpi_id, label=kpi.label, clause=kpi.clause, url=kpi.url)
-                           for kpi_id, kpi in STRATEGY_KPIS.items()],
+            plan_indicators=[Option(value=indicator_id, label=indicator.label)
+                             for indicator_id, indicator in PLAN_INDICATORS.items()],
+            industries=[Option(value=value, label=label) for value, label in case_service.industries()],
             flag_help=FLAG_HELP,
         )
 
@@ -87,7 +89,7 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
     def cases(query: Annotated[CaseQuery, Query()]) -> CaseList:
         items, total = case_service.list(CaseFilter(
             q=query.q, level=query.level, status=query.status, reliability=query.reliability,
-            criterion=query.criterion, kpi=query.kpi, hide_doubtful=query.doubtful == "1",
+            criterion=query.criterion, plan=query.plan, industry=query.industry, hide_doubtful=query.doubtful == "1",
             with_metrics=None if query.metrics is None else query.metrics == "1",
         ))
         return CaseList(total=total, updated=case_service.updated_at(), cases=[_case_row(case) for case in items])
@@ -99,6 +101,8 @@ def api_routes(case_service: CaseService, catalog: CatalogService, runs: RunServ
             raise HTTPException(404, "Кейс не найден")
         return CaseDetail(
             **case.model_dump(exclude={"flags"}),
+            m1_profile=m1_profile(case),
+            r1_ratios=[r1_ratio(metric) for metric in case.metrics] if case.methodology == Methodology.R1 else [],
             status_label=STATUS_LABEL[case.confirmation_status], status_class=STATUS_CLASS[case.confirmation_status],
             reliability_label=RELIABILITY_LABEL[best_reliability(case)],
         )

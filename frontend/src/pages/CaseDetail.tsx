@@ -5,7 +5,7 @@ import { ApiError, apiGet } from "../api";
 import { Flags } from "../components/Flags";
 import { formatDate } from "../formatDate";
 import { safeUrl } from "../safeUrl";
-import type { CaseDetail, Meta, Metric, Source, StrategyKpi, StrategyLink } from "../types";
+import type { CaseDetail, Meta, Metric, Option, PlanLink, QualitativeEvidence, Source } from "../types";
 import { formatLabel } from "../formatLabel";
 
 function CaseHeader({ data }: { data: CaseDetail }) {
@@ -32,7 +32,9 @@ function CaseHeader({ data }: { data: CaseDetail }) {
   );
 }
 
-function MetricRow({ metric }: { metric: Metric }) {
+const ratioFormat = new Intl.NumberFormat("ru", { maximumSignificantDigits: 4 });
+
+function MetricRow({ metric, ratio }: { metric: Metric; ratio: number | null | undefined }) {
   const { before, after, change } = metric;
   const sourceLabel = metric.source_url.replace(/^https?:\/\//i, "");
   return (
@@ -41,6 +43,7 @@ function MetricRow({ metric }: { metric: Metric }) {
       <td className="value">
         {before && after ? `${before} → ${after}` : after || before}
         {change && change !== after && <div className="change">{change}</div>}
+        {ratio != null && <div className="hint">Р-1 (Base / Project) {ratioFormat.format(ratio)}</div>}
       </td>
       <td>{formatLabel(metric.criterion)}</td>
       <td className="quote">
@@ -55,11 +58,17 @@ function MetricRow({ metric }: { metric: Metric }) {
           : <div className="bad-line">⚠ Цитата или число не найдены</div>}
         {metric.confirmed_by.map((url, index) => {
           const href = safeUrl(url);
+          const evidence = metric.confirmation_evidence?.find((item) => item.source_url === url);
           return (
             <div className="ok-line" key={index}>
               ✔ Подтверждено: <a href={href} target="_blank" rel="noopener noreferrer">
                 {href === "#" ? url : new URL(href).host}
               </a>
+              {evidence && <details className="quote">
+                <summary>Как проверили</summary>
+                <blockquote>«{evidence.quote}»</blockquote>
+                {evidence.basis_quote !== evidence.quote && <blockquote>«{evidence.basis_quote}»</blockquote>}
+              </details>}
             </div>
           );
         })}
@@ -71,24 +80,21 @@ function MetricRow({ metric }: { metric: Metric }) {
   );
 }
 
-function StrategyLinks({ links, kpis }: { links: StrategyLink[]; kpis: StrategyKpi[] }) {
-  const byKpi = new Map<string, StrategyLink[]>();
+function PlanLinks({ links, indicators }: { links: PlanLink[]; indicators: Option[] }) {
+  const byIndicator = new Map<string, PlanLink[]>();
   for (const link of links) {
-    const evidence = byKpi.get(link.kpi_id);
+    const evidence = byIndicator.get(link.indicator_id);
     if (evidence) evidence.push(link);
-    else byKpi.set(link.kpi_id, [link]);
+    else byIndicator.set(link.indicator_id, [link]);
   }
   return (
-    <section className="card strategy-links">
+    <section className="card plan-links">
       <h2>Показатели нацплана</h2>
-      {[...byKpi].map(([id, evidence]) => {
-        const kpi = kpis.find(({ value }) => value === id);
+      {[...byIndicator].map(([id, evidence]) => {
+        const indicator = indicators.find(({ value }) => value === id);
         return (
-          <div className="strategy-item" key={id}>
-            <h3>{kpi?.label ?? id}</h3>
-            {kpi && <a className="src" href={safeUrl(kpi.url)} target="_blank" rel="noopener noreferrer">
-              Основание: п. {kpi.clause} Национальной стратегии развития ИИ
-            </a>}
+          <div className="plan-item" key={id}>
+            <h3>{indicator ? `${id}. ${indicator.label}` : `Пункт ${id}`}</h3>
             <ul>
               {evidence.map(({ explanation, quote, source_url }) => (
                 <li key={source_url} className="quote">
@@ -105,7 +111,31 @@ function StrategyLinks({ links, kpis }: { links: StrategyLink[]; kpis: StrategyK
   );
 }
 
-function Metrics({ metrics }: { metrics: Metric[] }) {
+function M1Profile({ profile }: { profile: Record<string, QualitativeEvidence[]> }) {
+  return (
+    <section className="card plan-links">
+      <h2>Качественная карта М-1</h2>
+      {Object.entries(profile).map(([criterion, items]) => (
+        <div className="plan-item" key={criterion}>
+          <h3>{formatLabel(criterion)}</h3>
+          {items.length === 0 ? <p className="muted">Нет сохранённых свидетельств.</p> : (
+            <ul>
+              {items.map(({ fact, quote, source_url }, index) => (
+                <li key={`${source_url}-${index}`} className="quote">
+                  <p>{fact}</p>
+                  <blockquote>«{quote}»</blockquote>
+                  <a className="src" href={safeUrl(source_url)} target="_blank" rel="noopener noreferrer">Публикация</a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function Metrics({ metrics, ratios }: { metrics: Metric[]; ratios: (number | null)[] }) {
   return (
     <section className="card">
       <h2>Показатели</h2>
@@ -124,7 +154,7 @@ function Metrics({ metrics }: { metrics: Metric[] }) {
               </tr>
             </thead>
             <tbody>
-              {metrics.map((metric, index) => <MetricRow key={index} metric={metric} />)}
+              {metrics.map((metric, index) => <MetricRow key={index} metric={metric} ratio={ratios[index]} />)}
             </tbody>
           </table>
         </div>
@@ -178,7 +208,7 @@ function CaseContent({ id }: { id: string }) {
   const [failure, setFailure] = useState<"missing" | "error">();
   const [meta, setMeta] = useState<Meta>();
   const [metaFailed, setMetaFailed] = useState(false);
-  const needsMeta = Boolean(data && (data.flags.length || data.strategy_links.length));
+  const needsMeta = Boolean(data && (data.flags.length || data.plan_links.length));
 
   useEffect(() => {
     let active = true;
@@ -215,9 +245,10 @@ function CaseContent({ id }: { id: string }) {
   return (
     <>
       <CaseHeader data={data} />
-      <Metrics metrics={data.metrics} />
-      {data.strategy_links.length > 0 && (
-        <StrategyLinks links={data.strategy_links} kpis={meta?.strategy_kpis ?? []} />
+      <Metrics metrics={data.metrics} ratios={data.r1_ratios} />
+      {data.methodology === "М-1" && <M1Profile profile={data.m1_profile} />}
+      {data.plan_links.length > 0 && (
+        <PlanLinks links={data.plan_links} indicators={meta?.plan_indicators ?? []} />
       )}
       <div className="grid-2">
         <Sources sources={data.sources} />

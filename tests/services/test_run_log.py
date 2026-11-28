@@ -9,6 +9,13 @@ def test_parse_report_reads_cli_lines():
     assert parse_report("Причина: Tavily недоступен\n") == {}
 
 
+def test_parse_report_distinguishes_attempts_confirmed_and_deferred():
+    log = "Попыток перепроверки: 11\nКейсов независимо подтверждено: 1\nПерепроверок отложено: 35"
+    assert parse_report(log) == {
+        "Попыток перепроверки": "11", "Кейсов независимо подтверждено": "1", "Перепроверок отложено": "35",
+    }
+
+
 def test_last_reason_takes_last_line_without_prefix():
     out = "Причина: старая\nКейсов новых: 0\nПричина: Tavily недоступен — проверьте ключ.\n"
     assert last_reason(out) == "Tavily недоступен — проверьте ключ."

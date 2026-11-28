@@ -190,7 +190,7 @@ def test_unknown_usage_allows_start(svc_usage):
 def test_credits_values(svc_usage):
     c = svc_usage(TavilyUsage(used=40, limit=1000, plan="Researcher")).credits()
     assert c == {"known": True, "used": 40, "limit": 1000, "remaining": 960, "plan": "Researcher",
-                 "run_budget": 30}
+                 "run_budget": 50}
 
 
 def test_credits_without_token_does_not_fetch(make_svc):

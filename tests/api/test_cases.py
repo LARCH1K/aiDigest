@@ -28,11 +28,11 @@ def test_meta(authed):
     assert all(len(v) == 2 for v in m["flag_help"].values())
 
 
-def test_case_list_default_hides_cases_without_metrics(pg, authed_with_cases):
+def test_case_list_default_includes_cases_without_metrics(pg, authed_with_cases):
     body = authed_with_cases.get("/api/cases").json()
     assert body["total"] == 3
     assert datetime.fromisoformat(body["updated"]) == PgCaseStore(pg).updated_at()
-    assert {c["id"] for c in body["cases"]} == {"chel", "ekb"}
+    assert [c["id"] for c in body["cases"]] == ["chel", "ekb", "bcg"]
     chel = next(c for c in body["cases"] if c["id"] == "chel")
     assert chel["status_label"] == "подтверждено" and chel["status_class"] == "ok"
     assert chel["headline"].startswith("время в пробках") and chel["headline_unverified"] is False
@@ -49,12 +49,14 @@ def test_cases_without_processed_urls_have_no_update_timestamp(pg, authed, make_
 def test_case_list_filters(authed_with_cases):
     c = authed_with_cases
     assert set(ids(c.get("/api/cases?metrics=0"))) == {"chel", "ekb", "bcg"}
+    assert ids(c.get("/api/cases?metrics=1")) == ["chel", "ekb"]
     assert ids(c.get("/api/cases", params={"level": "Свердловская область"})) == ["ekb"]
     assert ids(c.get("/api/cases", params={"q": "катюша"})) == ["ekb"]
     assert ids(c.get("/api/cases", params={"status": "подтверждено"})) == ["chel"]
-    assert ids(c.get("/api/cases?doubtful=1")) == ["chel"]  # у ekb цитата не найдена
+    assert ids(c.get("/api/cases?doubtful=1")) == ["chel", "bcg"]  # у ekb цитата не найдена
     assert ids(c.get("/api/cases", params={"reliability": "none", "metrics": 0})) == []
-    assert set(ids(c.get("/api/cases", params={"reliability": "средняя"}))) == {"chel", "ekb"}
+    assert set(ids(c.get("/api/cases", params={"reliability": "средняя"}))) == {"chel", "ekb", "bcg"}
+    assert set(ids(c.get("/api/cases", params={"reliability": "средняя", "metrics": "1"}))) == {"chel", "ekb"}
 
 
 def test_case_detail(authed_with_cases):

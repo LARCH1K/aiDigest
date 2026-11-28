@@ -1,7 +1,7 @@
 export type Level = "мир" | "регионы РФ" | "Свердловская область";
 export type Stage = "неизвестно" | "в разработке" | "пилот" | "внедрён" | "масштабирование";
 export type Reliability = "высокая" | "средняя" | "низкая" | "не_оценена";
-export type SourceType = "официальная" | "статистика" | "кейсы" | "аналитика рынка" | "СМИ" | "неизвестно";
+export type SourceType = "официальная" | "статистика" | "кейсы" | "аналитика" | "аналитика рынка" | "СМИ" | "неизвестно";
 export type ConfirmationStatus = "подтверждено" | "противоречие" | "один_источник";
 export type Flag =
   | "цифра_не_найдена_в_тексте"
@@ -23,17 +23,13 @@ export interface Option {
   label: string;
 }
 
-export interface StrategyKpi extends Option {
-  clause: string;
-  url: string;
-}
-
 export interface Meta {
   levels: Level[];
   statuses: (Option & { class: StatusClass })[];
   reliability: Option[];
   criteria: Option[];
-  strategy_kpis: StrategyKpi[];
+  plan_indicators: Option[];
+  industries: Option[];
   flag_help: Record<Flag, [string, string]>;
 }
 
@@ -49,7 +45,7 @@ interface CaseSummary {
   first_seen: string;
   updated: string;
   metrics: Metric[];
-  strategy_links: StrategyLink[];
+  plan_links: PlanLink[];
   status_label: string;
   status_class: StatusClass;
   reliability_label: string;
@@ -82,12 +78,20 @@ export interface Metric {
   source_url: string;
   quote_verified: boolean;
   confirmed_by: string[];
+  confirmation_evidence?: { source_url: string; quote: string; basis_quote: string }[];
   conflicting_values: string[];
 }
 
-export interface StrategyLink {
-  kpi_id: string;
+export interface PlanLink {
+  indicator_id: string;
   explanation: string;
+  source_url: string;
+  quote: string;
+}
+
+export interface QualitativeEvidence {
+  criterion: string;
+  fact: string;
   source_url: string;
   quote: string;
 }
@@ -107,6 +111,8 @@ export interface CaseDetail extends CaseSummary {
   ai_technology: string;
   summary: string;
   methodology: "М-1" | "Р-1" | "бизнес-метрики";
+  m1_profile: Record<string, QualitativeEvidence[]>;
+  r1_ratios: (number | null)[];
   sources: Source[];
   confirmation_status: ConfirmationStatus;
   confirmation_attempts: number;
@@ -150,6 +156,7 @@ export interface QueriesResp {
 export interface SourceInfo {
   name: string;
   domains: string[];
+  urls?: string[];
   level: Level | null;
   reliability: Reliability;
   source_type: SourceType;
