@@ -9,6 +9,7 @@ from pathlib import Path
 from aidigest.export_excel import export_xlsx
 from aidigest.methodology import CRITERIA, OTHER_CRITERION, m1_metric_criterion
 from aidigest.models import Case, ConfirmationStatus, Flag, Level, Methodology, Reliability
+from aidigest.quotes import metric_numbers
 from aidigest.store import Store
 
 DOUBTFUL = {Flag.QUOTE_NOT_FOUND, Flag.SOURCES_CONFLICT}
@@ -42,7 +43,7 @@ STATUS_CLASS = {
 }
 STATUS_LABEL = {
     ConfirmationStatus.CONFIRMED: "подтверждено",
-    ConfirmationStatus.SINGLE: "один источник",
+    ConfirmationStatus.SINGLE: "без независимого подтверждения",
     ConfirmationStatus.CONFLICT: "противоречие",
 }
 _STATUS_ORDER = [ConfirmationStatus.CONFIRMED, ConfirmationStatus.CONFLICT, ConfirmationStatus.SINGLE]
@@ -52,12 +53,12 @@ FLAG_HELP: dict[Flag, tuple[str, str]] = {
                            "Проверьте цифру по ссылке вручную и не используйте её без проверки."),
     Flag.SOURCES_CONFLICT: ("Источники называют разные значения одного показателя.",
                             "Сравните обе версии по ссылкам."),
-    Flag.SINGLE_SOURCE: ("Подтверждение во втором издании искали, но не нашли.",
-                         "Цифра может быть верной, но не перепроверена."),
+    Flag.SINGLE_SOURCE: ("Независимого подтверждения в проверенных публикациях не найдено.",
+                         "Сверьте цитату и проверьте, откуда издания получили данные."),
     Flag.CONFIRMATION_SKIPPED: ("На поиск подтверждения не хватило кредитов.",
                                 "Следующий запуск сбора проверит сам."),
     Flag.NO_METRICS: ("Кейс есть, но измеримых цифр в статье нет.",
-                      "Годится как пример внедрения, но не как измеримый кейс."),
+                      "Изучите описание внедрения и качественные свидетельства, если они есть."),
     Flag.STAGE_UNCLEAR: ("По статье не понять стадию внедрения.",
                          "Уточните по другим материалам."),
     Flag.SOURCE_UNRATED: ("Сайта нет в справочнике источников, его достоверность не оценена.",
@@ -78,8 +79,9 @@ def _haystack(c: Case) -> str:
                                         c.municipality, c.country, c.industry))))
 
 
-def sort_key(c: Case):
-    return (0 if c.metrics else 1, _STATUS_ORDER.index(c.confirmation_status), list(Level).index(c.level))
+def sort_key(c: Case) -> tuple[int, int, int]:
+    numbers_rank = min((0 if metric.quote_verified else 1 for metric in c.metrics if metric_numbers(metric)), default=2)
+    return (numbers_rank, _STATUS_ORDER.index(c.confirmation_status), list(Level).index(c.level))
 
 
 def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = "",
@@ -87,10 +89,9 @@ def filter_cases(cases: list[Case], q: str = "", level: str = "", status: str = 
                  criterion: str = "", plan: str = "", industry: str = "") -> list[Case]:
     words = _norm(q).split()
     industry = _industry_key(industry)
-    metrics_required = with_metrics if with_metrics is not None else not plan
     out = []
     for c in cases:
-        if metrics_required and not c.metrics:
+        if with_metrics and not any(metric_numbers(metric) for metric in c.metrics):
             continue
         if criterion:
             metric_criteria = (m1_metric_criterion(metric) if c.methodology == Methodology.M1 else metric.criterion

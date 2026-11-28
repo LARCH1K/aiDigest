@@ -58,11 +58,17 @@ function MetricRow({ metric, ratio }: { metric: Metric; ratio: number | null | u
           : <div className="bad-line">⚠ Цитата или число не найдены</div>}
         {metric.confirmed_by.map((url, index) => {
           const href = safeUrl(url);
+          const evidence = metric.confirmation_evidence?.find((item) => item.source_url === url);
           return (
             <div className="ok-line" key={index}>
               ✔ Подтверждено: <a href={href} target="_blank" rel="noopener noreferrer">
                 {href === "#" ? url : new URL(href).host}
               </a>
+              {evidence && <details className="quote">
+                <summary>Как проверили</summary>
+                <blockquote>«{evidence.quote}»</blockquote>
+                {evidence.basis_quote !== evidence.quote && <blockquote>«{evidence.basis_quote}»</blockquote>}
+              </details>}
             </div>
           );
         })}

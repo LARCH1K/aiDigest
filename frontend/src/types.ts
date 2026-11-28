@@ -78,6 +78,7 @@ export interface Metric {
   source_url: string;
   quote_verified: boolean;
   confirmed_by: string[];
+  confirmation_evidence?: { source_url: string; quote: string; basis_quote: string }[];
   conflicting_values: string[];
 }
 

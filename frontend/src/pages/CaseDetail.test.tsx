@@ -93,6 +93,20 @@ it("флаги показывают пояснение из meta.flag_help", asy
   expect(screen.getByText("Найдите второй источник.")).toBeVisible();
 });
 
+it("карточка показывает цитату и основание независимой проверки показателя", async () => {
+  const evidence = {
+    source_url: "https://report.example/detail",
+    quote: "По замерам проверка заняла четыре минуты.",
+    basis_quote: "Исследователи провели собственные замеры.",
+  };
+  const user = setup("/case/water", async () => Response.json({
+    ...detail, metrics: [{ ...detail.metrics[0], confirmation_evidence: [evidence] }],
+  }));
+  await user.click(await screen.findByText("Как проверили"));
+  expect(screen.getByText(`«${evidence.quote}»`)).toBeVisible();
+  expect(screen.getByText(`«${evidence.basis_quote}»`)).toBeVisible();
+});
+
 it("в основных сведениях есть дата обновления, у публикаций — свои даты", async () => {
   setup("/case/water", async () => Response.json({
     ...detail,

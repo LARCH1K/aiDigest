@@ -88,9 +88,12 @@ def test_repeated_confirmation_changes_date_only_when_evidence_changes(make_case
     case = make_case()
     confirm_case(case, FakeSearch({}), FakeLLM([]), registry, TODAY, 3)
     assert case.updated == date(2026, 11, 1)
+    basis = "Исследователи провели собственные замеры."
+    quote = "Время в пробках сократилось с 13 до 5 минут."
     article = Article(url="https://second.example/a", domain="second.example", title="Статья",
-                      text="Время в пробках сократилось с 13 до 5 минут.", published_at="2026-11-02")
-    match = {"url": article.url, "metric_index": 0, "quote": article.text, "agrees": True}
+                      text=f"{basis} {quote}", published_at="2026-11-02")
+    match = {"url": article.url, "metric_index": 0, "quote": quote, "agrees": True,
+             "independent": True, "basis_quote": basis}
     confirm_case(case, FakeSearch(lambda **_: [article]), FakeLLM([{"matches": [match]}]), registry, TODAY, 3)
     assert case.updated == TODAY
     assert case.sources[-1].published_at == "2026-11-02"
@@ -105,7 +108,8 @@ def test_regular_cycle_persists_plan_link_and_backfills_repeat_publication(regis
     from fakes import FakeSearch
 
     article = Article(url="https://gubernia74.ru/news/1", domain="gubernia74.ru", title="Статья",
-                      text=f"{QUOTE} Время в пробках сократилось с 13 до 5 минут.")
+                      text=f"{QUOTE} В Челябинской области ИИ анализирует дорожную обстановку. "
+                           "Время в пробках сократилось с 13 до 5 минут.")
     links = {"links": [{"indicator_id": "1.2", "source_url": article.url, "quote": QUOTE,
                         "evidence_type": "reply_drafts", "explanation": "ИИ готовит черновики ответов жителям."}]}
     query = QuerySpec(level=Level.RF_REGIONS, text="Кейсы", use_registry_domains=False, language="ru")

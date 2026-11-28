@@ -1,7 +1,7 @@
 """Проверка, что показатель действительно взят из текста статьи (защита от выдуманных цифр)."""
 import re
 
-from aidigest.models import Metric
+from aidigest.models import Metric, MetricKind
 
 _SPACES = "    "
 _QUOTES = "«»“”„\"'‘’"
@@ -11,10 +11,13 @@ _DASHES = "—–−‒"
 _MULTIPLIERS = [("тыс", 1e3), ("млрд", 1e9), ("миллиард", 1e9), ("млн", 1e6), ("миллион", 1e6),
                 ("трлн", 1e12), ("триллион", 1e12)]
 _NUMBER_RE = re.compile(
-    r"(?<![\d.,])(\d{1,3}(?:[    ]\d{3})+|\d+)([.,]\d+)?"
+    r"(?<![\d.,])(?:([1-9]\d{0,2}(?:,\d{3})+)(\.\d+)?(?!\d)|"
+    r"(\d{1,3}(?:[     ]\d{3})+|\d+)([.,]\d+)?)"
     r"(?:\s*(тыс[а-яё]*|млрд|млн|трлн|миллиард[а-яё]*|миллион[а-яё]*|триллион[а-яё]*)(?![а-яё]))?",
     re.IGNORECASE,
 )
+_SPELLED_BOUND = re.compile(r"\b(?:более|менее|свыше|около|почти|порядка|до)\s+"
+                            r"(тысячи|миллиона|миллиарда|триллиона)\b")
 
 
 def normalize_text(s: str) -> str:
@@ -29,16 +32,26 @@ def normalize_text(s: str) -> str:
 
 
 def extract_numbers(s: str | None) -> list[float]:
-    """Числа из текста по-русски; знак не учитывается (всегда модуль)."""
+    """Числа с десятичной дробью и разделителями тысяч. Знак проверяется отдельно."""
     if not s:
         return []
-    out = []
-    for whole, frac, mult in _NUMBER_RE.findall(s.lower()):
-        value = float(re.sub(r"\D", "", whole) + (("." + frac[1:]) if frac else ""))
+    source = s.lower()
+    found = []
+    for match in _NUMBER_RE.finditer(source):
+        grouped, fraction, whole, frac, mult = match.groups()
+        if grouped and not fraction and mult and grouped.count(",") == 1:
+            # Перед русским словом-множителем одиночная запятая обозначает десятичную дробь.
+            value = float(grouped.replace(",", "."))
+        else:
+            whole, frac = (grouped, fraction) if grouped else (whole, frac)
+            value = float(re.sub(r"\D", "", whole) + ("." + frac[1:] if frac else ""))
         if mult:
             value *= next(k for prefix, k in _MULTIPLIERS if mult.lower().startswith(prefix))
-        out.append(value)
-    return out
+        found.append((match.start(), value))
+    for match in _SPELLED_BOUND.finditer(source):
+        scale = next(k for prefix, k in _MULTIPLIERS if match[1].startswith(prefix))
+        found.append((match.start(), scale))
+    return [value for _, value in sorted(found)]
 
 
 def _strip_punct(s: str) -> str:
@@ -68,6 +81,12 @@ def _has_word_start(text: str, prefixes: tuple[str, ...], whole: tuple[str, ...]
 def _find(part: str, hay: str, start: int = 0) -> re.Match | None:
     """Поиск части цитаты целыми словами: «на 4» не должно найтись внутри «на 45%»."""
     return re.compile(r"(?<!\w)" + re.escape(part) + r"(?!\w)").search(hay, start)
+
+
+def literal_quote_in_text(quote: str, text: str) -> bool:
+    """Дословный непрерывный фрагмент с учётом пробелов и типографики."""
+    normalized = normalize_text(quote)
+    return bool(normalized and _find(normalized, normalize_text(text)))
 
 
 def quote_in_text(quote: str, text: str) -> bool:
@@ -113,10 +132,41 @@ def _close(a: float, b: float) -> bool:
     return abs(a - b) <= 1e-6 or abs(a - b) <= 1e-3 * max(abs(a), abs(b))
 
 
+def metric_numbers(metric: Metric) -> list[float]:
+    return [number for part in (metric.before, metric.after, metric.change) for number in extract_numbers(part)]
+
+
 def numbers_in_quote(metric: Metric) -> bool:
-    wanted = [n for part in (metric.before, metric.after, metric.change) for n in extract_numbers(part)]
+    wanted = [extract_numbers(part) for part in (metric.before, metric.after, metric.change) if part]
     have = extract_numbers(metric.quote)
-    return all(any(_close(w, h) for h in have) for w in wanted)
+    return bool(wanted) and all(group and all(any(_close(w, h) for h in have) for w in group) for group in wanted)
+
+
+_FORECAST = re.compile(
+    r"\b(?:ожидается|ожидаем\w*|планируется|планиру\w*|по плану|по прогнозу|прогнозируется|"
+    r"целев(?:ое|ая|ой|ым|ого) (?:значение|показател\w*|эффект\w*)|"
+    r"expected to|projected to|forecast(?:ed)? to|aims? to|targets? a|will)\b"
+)
+_STATEMENT_BOUNDARY = re.compile(r"(?<=[.!?;])\s+|,\s+(?=(?:а|но|однако|but|while)\b)")
+
+
+def metric_kind_from_quote(quote: str, text: str = "") -> MetricKind | None:
+    """Находит явный прогноз в той части предложения, где впервые стоит число цитаты."""
+    q = normalize_text(quote)
+    number = min((match for match in (re.search(r"\d", q), _SPELLED_BOUND.search(q)) if match),
+                 key=lambda match: match.start(), default=None)
+    if number is None:
+        return None
+    prefix = _STATEMENT_BOUNDARY.split(q[:number.start()])[-1]
+    if _FORECAST.search(prefix):
+        return MetricKind.PLAN
+    if not text:
+        return None
+    # Цитата может начинаться после вводного «как ожидается».
+    statements = _STATEMENT_BOUNDARY.split(normalize_text(text))
+    contexts = [part[:match.start() + number.start()]
+                for part in statements if (match := _find(q, part))]
+    return MetricKind.PLAN if contexts and all(_FORECAST.search(part) for part in contexts) else None
 
 
 def _sign(change: str | None) -> str | None:
@@ -143,4 +193,7 @@ def direction_consistent(metric: Metric) -> bool:
 
 
 def verify_metric(metric: Metric, text: str) -> bool:
-    return quote_in_text(metric.quote, text) and numbers_in_quote(metric) and direction_consistent(metric)
+    if not (quote_in_text(metric.quote, text) and numbers_in_quote(metric) and direction_consistent(metric)):
+        return False
+    explicit_kind = metric_kind_from_quote(metric.quote, text)
+    return explicit_kind is None or explicit_kind == metric.kind

@@ -61,8 +61,6 @@ function queryFromAddress(search: URLSearchParams) {
 
 function CasesFilters({ query, options }: { query: URLSearchParams; options: FilterOptions }) {
   const [, setSearch] = useSearchParams();
-  const [plan, setPlan] = useState(query.get("plan") ?? "");
-  const [metrics, setMetrics] = useState(query.get("metrics"));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,16 +70,14 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
       const value = String(data.get(key) ?? "");
       if (value) search.set(key, value);
     }
-    if (metrics !== null) search.set("metrics", metrics);
+    if (data.has("metrics")) search.set("metrics", "1");
+    else if (query.has("metrics")) search.set("metrics", "0");
     if (data.has("doubtful")) search.set("doubtful", "1");
     setSearch(search);
   }
 
   return (
-    <form className="filters card" aria-labelledby="case-filters" method="get" action="/" onSubmit={submit} onReset={() => {
-      setPlan(query.get("plan") ?? "");
-      setMetrics(query.get("metrics"));
-    }}>
+    <form className="filters card" aria-labelledby="case-filters" method="get" action="/" onSubmit={submit}>
       <h2 id="case-filters" className="filter-heading">Поиск и фильтры</h2>
       <label className="field field-grow">
         <span>Поиск</span>
@@ -93,10 +89,7 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
         return (
           <label className="field" key={name}>
             <span>{label}</span>
-            <select name={name} className={name === "plan" ? "plan-select" : undefined}
-              {...(name === "plan"
-                ? { value: plan, onChange: (event) => setPlan(event.currentTarget.value) }
-                : { defaultValue: current })}>
+            <select name={name} className={name === "plan" ? "plan-select" : undefined} defaultValue={current}>
               <option value="">{empty}</option>
               {current && !options[name].some(({ value }) => value === current) && (
                 <option value={current}>{current} (устаревшее значение)</option>
@@ -108,8 +101,7 @@ function CasesFilters({ query, options }: { query: URLSearchParams; options: Fil
       })}
       <div className="checks">
         <label className="check">
-          <input type="checkbox" name="metrics" value="1" checked={metrics === null ? !plan : metrics === "1"}
-            onChange={(event) => setMetrics(event.currentTarget.checked ? "1" : "0")} />
+          <input type="checkbox" name="metrics" value="1" defaultChecked={query.get("metrics") === "1"} />
           {" "}Только с цифрами
         </label>
         <label className="check">
@@ -309,9 +301,6 @@ export function Cases() {
   };
   const needsOptions = selectFilters.some(({ name }) => query.has(name));
   const apiQuery = new URLSearchParams(query);
-  apiQuery.delete("doubtful");
-  apiQuery.set("metrics", query.get("metrics") ?? (query.has("plan") ? "0" : "1"));
-  if (query.has("doubtful")) apiQuery.set("doubtful", "1");
   let unmatched = false;
   if (options) {
     for (const { name } of selectFilters) {

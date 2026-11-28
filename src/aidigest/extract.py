@@ -10,7 +10,7 @@ from aidigest.llm import LLMClient, LLMFormatError
 from aidigest.methodology import (CRITERIA, OTHER_CRITERION, guess_criterion, infer_level, methodology_prompt,
                                   select_methodology)
 from aidigest.models import Article, Case, Level, Methodology, Metric, MetricKind, QualitativeEvidence, Sector, Stage
-from aidigest.quotes import quote_in_text, verify_metric
+from aidigest.quotes import extract_numbers, literal_quote_in_text, metric_kind_from_quote, normalize_text, quote_in_text, verify_metric
 from aidigest.registry import SourceRegistry
 from aidigest.urls import normalize_url
 
@@ -19,6 +19,10 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 
 Кейс — это конкретное внедрение: известно, КТО внедрил (организация, ведомство, регион, компания),
 ГДЕ и ЧТО сделано (какая система на основе ИИ и для какой задачи).
+Каждый элемент cases — ровно одно внедрение для одной задачи. Если статья описывает несколько проектов,
+верни отдельный объект для каждого проекта. Показатели, описание и отрасль относятся только к этому объекту.
+Цифровизация, электронные формы и обычная автоматизация сами по себе не являются внедрением ИИ.
+Упоминание ИИ в другом проекте статьи или в рассуждении об отрасли не доказывает применение ИИ здесь.
 НЕ являются кейсами: общие новости рынка, мнения и интервью без конкретного проекта, анонсы конференций,
 обзоры технологий, планы «внедрить ИИ» без указания конкретного проекта, отраслевая статистика и прогнозы
 (суммарные затраты отрасли, опросы компаний, рейтинги регионов), продажа ИИ-продукта без названного заказчика.
@@ -29,9 +33,16 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 с названным исполнителем — это кейс, даже если результатов пока нет (тогда metrics: []).
 
 Для каждого кейса укажи:
+- implementation_quote — один короткий дословный фрагмент, в котором прямо сказано, что ИИ или конкретный
+  метод ИИ применяют, тестируют или разрабатывают именно для этой задачи. Без склейки предложений и многоточий;
+- application — конкретная задача системы или название проекта. Лучше скопировать эту часть
+  implementation_quote из оригинала, даже если оригинал на другом языке;
+- attribution_quote — короткая дословная цитата о месте внедрения или исполнителе этого проекта,
+  если их названия отсутствуют в implementation_quote и в заголовке. Иначе null;
 - country — страна по-русски («Россия», «Германия», «Республика Корея»);
-- region — субъект/регион/штат или null; municipality — город/муниципалитет или null;
-- organization — кто внедрил, или null;
+- region — субъект/регион/штат или null; municipality — город/муниципалитет или null. Имена копируй из материала.
+  Учитывай место самого внедрения. Название портала, издатель, охват поиска и место публикации его не определяют;
+- organization — кто внедрил (название как в источнике), или null;
 - sector — «госсектор» (органы власти, госучреждения, ЖКХ, госмедицина, образование) или «бизнес» (компании);
 - industry — отрасль (транспорт, здравоохранение, ЖКХ, госуправление, промышленность…);
 - ai_technology — какая технология ИИ (компьютерное зрение, генеративный ИИ, предиктивная аналитика…);
@@ -69,6 +80,7 @@ SYSTEM_PROMPT = f"""Ты аналитик, который собирает ке�
 
 Ответ — только JSON без пояснений, строго такого вида:
 {{"cases": [{{"is_concrete": true, "not_concrete_reason": null, "country": "", "region": null, "municipality": null, "organization": null,
+  "implementation_quote": "", "application": "", "attribution_quote": null,
   "sector": "госсектор", "industry": "", "ai_technology": "", "title": "", "summary": "", "stage": "неизвестно",
   "qualitative_evidence": [{{"criterion": "", "fact": "", "quote": ""}}],
   "metrics": [{{"name": "", "criterion": "", "before": null, "after": null, "change": null,
@@ -135,6 +147,99 @@ def _cases_from_reply(reply: Any) -> list[dict]:
 
 FEDERAL_REGION = "федеральный уровень"
 
+_AI_SIGNAL = re.compile(
+    r"\b(?:ии|ai|copilot|chatgpt|госпромпт|искусственн\w+ интеллект\w*|машинн\w+ обучени\w*|"
+    r"нейросет\w*|нейронн\w+ сет\w*|компьютерн\w+ зрени\w*|"
+    r"больш\w+ языков\w+ модел\w*|llms?|artificial intelligence|machine learning|"
+    r"deep learning|neural networks?|computer vision|large language models?)\b"
+)
+_SEPARATE_STATEMENTS = re.compile(r"[.!?;]\s+|,\s+(?=(?:но|однако|but|while)\b)")
+_NEGATED_AI = re.compile(
+    r"\b(?:без|не (?:использ\w*|примен\w*|внедр\w*)|without|not (?:use|using|apply|deploy))\s+(?:\w+\s+){0,2}$"
+)
+_ENTITY_WORDS = re.compile(r"[^\W_]+")
+_GEO_FILLERS = {"г", "город", "обл", "область", "край", "регион", "округ", "республика", "штат", "the", "of"}
+_REGION_MENTION = re.compile(r"\b[а-я]+ск(?:ая|ой|ую|ою)\s+област(?:ь|и|ью)\b")
+_RU_ENDING = re.compile(r"(?<=[а-я]{5})(?:ский|ская|ское|ские|скую|ской|ского|ском|ским|"
+                        r"ая|ой|ого|ому|ом|ов|ым|ам|ах|ью|[аеёиоуыюяь])$")
+_REGION_ALIASES = {"свердловская область": ("средний урал", "екатеринбург")}
+_COUNTRY_ALIASES = {"германия": ("germany", "deutschland"), "эстония": ("estonia", "eesti"),
+                    "канада": ("canada",), "великобритания": ("united kingdom", "uk"),
+                    "сша": ("united states", "usa")}
+_LATIN_APPLICATION = re.compile(r"\b(?:build\w*|develop\w*|us(?:e|es|ed|ing)|analys\w*|analyz\w*|"
+                                r"deploy\w*|detect\w*|apply\w*|appli\w*|implement\w*|guid\w*|"
+                                r"help\w*|pilot\w*|automat\w*)\b")
+_CYRILLIC = re.compile(r"[а-я]")
+_AI_REFERENCE = re.compile(r"\b(?:на (?:его|ее|их) основе|эт(?:от|а|и) (?:алгоритм|модел|систем)\w*|"
+                           r"(?:this|that|these) (?:model|algorithm|system)s?)\b")
+_TASK_FILLERS = {"искус", "интел", "систе", "техно", "внедр", "помощ", "инстр", "испол"}
+
+
+def _task_terms(text: str) -> set[str]:
+    return {word[:5] for word in _ENTITY_WORDS.findall(text) if len(word) >= 5} - _TASK_FILLERS
+
+
+def _task_in_statement(application: str, statement: str) -> bool:
+    if literal_quote_in_text(application, statement):
+        return True
+    if _CYRILLIC.search(application) and not _CYRILLIC.search(statement):
+        return bool(_LATIN_APPLICATION.search(statement))
+    application_terms = _task_terms(application)
+    return bool(application_terms) and len(application_terms & _task_terms(statement)) >= min(2, len(application_terms))
+
+
+def _implementation_context(quote: str, application: str, text: str) -> str:
+    evidence = normalize_text(quote)
+    task = normalize_text(application)
+    if not evidence or not task or len(evidence) > 650 or _AI_SIGNAL.fullmatch(task):
+        return ""
+    source = normalize_text(text)
+    for statement in re.split(r"\.{3,}|…", evidence):
+        for part in _SEPARATE_STATEMENTS.split(statement):
+            part = part.strip(" .!?;,")
+            if not _task_in_statement(task, part):
+                continue
+            offsets = [signal.start() for signal in _AI_SIGNAL.finditer(part)]
+            for position in re.finditer(r"(?<!\w)" + re.escape(part) + r"(?!\w)", source):
+                # Начало цитаты может скрывать отрицание. Соседний фрагмент также помогает установить регион.
+                preceding = source[max(0, position.start() - 125):position.start()]
+                if any(not _NEGATED_AI.search(preceding + part[:offset]) for offset in offsets):
+                    return preceding + part
+                if _AI_REFERENCE.search(part):
+                    previous = _SEPARATE_STATEMENTS.split(preceding.rstrip(" .!?;"))[-1]
+                    if any(not _NEGATED_AI.search(previous[:signal.start()]) for signal in _AI_SIGNAL.finditer(previous)):
+                        return preceding + part
+    return ""
+
+
+def _entity_supported(name: str, context: str, *, geography: bool = False) -> bool:
+    normalized = normalize_text(name)
+    names = (normalized,)
+    if "(" in normalized:
+        names += (normalized.split("(", 1)[0].strip(), *re.findall(r"\(([^()]+)\)", normalized))
+    if geography:
+        names += _REGION_ALIASES.get(normalized, ()) + _COUNTRY_ALIASES.get(normalized, ())
+    contextual_tokens = {_RU_ENDING.sub("", word) for word in _ENTITY_WORDS.findall(normalize_text(context))}
+    for candidate in names:
+        if literal_quote_in_text(candidate, context):
+            return True
+        tokens = _ENTITY_WORDS.findall(candidate)
+        if geography:
+            tokens = [token for token in tokens if token not in _GEO_FILLERS]
+        if tokens and all(_RU_ENDING.sub("", token) in contextual_tokens for token in tokens):
+            return True
+    return False
+
+
+def _record_rejection(rejected: list[str] | None, title: str, reason: str) -> None:
+    if rejected is not None:
+        rejected.append(f"{title}: {reason}")
+
+
+def _numeric_slot(value: Any) -> str | None:
+    slot = _opt(value)
+    return slot if extract_numbers(slot) else None
+
 
 def _verified_variant(metric: Metric, text: str) -> Metric:
     """Показатель с флагом проверки. LLM часто досчитывает недостающее: «стало 77%» из «−23%» или
@@ -156,7 +261,8 @@ def _verified_variant(metric: Metric, text: str) -> Metric:
 def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, today: date,
                   max_chars: int, rejected: list[str] | None = None) -> list[Case]:
     """Кейсы статьи. Отсеянные кандидаты (не конкретное внедрение) — в rejected как «название: причина»."""
-    user = f"Заголовок: {article.title}\nURL: {article.url}\n\nТекст статьи:\n{article.text[:max_chars]}"
+    text = article.text[:max_chars]
+    user = f"Заголовок: {article.title}\nURL: {article.url}\n\nТекст статьи:\n{text}"
     try:
         cases_raw = _cases_from_reply(llm.complete_json(SYSTEM_PROMPT, user, validate=_cases_from_reply))
     except ValueError as e:  # фейки и старые клиенты могут не применять validate сами
@@ -164,7 +270,9 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
 
     url = normalize_url(article.url)
     source = registry.to_source(article)
+    source_regions = set(_REGION_MENTION.findall(normalize_text(text)))
     out: list[Case] = []
+    seen_applications: set[tuple[str, str]] = set()
     for raw in cases_raw:
         title = _opt(raw.get("title")) or article.title
         country = _opt(raw.get("country")) or "неизвестно"
@@ -173,13 +281,44 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
         municipality = _opt(raw.get("municipality"))
         if str(raw.get("is_concrete")).strip().lower() in ("false", "нет", "no", "0"):
             reason = _opt(raw.get("not_concrete_reason")) or "не конкретное внедрение"
-            if rejected is not None:
-                rejected.append(f"{title}: {reason}")
+            _record_rejection(rejected, title, reason)
             continue
         if not (organization or region or municipality or country != "неизвестно"):
-            if rejected is not None:
-                rejected.append(f"{title}: не указано, кто и где внедрил")
+            _record_rejection(rejected, title, "не указано, кто и где внедрил")
             continue
+        quote = _opt(raw.get("implementation_quote")) or ""
+        application = _opt(raw.get("application")) or ""
+        evidence = _implementation_context(quote, application, text) or _implementation_context(quote, application, article.title)
+        if not evidence:
+            _record_rejection(rejected, title, "в источнике нет цитаты о применении ИИ для этой задачи")
+            continue
+        attribution = _opt(raw.get("attribution_quote")) or ""
+        project_context = evidence
+        if len(attribution) <= 400 and literal_quote_in_text(attribution, text):
+            project_context += f"\n{attribution}"
+        context = f"{article.title}\n{project_context}"
+        if region:
+            # Заголовок дайджеста может называть другую область, чем сам проект.
+            region_in_evidence = _REGION_MENTION.search(normalize_text(project_context))
+            region_context = project_context if region_in_evidence else context
+            sole_region = (not region_in_evidence and source_regions
+                           and all(_entity_supported(region, mention, geography=True) for mention in source_regions))
+            if not sole_region and not _entity_supported(region, region_context, geography=True):
+                _record_rejection(rejected, title, "регион внедрения не подтверждён источником")
+                continue
+        if municipality and not _entity_supported(municipality, context, geography=True):
+            municipality = None
+        if organization and not _entity_supported(organization, context):
+            organization = None
+        country_only = (country != "неизвестно" and infer_level(country, None) == Level.WORLD
+                        and _entity_supported(country, context, geography=True))
+        if not (region or municipality or organization or country_only):
+            _record_rejection(rejected, title, "в источнике не указан исполнитель или место внедрения")
+            continue
+        application_key = (normalize_text(application), normalize_text(quote).rstrip(".!?"))
+        if application_key in seen_applications:
+            continue
+        seen_applications.add(application_key)
         level = infer_level(country, region, municipality, organization)
         if level == Level.RF_REGIONS and not region and not municipality:
             region = FEDERAL_REGION
@@ -189,16 +328,21 @@ def extract_cases(article: Article, llm: LLMClient, registry: SourceRegistry, to
         for m in raw.get("metrics") or []:
             if not isinstance(m, dict) or not _opt(m.get("quote")):
                 continue
+            before, after, change = (_numeric_slot(m.get(key)) for key in ("before", "after", "change"))
+            if not (before or after or change):
+                continue
+            metric_quote = str(m["quote"]).strip()
             metric = Metric(
                 name=_opt(m.get("name")) or "показатель",
                 criterion=_criterion(m.get("criterion"), str(m.get("name") or ""), methodology),
-                before=_opt(m.get("before")), after=_opt(m.get("after")), change=_opt(m.get("change")),
-                unit=_opt(m.get("unit")), kind=_enum(MetricKind, m.get("kind"), MetricKind.FACT),
-                quote=str(m["quote"]).strip(), source_url=url,
+                before=before, after=after, change=change,
+                unit=_opt(m.get("unit")), kind=metric_kind_from_quote(metric_quote, text)
+                or _enum(MetricKind, m.get("kind"), MetricKind.FACT),
+                quote=metric_quote, source_url=url,
             )
-            metric = _verified_variant(metric, article.text)
+            metric = _verified_variant(metric, text)
             metrics.append(metric)
-        qualitative = (_qualitative_evidence(raw.get("qualitative_evidence"), article.text[:max_chars], url)
+        qualitative = (_qualitative_evidence(raw.get("qualitative_evidence"), text, url)
                        if methodology == Methodology.M1 else [])
         out.append(Case(
             id=uuid.uuid4().hex[:12], first_seen=today, updated=today, level=level,

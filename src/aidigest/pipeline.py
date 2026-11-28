@@ -13,8 +13,8 @@ from aidigest.confirm import confirm_case, plan_confirmation_queue
 from aidigest.dedup import find_duplicate, merge_into
 from aidigest.extract import extract_cases
 from aidigest.llm import LLMClient, LLMFormatError, OfflineCacheMiss
-from aidigest.models import Article, Case, Level
-from aidigest.publication import case_update, merge_source
+from aidigest.models import Article, Case, ConfirmationStatus, Level
+from aidigest.publication import case_update, is_stale_publication, merge_source
 from aidigest.registry import SourceRegistry
 from aidigest.search import SearchClient
 from aidigest.store import Store, StoreData
@@ -29,10 +29,12 @@ class RunReport:
     articles_processed: int = 0
     articles_rejected: int = 0
     articles_failed: int = 0
+    articles_stale: int = 0
     candidates_rejected: int = 0
     cases_new: int = 0
     cases_updated: int = 0
     confirmations_done: int = 0
+    cases_confirmed: int = 0
     confirmations_deferred: int = 0
     budget_exhausted: bool = False
     flags: dict[str, int] = field(default_factory=dict)
@@ -49,11 +51,13 @@ class RunReport:
             "Статей обработано": self.articles_processed,
             "Статей отсеяно (не кейс)": self.articles_rejected,
             "Статей с ошибкой LLM (повтор в след. раз)": self.articles_failed,
+            "Статей вне окна свежести": self.articles_stale,
             "Кандидатов отсеяно (не конкретное внедрение)": self.candidates_rejected,
             "Кейсов новых": self.cases_new,
             "Кейсов обновлено": self.cases_updated,
-            "Подтверждений проведено": self.confirmations_done,
-            "Подтверждений отложено": self.confirmations_deferred,
+            "Попыток перепроверки": self.confirmations_done,
+            "Кейсов независимо подтверждено": self.cases_confirmed,
+            "Перепроверок отложено": self.confirmations_deferred,
             "Бюджет исчерпан": "да" if self.budget_exhausted else "нет",
         }
         rows.update({f"Флаг: {k}": v for k, v in sorted(self.flags.items())})
@@ -119,6 +123,7 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
     data = deps.store.load()
     new_ids: set[str] = set()
     seen_now: set[str] = set()
+    stale_urls: set[str] = set()
     start = today - timedelta(days=s.freshness_days)
 
     queries = [q for q in deps.queries if q.level in levels]
@@ -148,6 +153,11 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             url = normalize_url(article.url)
             if url in seen_now:
                 continue
+            if is_stale_publication(article, start):
+                stale_urls.add(url)
+                _log(f"Статья вне окна свежести ({url})")
+                continue
+            stale_urls.discard(url)
             seen_now.add(url)
             _log(f"  Статья {ai}/{len(fresh)}: {article.title[:90] or url}")
             rejected: list[str] = []
@@ -194,6 +204,8 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
             if articles:
                 _classify(case, deps, articles, today)
             report.confirmations_done += 1
+            if case.confirmation_status == ConfirmationStatus.CONFIRMED:
+                report.cases_confirmed += 1
             deps.store.save(data)
         except BudgetExceeded:
             report.budget_exhausted = True
@@ -208,6 +220,7 @@ def run_cycle(deps: Deps, levels: set[Level], today: date) -> RunReport:
 
     deps.store.save(data)
     report.credits_spent = deps.budget.spent
+    report.articles_stale = len(stale_urls)
     report.llm_calls = getattr(deps.llm, "calls", 0)
     report.flags = dict(Counter(str(f) for c in data.cases for f in c.flags))
     return report

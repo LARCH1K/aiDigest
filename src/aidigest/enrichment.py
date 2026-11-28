@@ -9,6 +9,7 @@ from itertools import chain
 
 from aidigest.cache import DiskCache
 from aidigest.failure import explain
+from aidigest.fetch import FetchedArticle, fetch_article
 from aidigest.llm import LLMClient, OfflineCacheMiss
 from aidigest.models import Article, Case
 from aidigest.national_plan import classify_plan, plan_input
@@ -42,8 +43,7 @@ def _cached_articles(cache: DiskCache, urls: set[str]) -> dict[str, Article]:
                 continue
             raw_text = row.get("raw_content") or row.get("content")
             text = raw_text if isinstance(raw_text, str) and raw_text.strip() else ""
-            value = row.get("published_date")
-            published = publication_date(value) if isinstance(value, str) else None
+            published = publication_date(row.get("published_date"))
             article = articles.setdefault(url, Article(url=url, domain="", title="", text=""))
             if len(text) > len(article.text):
                 article.text = text
@@ -64,16 +64,15 @@ def _case_articles(case: Case, cached: dict[str, Article], cache: DiskCache) -> 
         article = cached.get(key)
         text = article.text if article else ""
         published = article.published_at if article else None
-        if not text:
+        if not text or not published:
             try:
-                fetched = cache.get("fetch", source.url)
+                fetched = fetch_article(source.url, cache, allow_network=False)
             except (OSError, ValueError):
-                fetched = None
-            if isinstance(fetched, str):
-                text = fetched
-                published = published or publication_date(None, fetched)
+                fetched = FetchedArticle()
+            published = published or publication_date(fetched.published_at, fetched.text if not text else "")
+            text = text or fetched.text
         articles.append(Article(url=source.url, domain=source.domain, title=source.title, text=text,
-                                published_at=published))
+                                published_at=publication_date(published, url=source.url)))
     return articles
 
 

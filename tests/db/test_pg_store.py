@@ -45,6 +45,29 @@ def test_archive_update_preserves_legacy_evidence_without_exposing_it_as_plan(pg
     assert updated["plan_links"] == []
 
 
+def test_archive_hides_unsupported_links_and_unproven_confirmations(pg, make_case, make_metric):
+    from aidigest.models import ConfirmationStatus, PlanLink
+
+    unverifiable = make_metric(confirmed_by=["https://another.example/notes"])
+    empty = make_metric(before=None, after=None, change=None)
+    wrong_link = PlanLink(indicator_id="1.2", source_url=unverifiable.source_url,
+                          quote="Система ИИ распознаёт транспортные потоки.", explanation="Применяется ИИ.")
+    original = make_case(metrics=[unverifiable, empty], plan_links=[wrong_link], plan_input="old",
+                         confirmation_status=ConfirmationStatus.CONFIRMED)
+    store = PgCaseStore(pg)
+    store.save(StoreData([original]))
+
+    restored, = store.load().cases
+
+    assert restored.confirmation_status == ConfirmationStatus.SINGLE
+    [metric] = restored.metrics
+    assert metric.confirmed_by == []
+    assert restored.plan_links == [] and restored.plan_input is None
+    with pg.begin() as conn:
+        raw = conn.scalar(select(cases.c.data).where(cases.c.id == original.id))
+    assert raw["metrics"][0]["confirmed_by"] == ["https://another.example/notes"]
+
+
 def test_save_is_atomic(pg, make_case):
     bad = make_case(id="c2")
     object.__setattr__(bad, "level", None)   # сломает INSERT

@@ -14,6 +14,32 @@ from sqlalchemy.engine import Connection, Engine
 from aidigest.db.schema import cases as cases_table
 from aidigest.db.schema import processed_urls as urls_table
 from aidigest.models import Case
+from aidigest.national_plan import supports_indicator
+from aidigest.publication import publication_date
+from aidigest.quotes import metric_numbers
+
+
+def _restore_case(payload: dict) -> Case:
+    case = Case.model_validate(payload)
+    for source in case.sources:
+        if not source.published_at:
+            source.published_at = publication_date(None, url=source.url)
+    case.metrics = [metric for metric in case.metrics if metric_numbers(metric)]
+    rejected_confirmations = False
+    for metric in case.metrics:
+        evidence_urls = {item.source_url for item in metric.confirmation_evidence}
+        valid = [url for url in metric.confirmed_by if url in evidence_urls]
+        rejected_confirmations |= valid != metric.confirmed_by
+        metric.confirmed_by = valid
+    if rejected_confirmations:
+        case.confirmation_attempts = 0
+        case.last_confirmation_attempt = None
+    case.recompute_status()
+    links = [link for link in case.plan_links if supports_indicator(link.indicator_id, link.quote)]
+    if links != case.plan_links:
+        case.plan_links = links
+        case.plan_input = None
+    return case
 
 # Один ключ PostgreSQL для всех команд, меняющих базу кейсов.
 _CASE_WRITER_LOCK = 0x4149444947455354
@@ -99,7 +125,7 @@ class PgCaseStore:
     def load(self) -> StoreData:
         with self._transaction() as c:
             rows = c.execute(select(cases_table.c.data).order_by(cases_table.c.first_seen, cases_table.c.id))
-            cases = [Case.model_validate(r[0]) for r in rows]
+            cases = [_restore_case(r[0]) for r in rows]
             urls = {r[0] for r in c.execute(select(urls_table.c.url))}
         return StoreData(cases, urls)
 

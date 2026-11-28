@@ -17,12 +17,13 @@ CASE_HEADERS = ["Уровень", "Страна", "Регион", "Органи�
                 "Впервые найден", "Обновлён"]
 METRIC_HEADERS = ["ID кейса", "Название кейса", "Показатель", "Критерий", "Было", "Стало", "Изменение",
                   "Единица", "Вид", "Цитата", "Источник", "Цитата проверена", "Подтверждено источниками",
-                  "Расхождения", "Р-1 (Base / Project)"]
+                  "Расхождения", "Р-1 (Base / Project)", "Свидетельства подтверждения"]
 PLAN_HEADERS = ["Пункт", "Показатель нацплана", "ID кейса", "Название кейса", "Связь с кейсом", "Цитата", "Источник"]
 M1_HEADERS = ["ID кейса", "Название кейса", "Критерий", "Факт", "Цитата", "Источник"]
 _STATUS_ORDER = [ConfirmationStatus.CONFIRMED, ConfirmationStatus.CONFLICT, ConfirmationStatus.SINGLE]
 _WIDE = {"Суть": 60, "Показатели": 60, "Источники": 50, "Флаги": 30, "Цитата": 60, "Название": 35,
-         "Название кейса": 35, "Показатель нацплана": 60, "Факт": 45, "Связь с кейсом": 45}
+         "Название кейса": 35, "Показатель нацплана": 60, "Факт": 45, "Связь с кейсом": 45,
+         "Свидетельства подтверждения": 60}
 
 
 def metric_line(m: Metric) -> str:
@@ -48,7 +49,9 @@ def _metric_rows(c: Case):
     for m in c.metrics:
         yield [c.id, c.title, m.name, m.criterion, m.before, m.after, m.change, m.unit, m.kind, m.quote,
                m.source_url, "да" if m.quote_verified else "нет", "\n".join(m.confirmed_by),
-               "\n".join(m.conflicting_values), r1_ratio(m) if c.methodology == Methodology.R1 else None]
+               "\n".join(m.conflicting_values), r1_ratio(m) if c.methodology == Methodology.R1 else None,
+               "\n\n".join("\n".join(dict.fromkeys((item.source_url, item.quote, item.basis_quote)))
+                           for item in m.confirmation_evidence)]
 
 
 def _plan_rows(cases: list[Case]):

@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from aidigest.models import Case, Level
+from aidigest.models import Case, Level, Methodology, QualitativeEvidence
 from aidigest.services.cases import CaseService
 from aidigest.services.catalog import CatalogService
 from aidigest.store import MemoryStore, StoreData
@@ -32,10 +32,17 @@ def effects_client(make_case, make_metric):
     without_metrics = make_case(id="only_plan", metrics=[])
     without_plan = make_case(id="only_criterion", level=Level.SVERDLOVSK, industry="ЖКХ",
                             metrics=[make_metric(criterion="качество")])
+    liverpool = make_case(id="liverpool", level=Level.WORLD, country="Великобритания", region=None,
+                          methodology=Methodology.M1, title="Кейс Ливерпуля", metrics=[], qualitative_evidence=[
+                              QualitativeEvidence(criterion="сопутствующие риски", fact="Ответ проверяет сотрудник.",
+                                                  source_url="https://example.org/liverpool",
+                                                  quote="A caseworker checks every suggested response."),
+                          ])
     data = StoreData(cases=[
         Case.model_validate({**matching.model_dump(), "plan_links": [LINK], "plan_input": "fingerprint"}),
         Case.model_validate({**without_metrics.model_dump(), "plan_links": [LINK]}),
         without_plan,
+        liverpool,
     ])
     app = FastAPI()
     app.include_router(api_routes(CaseService(MemoryStore(data)), CatalogService(Path("config")), SimpleNamespace()))
@@ -58,6 +65,8 @@ def test_list_and_detail_expose_all_metrics_and_plan_evidence(effects_client):
     assert case["first_seen"] == "2026-11-01"
     assert case["headline"] == "время в пробках: 13 мин → 5 мин"
     assert case["headline_unverified"] is False
+    assert case["status"] == "один_источник"
+    assert case["status_label"] == detail["status_label"] == "без независимого подтверждения"
     assert case["metrics"] == detail["metrics"]
     assert len(case["metrics"]) == 4
     assert case["metrics"][3]["name"] == "доля ошибок"
@@ -69,7 +78,11 @@ def test_list_and_detail_expose_all_metrics_and_plan_evidence(effects_client):
 
 
 @pytest.mark.parametrize(("params", "expected"), [
-    ({}, {"matching", "only_criterion"}),
+    ({}, {"matching", "only_criterion", "only_plan", "liverpool"}),
+    ({"metrics": "0"}, {"matching", "only_criterion", "only_plan", "liverpool"}),
+    ({"metrics": "1"}, {"matching", "only_criterion"}),
+    ({"criterion": "сопутствующие риски"}, {"liverpool"}),
+    ({"criterion": "сопутствующие риски", "metrics": "1"}, set()),
     ({"criterion": "скорость"}, {"matching"}),
     ({"criterion": "качество"}, {"matching", "only_criterion"}),
     ({"criterion": "качество", "level": "Свердловская область"}, {"only_criterion"}),

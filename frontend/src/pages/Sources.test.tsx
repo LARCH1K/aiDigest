@@ -87,7 +87,7 @@ it("маршруты запросов и справки показывают п�
   });
   expect(await screen.findByText("AI in public transport")).toBeVisible();
   expect(screen.getByText("Английский")).toBeVisible();
-  expect(screen.getByText(/последние 14 дн/)).toBeVisible();
+  expect(screen.getByText(/старше 14 дн/)).toHaveTextContent("Материалы без даты остаются в выборке");
   await user.click(screen.getByRole("link", { name: "Справка" }));
   expect(await screen.findByRole("heading", { name: "Как читать таблицу" })).toBeVisible();
   expect(await screen.findByText("Найдите ещё одну статью")).toBeVisible();

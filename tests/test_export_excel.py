@@ -1,7 +1,17 @@
 import openpyxl
 
 from aidigest.export_excel import export_xlsx, metric_line
-from aidigest.models import Level, PlanLink
+from aidigest.models import ConfirmationEvidence, Level, PlanLink
+
+
+def test_export_includes_evidence_for_independent_confirmation(tmp_path, make_case, make_metric):
+    evidence = ConfirmationEvidence(source_url="https://example.org/study", quote="Цитата с числом",
+                                    basis_quote="Исследователи провели собственные замеры")
+    case = make_case(metrics=[make_metric(confirmed_by=[evidence.source_url], confirmation_evidence=[evidence])])
+    rows = openpyxl.load_workbook(export_xlsx([case], None, tmp_path / "out.xlsx"))["Показатели"].values
+    headers, row = tuple(rows)
+    value = row[headers.index("Свидетельства подтверждения")]
+    assert evidence.source_url in value and evidence.quote in value and evidence.basis_quote in value
 
 
 def test_export_sheets_order_and_headers(tmp_path, make_case, make_metric):

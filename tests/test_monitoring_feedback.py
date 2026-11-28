@@ -37,8 +37,9 @@ def test_meta_combines_industry_spelling_variants(make_case):
 
 def test_world_case_retains_cited_qualitative_risk(registry, case_reply):
     quote = "Caseworkers must check every suggested decision before sending it."
-    article = Article(url="https://example.org/project", domain="example.org", title="Project", text=quote)
-    reply = case_reply(country="Канада", region=None)["cases"][0]
+    evidence = "In Canada, caseworkers use AI to draft benefit decisions"
+    article = Article(url="https://example.org/project", domain="example.org", title="Project", text=f"{evidence}. {quote}")
+    reply = case_reply(country="Канада", region=None, implementation_quote=evidence, application="draft benefit decisions")["cases"][0]
     reply["metrics"] = []
     reply["qualitative_evidence"] = [
         {"criterion": "сопутствующие риски", "fact": "Требуется проверка сотрудником.", "quote": quote},

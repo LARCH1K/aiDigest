@@ -73,6 +73,12 @@ class Flag(StrEnum):
     CONFIRMATION_SKIPPED = "подтверждение_не_проводилось"
 
 
+class ConfirmationEvidence(BaseModel):
+    source_url: str
+    quote: str
+    basis_quote: str
+
+
 class Metric(BaseModel):
     name: str
     criterion: str
@@ -85,6 +91,7 @@ class Metric(BaseModel):
     source_url: str
     quote_verified: bool = False
     confirmed_by: list[str] = []
+    confirmation_evidence: list[ConfirmationEvidence] = Field(default_factory=list)
     conflicting_values: list[str] = []
 
 

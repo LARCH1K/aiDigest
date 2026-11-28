@@ -111,6 +111,21 @@ def test_archive_preserves_new_date_even_when_llm_cache_is_missing(archive, make
     assert llm.calls == 1
 
 
+@pytest.mark.parametrize("fetch_entry", [
+    "Опубликовано 03.02.2025\nСотрудники прошли обучение работе с искусственным интеллектом.",
+    {"text": "Сотрудники прошли обучение работе с искусственным интеллектом.",
+     "published_date": "2025-02-03"},
+])
+def test_archive_reads_publication_date_in_old_and_new_http_cache(archive, make_case, make_source, fetch_entry):
+    store, cache, _ = archive
+    url = "https://example.org/training"
+    store.save(StoreData([make_case(sources=[make_source(url)], metrics=[])]))
+    cache.put("fetch", url, fetch_entry)
+
+    assert main(["enrich", "--limit", "1", "--offline"]) == 0
+    assert store.load().cases[0].sources[0].published_at == "2025-02-03"
+
+
 @pytest.mark.parametrize("command", [["run", "--offline"], ["enrich", "--limit", "1", "--offline"]])
 def test_commands_refuse_while_another_writer_holds_lock(case_store, monkeypatch, capsys, command):
     from aidigest.store import WriterBusy

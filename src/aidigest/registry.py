@@ -7,7 +7,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from aidigest.models import Article, Level, Reliability, Source, SourceType
-from aidigest.publication import publication_date
+from aidigest.publication import article_publication_date
 from aidigest.urls import domain_of, normalize_url
 
 _RUSSIAN_LEVELS = {Level.RF_REGIONS, Level.SVERDLOVSK}
@@ -55,7 +55,7 @@ class SourceRegistry:
             url=normalize_url(article.url),
             domain=domain_of(article.url),
             title=article.title,
-            published_at=publication_date(article.published_at, article.text),
+            published_at=article_publication_date(article),
             reliability=info.reliability if info else Reliability.UNRATED,
             source_type=info.source_type if info else SourceType.UNKNOWN,
         )

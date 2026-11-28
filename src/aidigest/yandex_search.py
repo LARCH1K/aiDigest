@@ -12,8 +12,9 @@ import requests
 
 from aidigest.budget import BudgetExceeded, CreditBudget, Pool
 from aidigest.cache import DiskCache
-from aidigest.fetch import fetch_article_text
+from aidigest.fetch import fetch_article
 from aidigest.models import Article
+from aidigest.publication import publication_date
 from aidigest.urls import domain_of, normalize_url
 
 SEARCH_URL = "https://searchapi.api.cloud.yandex.net/v2/web/search"
@@ -27,6 +28,11 @@ def _matches_domain(domain: str, filters: list[str]) -> bool:
 
 def _xml_text(node: ElementTree.Element | None) -> str:
     return "".join(node.itertext()).strip() if node is not None else ""
+
+
+def _article_from_result(row: dict) -> Article:
+    return Article(url=row["url"], title=row["title"], domain=domain_of(row["url"]),
+                   text=row["raw_content"] or row["content"], published_at=publication_date(row.get("published_date")))
 
 
 def _domain_operator(domains: list[str]) -> str:
@@ -116,9 +122,7 @@ class YandexSearch:
         cache_key = {"params": params, "exclude": exclude}
         entry = self.cache.get("yandex", cache_key)
         if entry is not None:
-            return [Article(url=row["url"], title=row["title"], domain=domain_of(row["url"]),
-                            text=row["raw_content"] or row["content"])
-                    for row in entry["results"]]
+            return [_article_from_result(row) for row in entry["results"]]
         if self.offline:
             return []
 
@@ -147,7 +151,6 @@ class YandexSearch:
             return []
 
         results = []
-        articles = []
         seen = set()
         for doc in result.findall("./results//doc"):
             raw_url = _xml_text(doc.find("url"))
@@ -166,11 +169,11 @@ class YandexSearch:
             seen.add(url)
             title = _xml_text(doc.find("title"))
             snippet = " ".join(filter(None, map(_xml_text, doc.findall("./passages/passage"))))
-            full_text = fetch_article_text(url, self.cache)
-            if full_text or snippet:
-                results.append(dict(url=url, title=title, raw_content=full_text, content=snippet))
-                articles.append(Article(url=url, domain=domain, title=title, text=full_text or snippet))
-                if len(articles) == max_results:
+            fetched = fetch_article(url, self.cache)
+            if fetched.text or snippet:
+                results.append(dict(url=url, title=title, raw_content=fetched.text, content=snippet,
+                                    published_date=fetched.published_at))
+                if len(results) == max_results:
                     break
         self.cache.put("yandex", cache_key, {"results": results})
-        return articles
+        return [_article_from_result(row) for row in results]

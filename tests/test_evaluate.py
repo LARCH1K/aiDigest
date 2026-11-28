@@ -5,7 +5,8 @@ from aidigest.evaluate import ExpectedFigure, ReferenceCase, load_references, ru
 from aidigest.fetch import fetch_text
 from fakes import FakeLLM
 
-TEXT = "Время в пробках сократилось с 13 до 5 минут. Число ДТП снизилось со 161 до 122."
+TEXT = ("В Челябинской области ИИ анализирует дорожную обстановку. "
+        "Время в пробках сократилось с 13 до 5 минут. Число ДТП снизилось со 161 до 122.")
 
 
 def test_fetch_prefers_manual_text(tmp_path):

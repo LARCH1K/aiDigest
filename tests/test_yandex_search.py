@@ -1,11 +1,13 @@
 from base64 import b64encode
 from datetime import date
-from unittest.mock import Mock
+from io import BytesIO
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from aidigest.budget import CreditBudget
 from aidigest.cache import DiskCache
+from aidigest.fetch import FetchedArticle
 
 
 def test_yandex_search_cache_and_filters(tmp_path, monkeypatch):
@@ -20,8 +22,8 @@ def test_yandex_search_cache_and_filters(tmp_path, monkeypatch):
     response.json.return_value = {"rawData": b64encode(xml.encode()).decode()}
     post = Mock(return_value=response)
     monkeypatch.setattr("aidigest.yandex_search.requests.post", post)
-    fetch = Mock(return_value="")
-    monkeypatch.setattr("aidigest.yandex_search.fetch_article_text", fetch)
+    fetch = Mock(return_value=FetchedArticle())
+    monkeypatch.setattr("aidigest.yandex_search.fetch_article", fetch)
     cache = DiskCache(tmp_path)
     budget = CreditBudget(10, 0.3)
     client = YandexSearch("test-key", "folder", cache, budget)
@@ -38,6 +40,72 @@ def test_yandex_search_cache_and_filters(tmp_path, monkeypatch):
     assert budget.spent == 1
     post.assert_called_once()
     fetch.assert_called_once()
+
+
+@pytest.mark.parametrize(("metadata", "expected"), [
+    ('<meta property="article:published_time" content="2026-10-03T23:40:00+05:00">'
+     '<meta property="article:modified_time" content="2026-10-12">', "2026-10-03"),
+    ('<script type="application/ld+json">{"@graph": [{"@type": "Article", '
+     '"datePublished": "2026-10-03", "dateModified": "2026-10-12"}]}</script>', "2026-10-03"),
+    ('<time itemprop="datePublished" datetime="2026-10-03">3 October 2026</time>', "2026-10-03"),
+    ('<meta property="article:modified_time" content="2026-10-12">'
+     '<script type="application/ld+json">{"dateModified": "2026-10-12"}</script>', None),
+])
+def test_yandex_keeps_only_original_date_from_downloaded_page(metadata, expected, tmp_path, monkeypatch):
+    from urllib3.response import HTTPResponse
+
+    from aidigest.yandex_search import YandexSearch
+
+    xml = b"""<yandexsearch><response><results><doc><url>https://example.org/article</url>
+      <title>Case</title><passages><passage>Search snippet</passage></passages>
+      <modtime>2026-10-12</modtime></doc></results></response></yandexsearch>"""
+    response = Mock()
+    response.json.return_value = {"rawData": b64encode(xml).decode()}
+    post = Mock(return_value=response)
+    monkeypatch.setattr("aidigest.yandex_search.requests.post", post)
+    monkeypatch.setattr("aidigest.fetch.getaddrinfo",
+                        lambda *args, **kwargs: [(None, None, None, None, ("93.184.216.34", 443))])
+    body = f"""<!doctype html><html><head>{metadata}</head><body><article>
+      <p>An AI pilot helped operators process requests faster and reduced the workload of the support team.
+      The municipality shared the evaluation and published detailed metrics from three participating offices.</p>
+      </article></body></html>""".encode()
+    pool = MagicMock()
+    pool.return_value.request.return_value = HTTPResponse(
+        body=BytesIO(body), status=200, headers={"Last-Modified": "Mon, 12 Oct 2026 00:00:00 GMT"},
+        preload_content=False,
+    )
+    monkeypatch.setattr("urllib3.HTTPSConnectionPool", pool)
+    cache = DiskCache(tmp_path)
+    budget = CreditBudget(10)
+    articles = YandexSearch("key", "folder", cache, budget).search("AI", pool="collect")
+    assert len(articles) == 1 and "reduced the workload" in articles[0].text
+    assert articles[0].published_at == expected
+    assert YandexSearch(None, None, cache, budget, offline=True).search("AI", pool="collect") == articles
+    pool.return_value.request.assert_called_once()
+
+
+def test_yandex_reads_results_cached_without_publication_metadata(tmp_path):
+    from aidigest.publication import is_stale_publication
+    from aidigest.yandex_search import YandexSearch
+
+    cache = DiskCache(tmp_path)
+    params = {
+        "query": {"searchType": "SEARCH_TYPE_COM", "queryText": "AI date:>=20261024"},
+        "groupSpec": {"groupMode": "GROUP_MODE_FLAT", "groupsOnPage": "5"},
+        "responseFormat": "FORMAT_XML",
+    }
+    cache.put("yandex", {"params": params, "exclude": []}, {"results": [{
+        "url": "https://example.org/2024/02/36414", "title": "Статья", "raw_content": "Текст", "content": "",
+    }]})
+
+    budget = CreditBudget(10)
+    articles = YandexSearch(None, None, cache, budget, offline=True).search(
+        "AI", pool="collect", start_date=date(2026, 10, 24),
+    )
+    assert len(articles) == 1 and articles[0].text == "Текст"
+    assert articles[0].published_at is None
+    assert is_stale_publication(articles[0], date(2026, 10, 24))
+    assert budget.spent == 0
 
 
 def test_xml_error_is_not_cached(tmp_path, monkeypatch):
@@ -106,7 +174,7 @@ def test_search_keeps_successful_group_when_another_group_fails(tmp_path, monkey
     response.json.return_value = {"rawData": b64encode(xml.encode()).decode()}
     post = Mock(side_effect=[response, ConnectionError("вторая группа недоступна")])
     monkeypatch.setattr("aidigest.yandex_search.requests.post", post)
-    monkeypatch.setattr("aidigest.yandex_search.fetch_article_text", lambda *_: "Описание кейса")
+    monkeypatch.setattr("aidigest.yandex_search.fetch_article", lambda *_: FetchedArticle("Описание кейса"))
     client = YandexSearch("key", "folder", DiskCache(tmp_path), CreditBudget(10))
     articles = client.search("government AI case studies", pool="collect", include_domains=domains)
     assert [article.url for article in articles] == [url]

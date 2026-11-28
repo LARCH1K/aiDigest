@@ -14,7 +14,8 @@ from aidigest.store import MemoryStore
 from fakes import FakeLLM, FakeSearch
 
 ROOT = Path(__file__).resolve().parent.parent
-A1 = Article(url="https://e1.ru/1", domain="e1.ru", title="", text="Время ожидания сократилось с 10 до 2 минут.")
+A1 = Article(url="https://e1.ru/1", domain="e1.ru", title="",
+             text="В Свердловской области ИИ анализирует дорожную обстановку. Время ожидания сократилось с 10 до 2 минут.")
 A2 = Article(url="https://e1.ru/2", domain="e1.ru", title="", text="Общая новость без кейса.")
 
 
@@ -25,7 +26,8 @@ def deps(store, search, llm, budget, registry, queries):
 
 def sverd_reply(case_reply):
     return case_reply(region="Свердловская область", quote="сократилось с 10 до 2 минут",
-                      before="10 мин", after="2 мин")
+                      before="10 мин", after="2 мин",
+                      implementation_quote="В Свердловской области ИИ анализирует дорожную обстановку")
 
 
 def test_cycle_collects_dedups_and_reports(tmp_path, registry, case_reply, case_store):
@@ -227,16 +229,20 @@ def test_confirmations_saved_one_by_one(registry, case_reply, case_store):
     """Подтверждение второго кейса падает (KeyboardInterrupt) — результат первого уже в базе."""
     from aidigest.dedup import DEDUP_SYSTEM_PROMPT
     b = CreditBudget(30)
+    evidence = "В Свердловской области ИИ помогает больницам выявлять опухоли"
+    second_quote = "Число просмотренных снимков дошло до 25"
+    article = A1.model_copy(update={"text": f"{A1.text} {evidence}. {second_quote}."})
 
     def search(**kw):
         if kw["pool"] == "confirm":
             if sum(c["pool"] == "confirm" for c in s.calls) > 1:  # текущий вызов уже записан
                 raise KeyboardInterrupt
             return []
-        return [A1]
+        return [article]
     s = FakeSearch(search, budget=b)
     reply = sverd_reply(case_reply)
-    second = dict(reply["cases"][0], title="второй")
+    second = dict(reply["cases"][0], title="ИИ для больниц", industry="здравоохранение", application="выявлять опухоли",
+                  implementation_quote=evidence, metrics=[{"name": "число снимков", "after": "25", "quote": second_quote}])
     reply = {"cases": [reply["cases"][0], second]}
 
     def route(system, user):
